@@ -229,32 +229,34 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-6 bg-slate-900 text-white">
-      <h1 className="text-2xl font-semibold">
-        Simple WebRTC Call – Room: <span className="font-mono">{roomId}</span>
-      </h1>
+    <main className="h-full w-full flex flex-col items-center justify-center gap-3 p-3 border border-default-200">
+      <div className="flex justify-between w-full">
+        <h1 className="text-xl font-semibold">
+          Room: <span className="font-mono">{roomId}</span>
+        </h1>
 
-      <p className="text-sm text-slate-300">Status: {status}</p>
+        <p className="text-sm">Status: {status}</p>
+      </div>
 
-      <div className="flex flex-wrap gap-4 justify-center w-full max-w-4xl">
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-sm">Your camera</span>
+      <div className="flex flex-col md:flex-row gap-3 w-full h-full">
+        <div className="flex relative flex-col items-center w-full h-full">
+          <span className="text-sm absolute bottom-3 left-3">You</span>
           <video
             ref={localVideoRef}
             autoPlay
             playsInline
             muted
-            className="bg-black rounded-lg w-72 h-48 object-cover"
+            className="bg-black border border-default-200 rounded-lg w-full h-full object-cover"
           />
         </div>
 
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-sm">Remote</span>
+        <div className="flex relative flex-col items-center w-full h-full">
+          <span className="text-sm absolute bottom-3 left-3">Guest</span>
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="bg-black rounded-lg w-72 h-48 object-cover"
+            className="bg-black border border-default-200 rounded-lg w-full h-full object-cover"
           />
         </div>
       </div>
