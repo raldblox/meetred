@@ -1,8 +1,7 @@
 // app/room/[roomId]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 
 type SignalMessage =
@@ -10,16 +9,30 @@ type SignalMessage =
   | { type: "answer"; sdp: RTCSessionDescriptionInit; sender: string }
   | { type: "candidate"; candidate: RTCIceCandidateInit; sender: string };
 
+type RoomEvent =
+  | { type: "joined"; sender: string }
+  | { type: "call-start"; sender: string }
+  | { type: "call-end"; sender: string }
+  | { type: "call-declined"; sender: string };
+
 export default function RoomPage({ roomId }: { roomId: string }) {
   const [status, setStatus] = useState<string>("Not joined");
   const [isJoined, setIsJoined] = useState(false);
   const [isCalling, setIsCalling] = useState(false);
+  const [peerPresent, setPeerPresent] = useState(false);
+  const [isRinging, setIsRinging] = useState(false);
+  const [incomingOffer, setIncomingOffer] =
+    useState<RTCSessionDescriptionInit | null>(null);
+  const [incomingCaller, setIncomingCaller] = useState<string | null>(null);
+  const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const myIdRef = useRef<string>("");
 
   // Create Supabase client (works both server/client, but we only use it in effects)
@@ -52,6 +65,29 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       }
     };
   }, [supabase]);
+
+  useEffect(() => {
+    const audio = ringtoneRef.current;
+    if (!audio) return;
+
+    if (isRinging) {
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise) {
+        playPromise.catch(() => {
+          // ignore autoplay rejections
+        });
+      }
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, [isRinging]);
 
   const createPeerConnection = () => {
     if (pcRef.current) return pcRef.current;
@@ -96,30 +132,23 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     const pc = createPeerConnection();
 
     if (msg.type === "offer") {
-      setStatus("Received offer, creating answer…");
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      setIncomingOffer(msg.sdp);
+      setIncomingCaller(msg.sender);
+      setIsRinging(true);
+      setStatus("Incoming call");
+      return;
+    }
 
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      await sendSignal({
-        type: "answer",
-        sdp: answer,
-        sender: myIdRef.current,
-      });
-      setIsCalling(true);
-      setStatus("In call");
-    } else if (msg.type === "answer") {
-      setStatus("Received answer, connecting…");
+    if (msg.type === "answer") {
+      setStatus("Received answer, connecting...");
       await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      await flushPendingCandidates();
       setIsCalling(true);
+      setIsAwaitingAnswer(false);
+      setIsRinging(false);
       setStatus("In call");
     } else if (msg.type === "candidate") {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
-      } catch (err) {
-        console.error("Error adding candidate", err);
-      }
+      await queueIceCandidate(msg.candidate);
     }
   };
 
@@ -130,6 +159,129 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       event: "signal",
       payload: msg,
     });
+  };
+
+  const flushPendingCandidates = async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    const remoteDesc = pc.remoteDescription;
+    if (!remoteDesc || !remoteDesc.type) return;
+    const queued = pendingCandidatesRef.current.splice(0);
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.error("Error adding queued candidate", err);
+      }
+    }
+  };
+
+  const queueIceCandidate = async (candidate: RTCIceCandidateInit) => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    if (!pc.remoteDescription || !pc.remoteDescription.type) {
+      pendingCandidatesRef.current.push(candidate);
+      return;
+    }
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.error("Error adding ice candidate", err);
+    }
+  };
+
+  const clearVideoElement = (ref: RefObject<HTMLVideoElement | null>) => {
+    const video = ref.current;
+    if (!video) return;
+    video.pause();
+    video.srcObject = null;
+    video.removeAttribute("src");
+    try {
+      video.load();
+    } catch {
+      // ignore load errors
+    }
+  };
+
+  const sendRoomEvent = async (event: RoomEvent) => {
+    if (!channelRef.current) return;
+    await channelRef.current.send({
+      type: "broadcast",
+      event: "room-event",
+      payload: event,
+    });
+  };
+
+  const handleRoomEvent = (event: RoomEvent) => {
+    if (event.sender === myIdRef.current) return;
+
+    if (event.type === "joined") {
+      setPeerPresent(true);
+      setStatus("Guest already joined");
+      return;
+    }
+
+    if (event.type === "call-start") {
+      setIsRinging(true);
+      setStatus("Incoming call");
+      return;
+    }
+
+    if (event.type === "call-end") {
+      setIsCalling(false);
+      setIsRinging(false);
+      clearVideoElement(localVideoRef);
+      clearVideoElement(remoteVideoRef);
+      setIncomingOffer(null);
+      setIncomingCaller(null);
+      setIsAwaitingAnswer(false);
+      pendingCandidatesRef.current.length = 0;
+      setStatus("The other participant ended the call");
+      setPeerPresent(false);
+      return;
+    }
+
+    if (event.type === "call-declined") {
+      setIsAwaitingAnswer(false);
+      setIsCalling(false);
+      setStatus("Guest declined the call");
+      return;
+    }
+  };
+
+  const acceptIncomingCall = async () => {
+    if (!incomingOffer) return;
+
+    const pc = createPeerConnection();
+    setStatus("Answering call\u2026");
+    await pc.setRemoteDescription(
+      new RTCSessionDescription(incomingOffer)
+    );
+    await flushPendingCandidates();
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await sendSignal({
+      type: "answer",
+      sdp: answer,
+      sender: myIdRef.current,
+    });
+
+    setIsCalling(true);
+    setIsRinging(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setIsAwaitingAnswer(false);
+    setStatus("In call");
+  };
+
+  const declineIncomingCall = async () => {
+    setIsRinging(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setStatus("Call declined");
+    await sendRoomEvent({ type: "call-declined", sender: myIdRef.current });
   };
 
   const joinRoom = async () => {
@@ -158,12 +310,19 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         .on("broadcast", { event: "signal" }, (event) => {
           const payload = event.payload as SignalMessage;
           handleSignal(payload);
+        })
+        .on("broadcast", { event: "room-event" }, (event) => {
+          const payload = event.payload as RoomEvent;
+          handleRoomEvent(payload);
         });
+
+      channelRef.current = channel;
 
       channel.subscribe((status) => {
         if (status === "SUBSCRIBED") {
           setStatus("Joined room. You can start the call.");
           setIsJoined(true);
+          void sendRoomEvent({ type: "joined", sender: myIdRef.current });
         } else if (status === "CHANNEL_ERROR") {
           setStatus("Channel error");
         } else if (status === "TIMED_OUT") {
@@ -172,8 +331,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           setStatus("Channel closed");
         }
       });
-
-      channelRef.current = channel;
     } catch (err) {
       console.error(err);
       setStatus("Error: cannot access camera/mic");
@@ -187,7 +344,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
 
     const pc = createPeerConnection();
-    setStatus("Creating offer…");
+    setStatus("Creating offer\u2026");
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -198,8 +355,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       sender: myIdRef.current,
     });
 
+    void sendRoomEvent({ type: "call-start", sender: myIdRef.current });
+
     setIsCalling(true);
-    setStatus("Calling… waiting for answer");
+    setIsAwaitingAnswer(true);
+    setStatus("Calling\u2026 waiting for answer");
   };
 
   const hangUp = () => {
@@ -208,15 +368,20 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       pcRef.current.close();
       pcRef.current = null;
     }
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
-    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     }
+    clearVideoElement(localVideoRef);
+    clearVideoElement(remoteVideoRef);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setIsAwaitingAnswer(false);
+    pendingCandidatesRef.current.length = 0;
     setIsCalling(false);
+    setIsRinging(false);
     setStatus("Call ended. You’re still in the room.");
+    void sendRoomEvent({ type: "call-end", sender: myIdRef.current });
   };
 
   const copyRoomLink = async () => {
@@ -230,12 +395,17 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
   const statusAccentColor = isCalling
     ? "bg-emerald-400"
-    : isJoined
-      ? "bg-amber-400"
-      : "bg-slate-400";
+    : isAwaitingAnswer
+      ? "bg-indigo-400"
+      : peerPresent
+        ? "bg-amber-400"
+        : isJoined
+          ? "bg-blue-400"
+          : "bg-slate-400";
 
   return (
     <main className="flex flex-1 flex-col w-full gap-3 bg-default-50 p-3 min-h-0">
+      <audio ref={ringtoneRef} src="/skype_caller_tone.mp3" preload="auto" loop />
       <header className="flex w-full gap-2 flex-row items-center justify-between">
         <div className="flex flex-col gap-1">
           <p className="text-xs font-semibold uppercase tracking-widest text-default-500">
@@ -255,6 +425,36 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           </span>
         </div>
       </header>
+
+      {isRinging && (
+        <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-semibold text-amber-900 shadow">
+          <div className="flex flex-1 flex-col gap-1">
+            <p aria-live="assertive">
+              Incoming call{incomingCaller ? ` from ${incomingCaller}` : ""}.
+            </p>
+            <p className="text-xs font-normal uppercase tracking-wider text-amber-700">
+              Consent required: answer or decline to proceed.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={acceptIncomingCall}
+              disabled={!incomingOffer}
+              className="rounded-full bg-emerald-600 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
+            >
+              Answer
+            </button>
+            <button
+              type="button"
+              onClick={declineIncomingCall}
+              className="rounded-full bg-slate-900/80 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-600"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
 
       <section className="flex-1 w-full min-h-0 grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg">
@@ -286,36 +486,47 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       </section>
 
       <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-100 p-3 shadow-sm backdrop-blur-sm">
-        <button
-          onClick={joinRoom}
-          disabled={isJoined}
-          className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
-        >
-          {isJoined ? "Joined" : "Join room"}
-        </button>
+        {!isJoined && (
+          <button
+            onClick={joinRoom}
+            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          >
+            Join room
+          </button>
+        )}
 
-        <button
-          onClick={startCall}
-          disabled={!isJoined || isCalling}
-          className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:bg-blue-900"
-        >
-          Start call
-        </button>
+        {isJoined && !isCalling && !isAwaitingAnswer && (
+          <button
+            onClick={startCall}
+            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          >
+            Start call
+          </button>
+        )}
 
-        <button
-          onClick={hangUp}
-          disabled={!isCalling}
-          className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:cursor-not-allowed disabled:bg-red-900"
-        >
-          Hang up
-        </button>
+        {isAwaitingAnswer && (
+          <p className="text-sm font-medium text-default-700">
+            Calling… waiting for guest to answer
+          </p>
+        )}
 
-        {/* <button
-          onClick={copyRoomLink}
-          className="rounded-full border border-default-200 px-5 py-2 text-sm font-semibold text-default-700 transition-colors hover:border-default-400 hover:bg-default-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
-        >
-          Copy room link
-        </button> */}
+        {isCalling && (
+          <button
+            onClick={hangUp}
+            className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+          >
+            Hang up
+          </button>
+        )}
+
+        {!isCalling && (
+          <button
+            onClick={copyRoomLink}
+            className="rounded-full border border-default-200 px-5 py-2 text-sm font-semibold text-default-700 transition-colors hover:border-default-400 hover:bg-default-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
+          >
+            Copy room link
+          </button>
+        )}
       </div>
     </main>
   );
