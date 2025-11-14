@@ -1,7 +1,14 @@
 // app/room/[roomId]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import {
   Button,
@@ -52,6 +59,26 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const myIdRef = useRef<string>("");
+  const handleSignalRef = useRef<(msg: SignalMessage) => void>(() => {});
+  const handleRoomEventRef = useRef<(event: RoomEvent) => void>(() => {});
+  const isJoiningRef = useRef(false);
+  const autoJoinAttemptedRef = useRef(false);
+
+  const ensureLocalStream = useCallback(async () => {
+    if (localStreamRef.current) {
+      return localStreamRef.current;
+    }
+    setStatus("Requesting access");
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+    localStreamRef.current = stream;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+    return stream;
+  }, []);
 
   // Create Supabase client (works both server/client, but we only use it in effects)
   const supabase = useMemo(
@@ -174,6 +201,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       await queueIceCandidate(msg.candidate);
     }
   };
+  handleSignalRef.current = handleSignal;
 
   const sendSignal = async (msg: SignalMessage) => {
     if (!channelRef.current) return;
@@ -253,7 +281,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     if (event.type === "call-end") {
       setIsCalling(false);
       setIsRinging(false);
-      clearVideoElement(localVideoRef);
       clearVideoElement(remoteVideoRef);
       setIncomingOffer(null);
       setIncomingCaller(null);
@@ -261,6 +288,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       pendingCandidatesRef.current.length = 0;
       setStatus("Ended the call");
       setPeerPresent(false);
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
       return;
     }
 
@@ -271,6 +302,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       return;
     }
   };
+  handleRoomEventRef.current = handleRoomEvent;
 
   const acceptIncomingCall = async () => {
     if (!incomingOffer) return;
@@ -305,36 +337,28 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     await sendRoomEvent({ type: "call-declined", sender: myIdRef.current });
   };
 
-  const joinRoom = async () => {
+  const joinRoom = useCallback(async () => {
+    if (isJoined || isJoiningRef.current) return;
+
+    isJoiningRef.current = true;
     try {
-      setStatus("Requesting access");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-
-      localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Join Supabase channel for this room
+      await ensureLocalStream();
       setStatus("Joining signaling channel…");
       const channel = supabase
         .channel(`webrtc-room-${roomId}`, {
           config: {
             broadcast: {
-              self: false, // we don't need to receive our own messages
+              self: false,
             },
           },
         })
         .on("broadcast", { event: "signal" }, (event) => {
           const payload = event.payload as SignalMessage;
-          handleSignal(payload);
+          handleSignalRef.current?.(payload);
         })
         .on("broadcast", { event: "room-event" }, (event) => {
           const payload = event.payload as RoomEvent;
-          handleRoomEvent(payload);
+          handleRoomEventRef.current?.(payload);
         });
 
       channelRef.current = channel;
@@ -355,8 +379,40 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     } catch (err) {
       console.error(err);
       setStatus("Cannot access camera/mic");
+    } finally {
+      isJoiningRef.current = false;
     }
-  };
+  }, [ensureLocalStream, isJoined, roomId, supabase]);
+
+  useEffect(() => {
+    autoJoinAttemptedRef.current = false;
+    isJoiningRef.current = false;
+    setIsJoined(false);
+    setPeerPresent(false);
+    setIsCalling(false);
+    setIsRinging(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setIsAwaitingAnswer(false);
+    pendingCandidatesRef.current.length = 0;
+    setStatus("Not joined");
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    clearVideoElement(remoteVideoRef);
+  }, [roomId, supabase]);
+
+  useEffect(() => {
+    if (isJoined) return;
+    if (autoJoinAttemptedRef.current) return;
+    autoJoinAttemptedRef.current = true;
+    void joinRoom();
+  }, [isJoined, joinRoom]);
 
   const startCall = async () => {
     if (!isJoined) {
@@ -364,6 +420,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       return;
     }
 
+    await ensureLocalStream();
     const pc = createPeerConnection();
     setStatus("Creating the call");
 
@@ -385,15 +442,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
   const hangUp = () => {
     if (pcRef.current) {
-      pcRef.current.getSenders().forEach((s) => s.track?.stop());
       pcRef.current.close();
       pcRef.current = null;
     }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-    }
-    clearVideoElement(localVideoRef);
     clearVideoElement(remoteVideoRef);
     setIncomingOffer(null);
     setIncomingCaller(null);
@@ -457,26 +508,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               <QrCode size={18} />
             </Button>
           </div>
-        </div>
-        <div className="flex flex-1 items-center justify-end gap-3 sm:flex-none">
-          <Chip
-            variant="dot"
-            color={
-              isCalling
-                ? "secondary"
-                : isAwaitingAnswer
-                  ? "warning"
-                  : peerPresent
-                    ? "primary"
-                    : isJoined
-                      ? "success"
-                      : "default"
-            }
-            size="sm"
-            className="px-3 py-1"
-          >
-            {status}
-          </Chip>
         </div>
       </header>
 
@@ -558,7 +589,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
         {isAwaitingAnswer && (
           <p className="text-sm font-medium text-default-700">
-            Calling… waiting for guest to answer
+            Callingâ€¦ waiting for guest to answer
           </p>
         )}
 
