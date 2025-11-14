@@ -1,10 +1,12 @@
 // app/room/[roomId]/page.tsx
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { Button, Chip } from "@heroui/react";
 import { CopyIcon } from "lucide-react";
+import { ThemeSwitch } from "@/components/theme-switch";
 
 type SignalMessage =
   | { type: "offer"; sdp: RTCSessionDescriptionInit; sender: string }
@@ -27,6 +29,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     useState<RTCSessionDescriptionInit | null>(null);
   const [incomingCaller, setIncomingCaller] = useState<string | null>(null);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
+  const [roomLink, setRoomLink] = useState("");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -51,6 +55,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   useEffect(() => {
     myIdRef.current = crypto.randomUUID();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setRoomLink(window.location.href);
+  }, [roomId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -385,23 +394,20 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   };
 
   const copyRoomLink = async () => {
+    const link =
+      roomLink ||
+      (typeof window !== "undefined" ? window.location.href : undefined);
+    if (!link) {
+      setStatus("Room link unavailable");
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(link);
       setStatus("Copied to clipboard");
     } catch {
       setStatus("Unable to copy link");
     }
   };
-
-  const statusAccentColor = isCalling
-    ? "bg-emerald-400"
-    : isAwaitingAnswer
-      ? "bg-indigo-400"
-      : peerPresent
-        ? "bg-amber-400"
-        : isJoined
-          ? "bg-blue-400"
-          : "bg-slate-400";
 
   return (
     <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
@@ -411,34 +417,31 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         preload="auto"
         loop
       />
-      <header className="flex w-full gap-2 flex-row items-center justify-between">
-        <div className="flex flex-col">
-          <p className="text-xs font-semibold uppercase tracking-widest text-default-500">
-            Active room
-          </p>
-          <h1 className="text-2xl font-semibold text-default-900 break-all">
-            {roomId}
-          </h1>
-        </div>
-        <Chip
-          variant="dot"
-          color={
-            isCalling
-              ? "secondary"
-              : isAwaitingAnswer
-                ? "warning"
-                : peerPresent
-                  ? "primary"
-                  : isJoined
-                    ? "success"
-                    : "default"
-          }
-          size="sm"
-          className="px-3 py-1"
-        >
-          {status}
-        </Chip>
-      </header>
+      <section className="grid w-full md:grid-cols-[minmax(0,1fr)_auto]">
+        <header className="flex p-3 w-full flex-wrap items-center justify-between rounded-2xl bg-white/80 shadow-sm backdrop-blur dark:bg-black/30">
+          {/* <div className="flex flex-1 items-center justify-end gap-3 sm:flex-none">
+            {qrCodeDataUrl ? (
+              <div className="rounded-md border border-default-200 bg-white p-1 dark:bg-black/30">
+                <Image
+                  src={qrCodeDataUrl ? qrCodeDataUrl : window.location.href}
+                  alt="Room QR code"
+                  width={60}
+                  height={60}
+                  priority
+                />
+              </div>
+            ) : null}
+          </div> */}
+          <div className="flex flex-col">
+            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
+              room id
+            </p>
+            <h1 className="text-2xl font-semibold text-default-900 break-all">
+              {roomId}
+            </h1>
+          </div>
+        </header>
+      </section>
 
       {isRinging && (
         <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-semibold text-amber-900 shadow">
@@ -541,6 +544,28 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           </Button>
         )}
       </div>
+      <footer className="flex items-center p-3 gap-3 opacity-50 justify-between w-full">
+        <Chip
+          variant="dot"
+          color={
+            isCalling
+              ? "secondary"
+              : isAwaitingAnswer
+                ? "warning"
+                : peerPresent
+                  ? "primary"
+                  : isJoined
+                    ? "success"
+                    : "default"
+          }
+          size="sm"
+          classNames={{ base: "border-1 !py-0 !px-2" }}
+          className="px-3 py-1"
+        >
+          {status}
+        </Chip>
+        <ThemeSwitch />
+      </footer>
     </main>
   );
 }
