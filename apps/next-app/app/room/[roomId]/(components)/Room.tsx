@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
+import { Button, Chip } from "@heroui/react";
+import { CopyIcon } from "lucide-react";
 
 type SignalMessage =
   | { type: "offer"; sdp: RTCSessionDescriptionInit; sender: string }
@@ -236,7 +238,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       setIncomingCaller(null);
       setIsAwaitingAnswer(false);
       pendingCandidatesRef.current.length = 0;
-      setStatus("The other participant ended the call");
+      setStatus("Ended the call");
       setPeerPresent(false);
       return;
     }
@@ -254,9 +256,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
     const pc = createPeerConnection();
     setStatus("Answering call\u2026");
-    await pc.setRemoteDescription(
-      new RTCSessionDescription(incomingOffer)
-    );
+    await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer));
     await flushPendingCandidates();
 
     const answer = await pc.createAnswer();
@@ -286,7 +286,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
   const joinRoom = async () => {
     try {
-      setStatus("Requesting camera/mic…");
+      setStatus("Requesting access");
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
@@ -320,7 +320,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
       channel.subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          setStatus("Joined room. You can start the call.");
+          setStatus("Joined room");
           setIsJoined(true);
           void sendRoomEvent({ type: "joined", sender: myIdRef.current });
         } else if (status === "CHANNEL_ERROR") {
@@ -333,7 +333,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       });
     } catch (err) {
       console.error(err);
-      setStatus("Error: cannot access camera/mic");
+      setStatus("Cannot access camera/mic");
     }
   };
 
@@ -344,7 +344,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
 
     const pc = createPeerConnection();
-    setStatus("Creating offer\u2026");
+    setStatus("Creating the call");
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -359,7 +359,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
     setIsCalling(true);
     setIsAwaitingAnswer(true);
-    setStatus("Calling\u2026 waiting for answer");
+    setStatus("Waiting for answer");
   };
 
   const hangUp = () => {
@@ -380,14 +380,14 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     pendingCandidatesRef.current.length = 0;
     setIsCalling(false);
     setIsRinging(false);
-    setStatus("Call ended. You’re still in the room.");
+    setStatus("Call ended");
     void sendRoomEvent({ type: "call-end", sender: myIdRef.current });
   };
 
   const copyRoomLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      setStatus("Room link copied to clipboard");
+      setStatus("Copied to clipboard");
     } catch {
       setStatus("Unable to copy link");
     }
@@ -404,10 +404,15 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           : "bg-slate-400";
 
   return (
-    <main className="flex flex-1 flex-col w-full gap-3 bg-default-50 p-3 min-h-0">
-      <audio ref={ringtoneRef} src="/skype_caller_tone.mp3" preload="auto" loop />
+    <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
+      <audio
+        ref={ringtoneRef}
+        src="/skype_caller_tone.mp3"
+        preload="auto"
+        loop
+      />
       <header className="flex w-full gap-2 flex-row items-center justify-between">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col">
           <p className="text-xs font-semibold uppercase tracking-widest text-default-500">
             Active room
           </p>
@@ -415,15 +420,24 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             {roomId}
           </h1>
         </div>
-        <div className="flex items-center gap-3 rounded-full border border-default-200 bg-white/70 px-4 py-2 backdrop-blur">
-          <span className="text-xs font-semibold uppercase tracking-wide text-default-500">
-            Status
-          </span>
-          <span className="flex items-center gap-2 text-sm font-medium text-default-900">
-            <span className={`h-2.5 w-2.5 rounded-full ${statusAccentColor}`} />
-            {status}
-          </span>
-        </div>
+        <Chip
+          variant="dot"
+          color={
+            isCalling
+              ? "secondary"
+              : isAwaitingAnswer
+                ? "warning"
+                : peerPresent
+                  ? "primary"
+                  : isJoined
+                    ? "success"
+                    : "default"
+          }
+          size="sm"
+          className="px-3 py-1"
+        >
+          {status}
+        </Chip>
       </header>
 
       {isRinging && (
@@ -437,21 +451,19 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             </p>
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={acceptIncomingCall}
+            <Button
+              onPress={acceptIncomingCall}
               disabled={!incomingOffer}
               className="rounded-full bg-emerald-600 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
             >
               Answer
-            </button>
-            <button
-              type="button"
-              onClick={declineIncomingCall}
+            </Button>
+            <Button
+              onPress={declineIncomingCall}
               className="rounded-full bg-slate-900/80 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-600"
             >
               Decline
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -485,23 +497,23 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-100 p-3 shadow-sm backdrop-blur-sm">
+      <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm">
         {!isJoined && (
-          <button
-            onClick={joinRoom}
+          <Button
+            onPress={joinRoom}
             className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             Join room
-          </button>
+          </Button>
         )}
 
         {isJoined && !isCalling && !isAwaitingAnswer && (
-          <button
-            onClick={startCall}
+          <Button
+            onPress={startCall}
             className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             Start call
-          </button>
+          </Button>
         )}
 
         {isAwaitingAnswer && (
@@ -511,21 +523,22 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         )}
 
         {isCalling && (
-          <button
-            onClick={hangUp}
+          <Button
+            onPress={hangUp}
             className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
           >
             Hang up
-          </button>
+          </Button>
         )}
 
         {!isCalling && (
-          <button
-            onClick={copyRoomLink}
+          <Button
+            startContent={<CopyIcon size={16} />}
+            onPress={copyRoomLink}
             className="rounded-full border border-default-200 px-5 py-2 text-sm font-semibold text-default-700 transition-colors hover:border-default-400 hover:bg-default-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
           >
-            Copy room link
-          </button>
+            Room link
+          </Button>
         )}
       </div>
     </main>
