@@ -228,44 +228,68 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
   };
 
+  const statusAccentColor = isCalling
+    ? "bg-emerald-400"
+    : isJoined
+      ? "bg-amber-400"
+      : "bg-slate-400";
+
   return (
-    <main className="h-full w-full flex flex-col items-center justify-center gap-3 p-3 border border-default-200">
-      <div className="flex justify-between w-full">
-        <h1 className="text-xl font-semibold">
-          Room: <span className="font-mono">{roomId}</span>
-        </h1>
+    <main className="flex flex-1 flex-col w-full gap-3 bg-default-50 p-3 min-h-0">
+      <header className="flex w-full gap-2 flex-row items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-default-500">
+            Active room
+          </p>
+          <h1 className="text-2xl font-semibold text-default-900 break-all">
+            {roomId}
+          </h1>
+        </div>
+        <div className="flex items-center gap-3 rounded-full border border-default-200 bg-white/70 px-4 py-2 backdrop-blur">
+          <span className="text-xs font-semibold uppercase tracking-wide text-default-500">
+            Status
+          </span>
+          <span className="flex items-center gap-2 text-sm font-medium text-default-900">
+            <span className={`h-2.5 w-2.5 rounded-full ${statusAccentColor}`} />
+            {status}
+          </span>
+        </div>
+      </header>
 
-        <p className="text-sm">Status: {status}</p>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-3 w-full h-full">
-        <div className="flex relative flex-col items-center w-full h-full">
-          <span className="text-sm absolute bottom-3 left-3">You</span>
+      <section className="flex-1 w-full min-h-0 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg">
           <video
             ref={localVideoRef}
             autoPlay
             playsInline
             muted
-            className="bg-black border border-default-200 rounded-lg w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+            You
+          </span>
         </div>
 
-        <div className="flex relative flex-col items-center w-full h-full">
-          <span className="text-sm absolute bottom-3 left-3">Guest</span>
+        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg">
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="bg-black border border-default-200 rounded-lg w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+            Guest
+          </span>
         </div>
-      </div>
+      </section>
 
-      <div className="flex gap-3 mt-4">
+      <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-100 p-3 shadow-sm backdrop-blur-sm">
         <button
           onClick={joinRoom}
           disabled={isJoined}
-          className="px-4 py-2 rounded bg-emerald-600 disabled:bg-emerald-900"
+          className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
         >
           {isJoined ? "Joined" : "Join room"}
         </button>
@@ -273,7 +297,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <button
           onClick={startCall}
           disabled={!isJoined || isCalling}
-          className="px-4 py-2 rounded bg-blue-600 disabled:bg-blue-900"
+          className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:bg-blue-900"
         >
           Start call
         </button>
@@ -281,22 +305,18 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <button
           onClick={hangUp}
           disabled={!isCalling}
-          className="px-4 py-2 rounded bg-red-600 disabled:bg-red-900"
+          className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:cursor-not-allowed disabled:bg-red-900"
         >
           Hang up
         </button>
 
-        <button
+        {/* <button
           onClick={copyRoomLink}
-          className="px-4 py-2 rounded border border-slate-600"
+          className="rounded-full border border-default-200 px-5 py-2 text-sm font-semibold text-default-700 transition-colors hover:border-default-400 hover:bg-default-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
         >
           Copy room link
-        </button>
+        </button> */}
       </div>
-
-      <p className="text-xs text-slate-400 mt-4">
-        Open this URL in another browser/device with mic+camera to test.
-      </p>
     </main>
   );
 }
