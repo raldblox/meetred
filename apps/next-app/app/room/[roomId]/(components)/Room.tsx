@@ -1,11 +1,19 @@
 // app/room/[roomId]/page.tsx
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
-import { Button, Chip } from "@heroui/react";
-import { CopyIcon } from "lucide-react";
+import {
+  Button,
+  Chip,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalHeader,
+  useDisclosure,
+} from "@heroui/react";
+import ReactQRCode from "react-qr-code";
+import { CopyIcon, QrCode } from "lucide-react";
 import { ThemeSwitch } from "@/components/theme-switch";
 
 type SignalMessage =
@@ -30,7 +38,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const [incomingCaller, setIncomingCaller] = useState<string | null>(null);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
   const [roomLink, setRoomLink] = useState("");
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
+  const {
+    isOpen: isQrModalOpen,
+    onOpen: openQrModal,
+    onOpenChange: onQrModalOpenChange,
+  } = useDisclosure();
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -409,6 +421,14 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
   };
 
+  const handleOpenQrModal = () => {
+    if (!roomLink) {
+      setStatus("Room link unavailable");
+      return;
+    }
+    openQrModal();
+  };
+
   return (
     <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
       <audio
@@ -417,31 +437,48 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         preload="auto"
         loop
       />
-      <section className="grid w-full md:grid-cols-[minmax(0,1fr)_auto]">
-        <header className="flex p-3 w-full flex-wrap items-center justify-between rounded-2xl bg-white/80 shadow-sm backdrop-blur dark:bg-black/30">
-          {/* <div className="flex flex-1 items-center justify-end gap-3 sm:flex-none">
-            {qrCodeDataUrl ? (
-              <div className="rounded-md border border-default-200 bg-white p-1 dark:bg-black/30">
-                <Image
-                  src={qrCodeDataUrl ? qrCodeDataUrl : window.location.href}
-                  alt="Room QR code"
-                  width={60}
-                  height={60}
-                  priority
-                />
-              </div>
-            ) : null}
-          </div> */}
-          <div className="flex flex-col">
-            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
-              room id
-            </p>
+      <header className="flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur dark:bg-black/30">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
+            Room id
+          </p>
+          <div className="flex items-center gap-0">
             <h1 className="text-2xl font-semibold text-default-900 break-all">
               {roomId}
             </h1>
+            <Button
+              isIconOnly
+              variant="light"
+              radius="full"
+              size="sm"
+              aria-label="Show room QR code"
+              onPress={handleOpenQrModal}
+            >
+              <QrCode size={18} />
+            </Button>
           </div>
-        </header>
-      </section>
+        </div>
+        <div className="flex flex-1 items-center justify-end gap-3 sm:flex-none">
+          <Chip
+            variant="dot"
+            color={
+              isCalling
+                ? "secondary"
+                : isAwaitingAnswer
+                  ? "warning"
+                  : peerPresent
+                    ? "primary"
+                    : isJoined
+                      ? "success"
+                      : "default"
+            }
+            size="sm"
+            className="px-3 py-1"
+          >
+            {status}
+          </Chip>
+        </div>
+      </header>
 
       {isRinging && (
         <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-semibold text-amber-900 shadow">
@@ -566,6 +603,44 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </Chip>
         <ThemeSwitch />
       </footer>
+      <Modal
+        size="xs"
+        isOpen={isQrModalOpen}
+        onOpenChange={onQrModalOpenChange}
+        placement="center"
+        hideCloseButton={false}
+      >
+        <ModalContent>
+          {(_onClose) => (
+            <>
+              <ModalHeader className="flex flex-col items-center gap-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
+                  Share room
+                </p>
+                <h2 className="text-lg text-center font-semibold text-default-900">
+                  Scan to join
+                </h2>
+              </ModalHeader>
+              <ModalBody className="pb-6">
+                <div className="flex flex-col items-center gap-3">
+                  {roomLink ? (
+                    <div className="rounded-2xl border border-default-200 bg-white p-4 dark:bg-black/30">
+                      <ReactQRCode value={roomLink} className="h-full w-full" />
+                    </div>
+                  ) : (
+                    <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-200 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">
+                      Preparing link
+                    </div>
+                  )}
+                  <p className="text-xs text-default-500 break-all text-center">
+                    {roomLink || "Room link ready after loading"}
+                  </p>
+                </div>
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </main>
   );
 }
