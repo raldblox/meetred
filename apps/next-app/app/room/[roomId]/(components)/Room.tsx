@@ -845,34 +845,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </div>
       </header>
 
-      {isRinging && (
-        <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-semibold text-amber-900 shadow">
-          <div className="flex flex-1 flex-col gap-1">
-            <p aria-live="assertive">
-              Incoming call{incomingCaller ? ` from ${incomingCaller}` : ""}.
-            </p>
-            <p className="text-xs font-normal uppercase tracking-wider text-amber-700">
-              Consent required: answer or decline to proceed.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onPress={acceptIncomingCall}
-              disabled={!incomingOffer}
-              className="rounded-full bg-emerald-600 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
-            >
-              Answer
-            </Button>
-            <Button
-              onPress={declineIncomingCall}
-              className="rounded-full bg-slate-900/80 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-600"
-            >
-              Decline
-            </Button>
-          </div>
-        </div>
-      )}
-
       <section
         ref={callAreaRef}
         className={`relative flex-1 w-full min-h-0 grid gap-3 ${isFullscreen ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
@@ -1082,6 +1054,62 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </Chip>
         <ThemeSwitch />
       </footer>
+      <Modal
+        size="sm"
+        backdrop="blur"
+        isOpen={isRinging}
+        onOpenChange={() => undefined}
+        placement="center"
+        hideCloseButton
+        isDismissable={false}
+        classNames={{
+          base: "bg-transparent",
+        }}
+      >
+        <ModalContent className="shadow-none px-6 pb-6 pt-8">
+          {() => (
+            <div className="flex flex-col items-center gap-5">
+              <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white/10 bg-slate-800 shadow-inner">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-700">
+                  <UserRound className="h-14 w-14 text-white/80" />
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-white/60">
+                  Incoming call
+                </p>
+                <h3 className="mt-1 text-2xl font-semibold">
+                  {incomingCaller ?? "Guest"}
+                </h3>
+                <p className="text-sm text-white/60">
+                  wants to start a call with you
+                </p>
+              </div>
+              <div className="flex w-full items-center justify-center gap-6 py-6">
+                <Button
+                  radius="full"
+                  className="h-18 w-18"
+                  size="lg"
+                  isIconOnly
+                  onPress={declineIncomingCall}
+                  color="danger"
+                  startContent={<PhoneOff className="h-5 w-5" />}
+                ></Button>
+                <Button
+                  radius="full"
+                  size="lg"
+                  className="h-18 w-18 animate-"
+                  isIconOnly
+                  onPress={acceptIncomingCall}
+                  disabled={!incomingOffer}
+                  color="success"
+                  startContent={<PhoneCall className="h-5 w-5" />}
+                ></Button>
+              </div>
+            </div>
+          )}
+        </ModalContent>
+      </Modal>
       <Modal
         size="xs"
         isOpen={isQrModalOpen}
