@@ -85,6 +85,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   >(null);
   const [hasRemoteStream, setHasRemoteStream] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState(0);
   const {
@@ -360,12 +361,62 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   }, [roomId]);
 
   useEffect(() => {
-    const handler = () => {
-      setIsFullscreen(document.fullscreenElement === callAreaRef.current);
+    if (typeof window === "undefined") return;
+
+    const applyViewportHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight ?? 0;
+      setViewportHeight(Math.round(height));
     };
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+
+    applyViewportHeight();
+
+    const handleResize = () => applyViewportHeight();
+    const handleOrientation = () => applyViewportHeight();
+    const visualViewport = window.visualViewport;
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleOrientation);
+    visualViewport?.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientation);
+      visualViewport?.removeEventListener("resize", handleResize);
+    };
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !isFullscreen) return;
+
+    const { style } = document.body;
+    const originalOverflow = style.overflow;
+    const originalHeight = style.height;
+
+    style.overflow = "hidden";
+    style.height = "100%";
+
+    return () => {
+      style.overflow = originalOverflow;
+      style.height = originalHeight;
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !isFullscreen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsFullscreen(false);
+        setStatus("Immersive view disabled");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreen]);
 
   useEffect(() => {
     if (isCalling && !isAwaitingAnswer) {
@@ -1156,20 +1207,32 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     ? "Guest audio on"
     : "Guest audio muted";
   const formattedDuration = `${String(Math.floor(callDuration / 60)).padStart(2, "0")}:${String(callDuration % 60).padStart(2, "0")}`;
-
-  const toggleFullscreen = async () => {
-    const area = callAreaRef.current;
-    if (!area) return;
-    try {
-      if (document.fullscreenElement === area) {
-        await document.exitFullscreen();
-      } else {
-        await area.requestFullscreen();
+  const immersiveViewportHeight = viewportHeight
+    ? `${viewportHeight}px`
+    : "100vh";
+  const immersiveInsets = isFullscreen
+    ? {
+        top: "calc(env(safe-area-inset-top, 0px) + 8px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+        left: "calc(env(safe-area-inset-left, 0px) + 8px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 8px)",
       }
-    } catch (err) {
-      console.error("Unable to toggle fullscreen", err);
-      setStatus("Cannot change fullscreen");
-    }
+    : null;
+  const immersivePadding =
+    immersiveInsets ??
+    {
+      top: "24px",
+      bottom: "24px",
+      left: "16px",
+      right: "16px",
+    };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      setStatus(next ? "Immersive view enabled" : "Immersive view disabled");
+      return next;
+    });
   };
 
   return (
@@ -1180,7 +1243,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         preload="auto"
         loop
       />
-      <header className="flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur dark:bg-black/30">
+      <header
+        className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur dark:bg-black/30 ${isFullscreen ? "hidden" : ""}`}
+      >
         <div className="flex flex-col gap-0">
           <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
             Room id
@@ -1216,7 +1281,25 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
       <section
         ref={callAreaRef}
-        className={`relative flex-1 w-full min-h-0 grid gap-3 ${isFullscreen ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
+        className={`${
+          isFullscreen
+            ? "fixed inset-0 z-40 w-screen bg-black/95"
+            : "relative flex-1 w-full min-h-0"
+        } grid gap-3 ${
+          isFullscreen ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
+        }`}
+        style={
+          isFullscreen
+            ? {
+                height: immersiveViewportHeight,
+                minHeight: immersiveViewportHeight,
+                paddingTop: immersivePadding.top,
+                paddingBottom: immersivePadding.bottom,
+                paddingLeft: immersivePadding.left,
+                paddingRight: immersivePadding.right,
+              }
+            : undefined
+        }
       >
         <div
           className={`${
@@ -1318,7 +1401,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </div>
       </section>
 
-      <div className="flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm">
+      <div
+        className={`flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm ${isFullscreen ? "hidden" : ""}`}
+      >
         {isJoined && (
           <div className="flex gap-2">
             <Button
@@ -1401,7 +1486,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           </Button>
         </div>
       </div>
-      <footer className="flex items-center p-3 gap-3 opacity-50 justify-between w-full">
+      <footer
+        className={`flex items-center p-3 gap-3 opacity-50 justify-between w-full ${isFullscreen ? "hidden" : ""}`}
+      >
         <Chip
           variant="dot"
           color={
