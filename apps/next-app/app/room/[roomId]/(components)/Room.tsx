@@ -1218,19 +1218,16 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         right: "calc(env(safe-area-inset-right, 0px) + 8px)",
       }
     : null;
-  const immersivePadding =
-    immersiveInsets ??
-    {
-      top: "24px",
-      bottom: "24px",
-      left: "16px",
-      right: "16px",
-    };
+  const immersivePadding = immersiveInsets ?? {
+    top: "24px",
+    bottom: "24px",
+    left: "16px",
+    right: "16px",
+  };
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => {
       const next = !prev;
-      setStatus(next ? "Immersive view enabled" : "Immersive view disabled");
       return next;
     });
   };
