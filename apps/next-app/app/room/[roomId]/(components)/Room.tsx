@@ -11,7 +11,7 @@ import {
   Snippet,
   useDisclosure,
 } from "@heroui/react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import ReactQRCode from "react-qr-code";
 import {
   Camera,
@@ -262,81 +262,74 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     );
   };
 
-  const screenShareLayout = showScreenPanel ? (
+  const remoteTile = renderRemoteTile(
+    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full",
+  );
+  const hasRemoteTile = Boolean(remoteTile);
+  const localTileVariant = showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full";
+  const gridTemplateClass = showScreenPanel
+    ? "md:grid-cols-[2fr_1fr]"
+    : hasRemoteTile
+      ? "md:grid-cols-2"
+      : "grid-cols-1";
+  const localTileNode = (
+    <MotionDiv
+      key="local-tile"
+      layout
+      className={showScreenPanel ? "flex-1 min-h-0" : "h-full"}
+      transition={springTransition}
+    >
+      {renderLocalTile(localTileVariant)}
+    </MotionDiv>
+  );
+  const remoteTileNode = hasRemoteTile ? (
+    <MotionDiv
+      key="remote-tile"
+      layout
+      className={showScreenPanel ? "flex-1 min-h-0" : "h-full"}
+      transition={springTransition}
+    >
+      {remoteTile}
+    </MotionDiv>
+  ) : null;
+
+  const unifiedLayout = (
     <MotionSection
       ref={callAreaRef}
       layout
-      className={`${baseCallAreaClass} ${gridScaffoldClass} transition-all duration-500 md:grid-cols-[2fr_1fr]`}
+      className={`${baseCallAreaClass} ${gridScaffoldClass} transition-all duration-500 ${gridTemplateClass}`}
       transition={springTransition}
     >
-      {renderScreenSharePanel()}
-      <MotionDiv
-        layout
-        className="flex h-full flex-col gap-3"
-        transition={springTransition}
-      >
-        <MotionDiv layout className="flex-1" transition={springTransition}>
-          {renderLocalTile("flex-1 h-auto")}
-        </MotionDiv>
-        <MotionDiv layout className="flex-1" transition={springTransition}>
-          {renderRemoteTile("flex-1 h-auto")}
-        </MotionDiv>
-      </MotionDiv>
-    </MotionSection>
-  ) : null;
-
-  const standardLayout = (() => {
-    if (showScreenPanel) {
-      return screenShareLayout;
-    }
-
-    const remoteTile = renderRemoteTile();
-
-    if (!remoteTile) {
-      return (
-        <MotionSection
-          ref={callAreaRef}
+      {showScreenPanel && (
+        <MotionDiv
+          key="screen-share"
           layout
-          className={`${baseCallAreaClass} flex items-stretch`}
+          className="min-h-[240px]"
           transition={springTransition}
         >
-          {renderLocalTile("h-full")}
-        </MotionSection>
-      );
-    }
-
-    return (
-      <MotionSection
-        ref={callAreaRef}
-        layout
-        className={`${baseCallAreaClass} ${gridScaffoldClass} transition-all duration-500 md:grid-cols-2`}
-        transition={springTransition}
-      >
-        <MotionDiv layout className="h-full" transition={springTransition}>
-          {renderLocalTile("h-full")}
+          {renderScreenSharePanel()}
         </MotionDiv>
-        <AnimatePresence mode="popLayout">
-          {remoteTile && (
-            <MotionDiv
-              key={
-                showRemoteStatus && peerPresent
-                  ? "remote-active"
-                  : "remote-wait"
-              }
-              layout
-              animate={{ opacity: 1, scale: 1 }}
-              className="h-full"
-              exit={{ opacity: 0, scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              transition={springTransition}
-            >
-              {remoteTile}
-            </MotionDiv>
-          )}
-        </AnimatePresence>
-      </MotionSection>
-    );
-  })();
+      )}
+      {showScreenPanel ? (
+        <MotionDiv
+          key="stacked-tiles"
+          layout
+          className="flex h-full min-h-0 flex-col gap-3 overflow-hidden"
+          transition={springTransition}
+        >
+          {localTileNode}
+          {remoteTileNode}
+        </MotionDiv>
+      ) : remoteTileNode ? (
+        <>
+          {localTileNode}
+          {remoteTileNode}
+        </>
+      ) : (
+        localTileNode
+      )}
+    </MotionSection>
+  );
 
   const callArea = isFullscreen ? (
     <section
@@ -374,7 +367,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       )}
     </section>
   ) : (
-    standardLayout
+    unifiedLayout
   );
 
   return (

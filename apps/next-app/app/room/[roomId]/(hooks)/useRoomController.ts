@@ -496,16 +496,19 @@ export function useRoomController(roomId: string) {
 
       if (event.track.kind === "video") {
         const streamId = stream?.id ?? null;
+        const expectedStreamId = remoteScreenStreamIdRef.current;
+        const hasExplicitStreamId = Boolean(expectedStreamId);
         const matchesExpectedStream =
-          Boolean(streamId) && remoteScreenStreamIdRef.current === streamId;
+          Boolean(streamId) && streamId === expectedStreamId;
+        const looksLikeScreen = isLikelyScreenShareTrack(event.track);
         const shouldUseScreen =
           matchesExpectedStream ||
-          remoteScreenExpectedRef.current ||
-          isLikelyScreenShareTrack(event.track);
+          (!hasExplicitStreamId &&
+            (remoteScreenExpectedRef.current || looksLikeScreen));
 
         if (shouldUseScreen) {
           remoteScreenExpectedRef.current = false;
-          if (matchesExpectedStream && streamId) {
+          if (streamId) {
             remoteScreenStreamIdRef.current = streamId;
           }
           remoteScreenStreamRef.current = stream;
@@ -1465,7 +1468,13 @@ export function useRoomController(roomId: string) {
     if (video && stream && video.srcObject !== stream) {
       video.srcObject = stream;
     }
-  }, [isFullscreen, showRemoteStatus, peerPresent]);
+  }, [
+    isFullscreen,
+    showRemoteStatus,
+    peerPresent,
+    isScreenSharing,
+    isRemoteScreenSharing,
+  ]);
 
   useEffect(() => {
     const video = remoteScreenVideoRef.current;

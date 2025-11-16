@@ -40,6 +40,8 @@ class MockMediaStreamTrack {
 }
 
 class MockMediaStream {
+  static nextId = 1;
+  id: string;
   private tracks: MockMediaStreamTrack[] = [];
 
   constructor(
@@ -48,8 +50,10 @@ class MockMediaStream {
       video?: boolean;
       videoLabel?: string;
       audioLabel?: string;
+      id?: string;
     } = {},
   ) {
+    this.id = opts.id ?? `mock-stream-${MockMediaStream.nextId++}`;
     if (opts.video) {
       this.tracks.push(
         new MockMediaStreamTrack("video", opts.videoLabel ?? "video"),
@@ -88,12 +92,17 @@ class MockRTCPeerConnection {
   remoteDescription: RTCSessionDescriptionInit | null = null;
   signalingState: RTCSignalingState = "stable";
   static removedSenderLabels: string[] = [];
+  static instances: MockRTCPeerConnection[] = [];
   private senders: Array<{
     track: MockMediaStreamTrack | null;
     replaceTrack: (nextTrack: MockMediaStreamTrack | null) => Promise<void>;
   }> = [];
   onicecandidate: ((event: RTCPeerConnectionIceEvent) => void) | null = null;
   ontrack: ((event: RTCTrackEvent) => void) | null = null;
+
+  constructor(_config?: RTCConfiguration) {
+    MockRTCPeerConnection.instances.push(this);
+  }
 
   addTrack(track: MockMediaStreamTrack) {
     const sender = {
@@ -276,6 +285,8 @@ describe("useRoomController", () => {
     mockSupabaseClient.channel.mockClear();
     mockSupabaseClient.removeChannel.mockClear();
     MockRTCPeerConnection.removedSenderLabels = [];
+    MockRTCPeerConnection.instances = [];
+    MockMediaStream.nextId = 1;
     let nextId = 1;
 
     Object.defineProperty(globalThis, "crypto", {
@@ -702,6 +713,81 @@ describe("useRoomController", () => {
           label.includes("screen"),
         ).length,
       ).toBe(0);
+    });
+
+    it("keeps the remote camera stream visible when a peer starts screen share", async () => {
+      const { hook, channel } = await setupJoinedRoom();
+
+      await act(async () => {
+        await hook.result.current.startCall();
+      });
+
+      const pc = MockRTCPeerConnection.instances.at(-1);
+
+      expect(pc).toBeDefined();
+
+      hook.result.current.remoteVideoRef.current =
+        document.createElement("video");
+      hook.result.current.remoteScreenVideoRef.current =
+        document.createElement("video");
+
+      const remoteCameraStream = new MockMediaStream({
+        video: true,
+        videoLabel: "camera",
+        id: "remote-camera",
+      });
+      const remoteCameraTrack = remoteCameraStream.getVideoTracks()[0];
+
+      await act(async () => {
+        pc!.ontrack?.({
+          track: remoteCameraTrack as unknown as MediaStreamTrack,
+          streams: [remoteCameraStream as unknown as MediaStream],
+        } as RTCTrackEvent);
+        await flushAsync();
+      });
+      await waitFor(() =>
+        expect(hook.result.current.remoteVideoActive).toBe(true),
+      );
+
+      const remoteScreenStream = new MockMediaStream({
+        video: true,
+        videoLabel: "screen",
+        id: "remote-screen-1",
+      });
+
+      await act(async () => {
+        channel.emitRoomEvent({
+          type: "screen-share-state",
+          sender: "peer-1",
+          isSharing: true,
+          screenStreamId: remoteScreenStream.id,
+        });
+        await flushAsync();
+      });
+
+      await act(async () => {
+        pc!.ontrack?.({
+          track: remoteCameraTrack as unknown as MediaStreamTrack,
+          streams: [remoteCameraStream as unknown as MediaStream],
+        } as RTCTrackEvent);
+        await flushAsync();
+      });
+      await waitFor(() =>
+        expect(hook.result.current.remoteVideoActive).toBe(true),
+      );
+
+      await act(async () => {
+        pc!.ontrack?.({
+          track:
+            remoteScreenStream.getVideoTracks()[0] as unknown as MediaStreamTrack,
+          streams: [remoteScreenStream as unknown as MediaStream],
+        } as RTCTrackEvent);
+        await flushAsync();
+      });
+      await waitFor(() =>
+        expect(hook.result.current.isRemoteScreenSharing).toBe(true),
+      );
+      expect(hook.result.current.remoteVideoActive).toBe(true);
     });
   });
 });
