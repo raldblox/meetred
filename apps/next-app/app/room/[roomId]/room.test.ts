@@ -322,6 +322,9 @@ describe("useRoomController", () => {
   const setupJoinedRoom = async () => {
     const hook = renderHook(() => useRoomController("demo-room"));
 
+    await act(async () => {
+      await hook.result.current.joinRoom?.();
+    });
     await waitFor(() => {
       expect(activeChannel).not.toBeNull();
     });
@@ -556,19 +559,18 @@ describe("useRoomController", () => {
 
   describe("Priority scenarios", () => {
     it("handles camera permission denied gracefully", async () => {
-      getUserMediaMock.mockRejectedValue(
+      const { hook } = await setupJoinedRoom();
+
+      getUserMediaMock.mockRejectedValueOnce(
         new DOMException("Permission denied", "NotAllowedError"),
-      );
-      const { result: hook } = renderHook(() =>
-        useRoomController("denied-room"),
       );
 
       await act(async () => {
-        await hook.current.toggleCamera();
+        await hook.result.current.toggleCamera();
       });
 
-      expect(hook.current.status).toBe("Cannot toggle camera");
-      expect(hook.current.isCameraEnabled).toBe(false);
+      expect(hook.result.current.status).toBe("Cannot toggle camera");
+      expect(hook.result.current.isCameraEnabled).toBe(false);
     });
 
     it("handles channel status errors", async () => {

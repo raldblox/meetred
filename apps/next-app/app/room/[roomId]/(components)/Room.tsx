@@ -11,6 +11,7 @@ import {
   Snippet,
   useDisclosure,
 } from "@heroui/react";
+import { AnimatePresence, motion } from "framer-motion";
 import ReactQRCode from "react-qr-code";
 import {
   Camera,
@@ -40,6 +41,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     callAreaRef,
     localVideoRef,
     remoteVideoRef,
+    screenShareVideoRef,
     remoteScreenVideoRef,
     status,
     isCalling,
@@ -58,7 +60,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     remoteAudioLabel,
     showRemoteStatus,
     formattedDuration,
-    immersiveViewportHeight,
     immersivePadding,
     isFullscreen,
     toggleFullscreen,
@@ -92,16 +93,292 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     openQrModal();
   };
 
+  const springTransition = { type: "spring", damping: 28, stiffness: 320 };
+  const MotionSection = motion.section;
+  const MotionDiv = motion.div;
   const screenShareActive = isRemoteScreenSharing || isScreenSharing;
-  const showScreenPanel = isRemoteScreenSharing;
+  const showScreenPanel = screenShareActive;
   const screenShareChipLabel = isRemoteScreenSharing
     ? "Peer - Screen"
     : isScreenSharing
       ? "You - Screen"
       : "Screen share idle";
+  const baseCallAreaClass =
+    "relative flex-1 w-full min-h-[360px] md:min-h-[70vh]";
+  const gridScaffoldClass =
+    "grid grid-cols-1 gap-3 auto-rows-[minmax(0,1fr)] items-stretch";
+
+  const renderLocalTile = (extraClasses = "", compact = false) => (
+    <div
+      className={`relative flex overflow-hidden rounded-2xl bg-default-50 ${
+        compact
+          ? "aspect-video w-[280px] min-w-[220px] max-w-[320px]"
+          : "h-full min-h-[200px] w-full"
+      } ${extraClasses}`}
+    >
+      {}
+      <video
+        ref={localVideoRef}
+        autoPlay
+        muted
+        playsInline
+        className="h-full w-full object-cover"
+      />
+      <div className="pointer-events-none absolute inset-0" />
+      <span className="pointer-events-none absolute bottom-3 left-3">
+        <Chip
+          className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+          color={isJoined ? "success" : "default"}
+          size="sm"
+          variant="dot"
+        >
+          <span className="text-xs font-semibold">
+            You - {isHost ? "Host" : isJoined ? "Guest" : "Offline"}
+          </span>
+        </Chip>
+      </span>
+      {!isCameraEnabled && (
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <UserRound size={48} />
+        </div>
+      )}
+    </div>
+  );
+
+  const renderRemoteTile = (extraClasses = "", isFullscreenView = false) => {
+    if (!isJoined) return null;
+
+    if (!showRemoteStatus) {
+      return (
+        <div
+          className={`flex w-full items-center justify-center rounded-2xl border border-dashed border-default-300 bg-default-50 text-default-500 ${
+            isFullscreenView ? "h-full" : "h-full min-h-[200px]"
+          } ${extraClasses}`}
+        >
+          <div className="text-center text-sm font-semibold uppercase tracking-[0.3em]">
+            Waiting for peer
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`relative flex h-full w-full min-h-[200px] overflow-hidden rounded-2xl bg-default-50 ${extraClasses}`}
+      >
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className="h-full w-full object-cover"
+        />
+        <div className="pointer-events-none absolute inset-0" />
+        <span className="pointer-events-none absolute bottom-3 left-3">
+          <Chip
+            className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+            color={peerPresent ? "success" : "default"}
+            size="sm"
+            variant="dot"
+          >
+            <span className="text-xs font-semibold">
+              {peerPresent
+                ? `Peer - ${peerRole === "host" ? "Host" : "Guest"}`
+                : "Peer - Offline"}
+            </span>
+          </Chip>
+        </span>
+        {showRemoteStatus && !remoteVideoActive && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <UserRound size={48} />
+          </div>
+        )}
+        {showRemoteStatus && (
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+            <Chip
+              aria-label={remoteVideoLabel}
+              className="border-1 border-default-100 text-foreground"
+              size="sm"
+              variant="bordered"
+            >
+              {remoteVideoActive ? (
+                <Camera className="h-3 w-3" />
+              ) : (
+                <CameraOff className="h-3 w-3" />
+              )}
+            </Chip>
+            <Chip
+              aria-label={remoteAudioLabel}
+              className="border-1 border-default-100 text-foreground"
+              size="sm"
+              variant="bordered"
+            >
+              {remoteAudioActive ? (
+                <Mic className="h-3 w-3" />
+              ) : (
+                <MicOff className="h-3 w-3" />
+              )}
+            </Chip>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderScreenSharePanel = (isFullView = false) => {
+    const activeVideoRef = isRemoteScreenSharing
+      ? remoteScreenVideoRef
+      : screenShareVideoRef;
+
+    return (
+      <div
+        className={`relative flex h-full w-full overflow-hidden rounded-2xl bg-default-50 ${
+          isFullView ? "" : "min-h-[240px]"
+        }`}
+      >
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          ref={activeVideoRef}
+          autoPlay
+          playsInline
+          className={`h-full w-full object-contain ${
+            screenShareActive ? "opacity-100" : "opacity-0"
+          } transition-opacity duration-300`}
+          muted={isScreenSharing && !isRemoteScreenSharing}
+        />
+        <span className="pointer-events-none absolute bottom-3 left-3">
+          <Chip
+            className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+            color={screenShareActive ? "success" : "default"}
+            size="sm"
+            variant="dot"
+          >
+            <span className="text-xs font-semibold">
+              {screenShareChipLabel}
+            </span>
+          </Chip>
+        </span>
+      </div>
+    );
+  };
+
+  const screenShareLayout = showScreenPanel ? (
+    <MotionSection
+      ref={callAreaRef}
+      layout
+      className={`${baseCallAreaClass} ${gridScaffoldClass} transition-all duration-500 md:grid-cols-[2fr_1fr]`}
+      transition={springTransition}
+    >
+      {renderScreenSharePanel()}
+      <MotionDiv
+        layout
+        className="flex h-full flex-col gap-3"
+        transition={springTransition}
+      >
+        <MotionDiv layout className="flex-1" transition={springTransition}>
+          {renderLocalTile("flex-1 h-auto")}
+        </MotionDiv>
+        <MotionDiv layout className="flex-1" transition={springTransition}>
+          {renderRemoteTile("flex-1 h-auto")}
+        </MotionDiv>
+      </MotionDiv>
+    </MotionSection>
+  ) : null;
+
+  const standardLayout = (() => {
+    if (showScreenPanel) {
+      return screenShareLayout;
+    }
+
+    const remoteTile = renderRemoteTile();
+
+    if (!remoteTile) {
+      return (
+        <MotionSection
+          ref={callAreaRef}
+          layout
+          className={`${baseCallAreaClass} flex items-stretch`}
+          transition={springTransition}
+        >
+          {renderLocalTile("h-full")}
+        </MotionSection>
+      );
+    }
+
+    return (
+      <MotionSection
+        ref={callAreaRef}
+        layout
+        className={`${baseCallAreaClass} ${gridScaffoldClass} transition-all duration-500 md:grid-cols-2`}
+        transition={springTransition}
+      >
+        <MotionDiv layout className="h-full" transition={springTransition}>
+          {renderLocalTile("h-full")}
+        </MotionDiv>
+        <AnimatePresence mode="popLayout">
+          {remoteTile && (
+            <MotionDiv
+              key={
+                showRemoteStatus && peerPresent
+                  ? "remote-active"
+                  : "remote-wait"
+              }
+              layout
+              animate={{ opacity: 1, scale: 1 }}
+              className="h-full"
+              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              transition={springTransition}
+            >
+              {remoteTile}
+            </MotionDiv>
+          )}
+        </AnimatePresence>
+      </MotionSection>
+    );
+  })();
+
+  const callArea = isFullscreen ? (
+    <section
+      ref={callAreaRef}
+      className="fixed inset-0 z-40 w-screen h-screen p-4 grid grid-cols-1 gap-4 bg-default-50/80"
+      style={{
+        paddingTop: immersivePadding.top,
+        paddingBottom: immersivePadding.bottom,
+        paddingLeft: immersivePadding.left,
+        paddingRight: immersivePadding.right,
+      }}
+    >
+      {showScreenPanel ? (
+        <>
+          {renderScreenSharePanel(true)}
+          <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
+            {renderLocalTile(
+              "border border-default-200 shadow-2xl bg-background/80",
+              true,
+            )}
+          </div>
+        </>
+      ) : showRemoteStatus ? (
+        <>
+          {renderRemoteTile(true)}
+          <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
+            {renderLocalTile(
+              "border border-default-200 shadow-2xl bg-background/80",
+              true,
+            )}
+          </div>
+        </>
+      ) : (
+        renderLocalTile()
+      )}
+    </section>
+  ) : (
+    standardLayout
+  );
 
   return (
-    <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
+    <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-screen">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio
         ref={ringtoneRef}
@@ -109,202 +386,59 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         preload="auto"
         src="/skype_caller_tone.mp3"
       />
-      <header
-        className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 /80 px-4 py-3  backdrop-blur ${isFullscreen ? "hidden" : ""}`}
-      >
-        <div className="flex flex-col gap-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
-            Room id
-          </p>
-          <div className="flex items-center gap-0">
-            <h1 className="text-2xl font-semibold text-default-900 break-all">
-              {roomId}
-            </h1>
+      {!isFullscreen && (
+        <header className="flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 /80 px-4 py-3  backdrop-blur">
+          <div className="flex flex-col gap-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
+              Room id
+            </p>
+            <div className="flex items-center gap-0">
+              <h1 className="text-2xl font-semibold text-default-900 break-all">
+                {roomId}
+              </h1>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* <Chip
-            size="sm"
-            variant="dot"
-            color={peerPresent ? "success" : "default"}
-            className="text-xs font-semibold uppercase tracking-widest"
-            classNames={{ base: "border border-default-200 px-3" }}
-          >
-            {peerPresent ? "Ready" : "Waiting"}
-          </Chip> */}
-          {isCalling && !isAwaitingAnswer && (
-            <Chip
-              className="font-mono"
-              color="default"
-              size="sm"
-              variant="flat"
-            >
-              {formattedDuration}
-            </Chip>
-          )}
-        </div>
-      </header>
-
-      <section
-        ref={callAreaRef}
-        className={`${
-          isFullscreen
-            ? "fixed inset-0 z-40 w-screen"
-            : "relative flex-1 w-full min-h-0"
-        } grid gap-3 ${
-          isFullscreen
-            ? "grid-cols-1"
-            : showScreenPanel
-              ? "grid-cols-1 md:grid-cols-3"
-              : "grid-cols-1 md:grid-cols-2"
-        }`}
-        style={
-          isFullscreen
-            ? {
-                height: immersiveViewportHeight,
-                minHeight: immersiveViewportHeight,
-                paddingTop: immersivePadding.top,
-                paddingBottom: immersivePadding.bottom,
-                paddingLeft: immersivePadding.left,
-                paddingRight: immersivePadding.right,
-              }
-            : undefined
-        }
-      >
-        {showScreenPanel && (
-          <div className="relative flex h-full min-h-[240px] w-full overflow-hidden rounded-2xl bg-default-50 md:col-span-2 aspect-video">
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <video
-              ref={remoteScreenVideoRef}
-              autoPlay
-              playsInline
-              className={`h-full w-full object-contain ${
-                isRemoteScreenSharing ? "opacity-100" : "opacity-0"
-              } transition-opacity duration-300`}
-            />
-            <span className="pointer-events-none absolute bottom-3 left-3">
+          <div className="flex items-center gap-2">
+            {isCalling && !isAwaitingAnswer && (
               <Chip
-                className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
-                color={screenShareActive ? "success" : "default"}
-                size="sm"
-                variant="dot"
-              >
-                <span className="text-xs font-semibold">
-                  {screenShareChipLabel}
-                </span>
-              </Chip>
-            </span>
-            {isFullscreen && (
-              <Button
-                isIconOnly
-                aria-label="Exit fullscreen"
-                className="absolute bottom-3 right-3 z-30"
+                className="font-mono"
                 color="default"
-                radius="full"
-                type="button"
-                onPress={toggleFullscreen}
-              >
-                <Minimize2 size={16} />
-              </Button>
-            )}
-          </div>
-        )}
-        <div
-          className={`${
-            isFullscreen
-              ? "hidden"
-              : showScreenPanel
-                ? "flex flex-col gap-3 md:col-span-1"
-                : "grid gap-3 md:grid-cols-2 md:col-span-2"
-          }`}
-        >
-          <div className="relative flex h-full w-full min-h-[200px] overflow-hidden rounded-2xl !bg-default-50 aspect-video">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="h-full w-full object-cover"
-            />
-            <div className="pointer-events-none absolute inset-0" />
-            <span className="pointer-events-none absolute bottom-3 left-3">
-              <Chip
-                className="uppercase tracking-widest text-foreground border-none"
-                color={isJoined ? "success" : "default"}
                 size="sm"
-                variant="dot"
+                variant="flat"
               >
-                <span className="text-xs font-semibold">
-                  You - {isHost ? "Host" : isJoined ? "Guest" : "Offline"}
-                </span>
+                {formattedDuration}
               </Chip>
-            </span>
-            {!isCameraEnabled && (
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
-                <UserRound size={48} />
-              </div>
             )}
           </div>
+        </header>
+      )}
 
-          <div className="relative flex h-full w-full min-h-[200px] overflow-hidden rounded-2xl bg-default-50 aspect-video">
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="h-full w-full object-cover"
-            />
-            <div className="pointer-events-none absolute inset-0" />
-            <span className="pointer-events-none absolute bottom-3 left-3">
-              <Chip
-                className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
-                color={peerPresent ? "success" : "default"}
-                size="sm"
-                variant="dot"
-              >
-                <span className="text-xs font-semibold">
-                  {peerPresent
-                    ? `Peer - ${peerRole === "host" ? "Host" : "Guest"}`
-                    : "Peer - Offline"}
-                </span>
-              </Chip>
-            </span>
-            {showRemoteStatus && !remoteVideoActive && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <UserRound size={48} />
-              </div>
-            )}
-            {showRemoteStatus && (
-              <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
-                <Chip
-                  aria-label={remoteVideoLabel}
-                  className="border-1 border-default-100 text-foreground"
-                  size="sm"
-                  variant="bordered"
-                >
-                  {remoteVideoActive ? (
-                    <Camera className="h-3 w-3" />
-                  ) : (
-                    <CameraOff className="h-3 w-3" />
-                  )}
-                </Chip>
-                <Chip
-                  aria-label={remoteAudioLabel}
-                  className="border-1 border-default-100 text-foreground"
-                  size="sm"
-                  variant="bordered"
-                >
-                  {remoteAudioActive ? (
-                    <Mic className="h-3 w-3" />
-                  ) : (
-                    <MicOff className="h-3 w-3" />
-                  )}
-                </Chip>
-              </div>
-            )}
+      {callArea}
+
+      {isFullscreen && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex flex-col items-start justify-between p-4">
+          <div className="pointer-events-auto">
+            <Chip
+              className="rounded-full bg-background/80 text-foreground"
+              size="sm"
+            >
+              {status}
+            </Chip>
+          </div>
+          <div className="pointer-events-auto self-end flex gap-2">
+            <Button
+              isIconOnly
+              aria-label="Exit fullscreen"
+              className="shadow-lg"
+              color="default"
+              radius="full"
+              onPress={toggleFullscreen}
+            >
+              <Minimize2 size={16} />
+            </Button>
           </div>
         </div>
-      </section>
+      )}
 
       <div
         className={`flex relative flex-wrap items-center justify-center gap-3 rounded-2xl bg-default-50 p-3 backdrop-blur-sm ${isFullscreen ? "hidden" : ""}`}
@@ -337,6 +471,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         {!isJoined && (
           <Button
             className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            size="lg"
             onPress={joinRoom}
           >
             Join room

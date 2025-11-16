@@ -84,11 +84,14 @@ export function useRoomController(roomId: string) {
   const participantsRef = useRef<Set<string>>(new Set());
   const hostIdRef = useRef<string | null>(null);
   const remoteScreenStreamRef = useRef<MediaStream | null>(null);
+  const remoteScreenStreamIdRef = useRef<string | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteScreenExpectedRef = useRef(false);
   const [isHost, setIsHost] = useState(false);
   const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
   const resetRemoteScreenShare = useCallback(() => {
     remoteScreenExpectedRef.current = false;
+    remoteScreenStreamIdRef.current = null;
     if (remoteScreenStreamRef.current) {
       remoteScreenStreamRef.current
         .getTracks()
@@ -101,6 +104,7 @@ export function useRoomController(roomId: string) {
 
   const resetRemoteVideo = useCallback(() => {
     clearVideoElement(remoteVideoRef);
+    remoteStreamRef.current = null;
     setHasRemoteStream(false);
     setIsRemoteVideoEnabled(null);
     setIsRemoteAudioEnabled(null);
@@ -491,12 +495,19 @@ export function useRoomController(roomId: string) {
       const [stream] = event.streams;
 
       if (event.track.kind === "video") {
+        const streamId = stream?.id ?? null;
+        const matchesExpectedStream =
+          Boolean(streamId) && remoteScreenStreamIdRef.current === streamId;
         const shouldUseScreen =
+          matchesExpectedStream ||
           remoteScreenExpectedRef.current ||
           isLikelyScreenShareTrack(event.track);
 
         if (shouldUseScreen) {
           remoteScreenExpectedRef.current = false;
+          if (matchesExpectedStream && streamId) {
+            remoteScreenStreamIdRef.current = streamId;
+          }
           remoteScreenStreamRef.current = stream;
           if (remoteScreenVideoRef.current) {
             remoteScreenVideoRef.current.srcObject = stream;
@@ -506,6 +517,7 @@ export function useRoomController(roomId: string) {
 
           return;
         }
+        remoteStreamRef.current = stream;
         if (!remoteVideoRef.current) return;
         remoteVideoRef.current.srcObject = stream;
         setHasRemoteStream(true);
@@ -646,11 +658,12 @@ export function useRoomController(roomId: string) {
   );
 
   const broadcastScreenShareState = useCallback(
-    (isSharing: boolean) => {
+    (isSharing: boolean, streamId?: string | null) => {
       void sendRoomEvent({
         type: "screen-share-state",
         sender: myIdRef.current,
         isSharing,
+        screenStreamId: streamId,
       });
     },
     [sendRoomEvent],
@@ -682,7 +695,7 @@ export function useRoomController(roomId: string) {
       clearVideoElement(screenShareVideoRef);
       setIsScreenSharing(false);
       if (shouldBroadcast) {
-        broadcastScreenShareState(false);
+        broadcastScreenShareState(false, null);
       }
     },
     [broadcastScreenShareState, renegotiateConnection],
@@ -723,7 +736,7 @@ export function useRoomController(roomId: string) {
         void stopScreenShare();
       };
       setIsScreenSharing(true);
-      broadcastScreenShareState(true);
+      broadcastScreenShareState(true, stream.id);
       await renegotiateConnection();
       setStatus("Sharing screen");
     } catch (err) {
@@ -966,6 +979,7 @@ export function useRoomController(roomId: string) {
       if (event.sender === myIdRef.current) return;
       if (event.isSharing) {
         remoteScreenExpectedRef.current = true;
+        remoteScreenStreamIdRef.current = event.screenStreamId ?? null;
         setIsRemoteScreenSharing(true);
         setStatus("Peer started screen share");
       } else {
@@ -1131,13 +1145,6 @@ export function useRoomController(roomId: string) {
     resetRemoteVideo();
   }, [refreshParticipantState, resetRemoteVideo, roomId, supabase]);
 
-  useEffect(() => {
-    if (isJoined) return;
-    if (autoJoinAttemptedRef.current) return;
-    autoJoinAttemptedRef.current = true;
-    void joinRoom();
-  }, [isJoined, joinRoom]);
-
   const startCall = async () => {
     if (!isJoined) {
       setStatus("Join the room first");
@@ -1245,13 +1252,14 @@ export function useRoomController(roomId: string) {
   const toggleCamera = useCallback(async () => {
     try {
       const nextEnabled = !isCameraEnabled;
-      const stream = localStreamRef.current;
+      let stream = localStreamRef.current;
       const pc = pcRef.current;
 
       if (nextEnabled) {
         // Enable camera: request new video track
         if (!stream) {
           await ensureLocalStream();
+          stream = localStreamRef.current;
         } else {
           const hasVideo = stream.getVideoTracks().length > 0;
 
@@ -1315,13 +1323,14 @@ export function useRoomController(roomId: string) {
   const toggleMicrophone = useCallback(async () => {
     try {
       const nextEnabled = !isMicEnabled;
-      const stream = localStreamRef.current;
+      let stream = localStreamRef.current;
       const pc = pcRef.current;
 
       if (nextEnabled) {
         // Enable microphone: request new audio track
         if (!stream) {
           await ensureLocalStream();
+          stream = localStreamRef.current;
         } else {
           const hasAudio = stream.getAudioTracks().length > 0;
 
@@ -1432,6 +1441,49 @@ export function useRoomController(roomId: string) {
       return next;
     });
   };
+
+  useEffect(() => {
+    const video = localVideoRef.current;
+    const stream = localStreamRef.current;
+
+    if (video && stream && video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+  }, [
+    isFullscreen,
+    isScreenSharing,
+    isRemoteScreenSharing,
+    showRemoteStatus,
+    peerPresent,
+    hasRemoteStream,
+  ]);
+
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+    const stream = remoteStreamRef.current;
+
+    if (video && stream && video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+  }, [isFullscreen, showRemoteStatus, peerPresent]);
+
+  useEffect(() => {
+    const video = remoteScreenVideoRef.current;
+    const stream = remoteScreenStreamRef.current;
+
+    if (video && stream && video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+  }, [isFullscreen, isRemoteScreenSharing]);
+
+  useEffect(() => {
+    const video = screenShareVideoRef.current;
+    const stream = screenShareStreamRef.current;
+
+    if (video && stream && video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+  }, [isFullscreen, isScreenSharing]);
 
   return {
     ringtoneRef,
