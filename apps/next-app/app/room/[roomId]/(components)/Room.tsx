@@ -20,7 +20,17 @@ import {
   useDisclosure,
 } from "@heroui/react";
 import ReactQRCode from "react-qr-code";
-import { CopyIcon, QrCode } from "lucide-react";
+import {
+  Camera,
+  CameraOff,
+  CopyIcon,
+  Mic,
+  MicOff,
+  QrCode,
+  UserRound,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { ThemeSwitch } from "@/components/theme-switch";
 
 type SignalMessage =
@@ -45,6 +55,14 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const [incomingCaller, setIncomingCaller] = useState<string | null>(null);
   const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
   const [roomLink, setRoomLink] = useState("");
+  const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+  const [isMicEnabled, setIsMicEnabled] = useState(false);
+  const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState<
+    boolean | null
+  >(null);
+  const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState<
+    boolean | null
+  >(null);
   const {
     isOpen: isQrModalOpen,
     onOpen: openQrModal,
@@ -73,12 +91,18 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       video: true,
       audio: true,
     });
+    stream.getVideoTracks().forEach((track) => {
+      track.enabled = isCameraEnabled;
+    });
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = isMicEnabled;
+    });
     localStreamRef.current = stream;
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
     }
     return stream;
-  }, []);
+  }, [isCameraEnabled, isMicEnabled]);
 
   // Create Supabase client (works both server/client, but we only use it in effects)
   const supabase = useMemo(
@@ -162,6 +186,18 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       if (!remoteVideoRef.current) return;
       const [stream] = event.streams;
       remoteVideoRef.current.srcObject = stream;
+      if (event.track.kind === "video") {
+        setIsRemoteVideoEnabled(!event.track.muted);
+        event.track.onmute = () => setIsRemoteVideoEnabled(false);
+        event.track.onunmute = () => setIsRemoteVideoEnabled(true);
+        event.track.onended = () => setIsRemoteVideoEnabled(false);
+      }
+      if (event.track.kind === "audio") {
+        setIsRemoteAudioEnabled(!event.track.muted);
+        event.track.onmute = () => setIsRemoteAudioEnabled(false);
+        event.track.onunmute = () => setIsRemoteAudioEnabled(true);
+        event.track.onended = () => setIsRemoteAudioEnabled(false);
+      }
     };
 
     // Attach local tracks if we already have stream
@@ -254,6 +290,17 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
   };
 
+  const resetLocalMediaState = useCallback(() => {
+    const stream = localStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        track.enabled = false;
+      });
+    }
+    setIsCameraEnabled(false);
+    setIsMicEnabled(false);
+  }, []);
+
   const sendRoomEvent = async (event: RoomEvent) => {
     if (!channelRef.current) return;
     await channelRef.current.send({
@@ -282,6 +329,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       setIsCalling(false);
       setIsRinging(false);
       clearVideoElement(remoteVideoRef);
+      setIsRemoteVideoEnabled(null);
+      setIsRemoteAudioEnabled(null);
+      resetLocalMediaState();
       setIncomingOffer(null);
       setIncomingCaller(null);
       setIsAwaitingAnswer(false);
@@ -405,6 +455,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       pcRef.current = null;
     }
     clearVideoElement(remoteVideoRef);
+    setIsRemoteVideoEnabled(null);
+    setIsRemoteAudioEnabled(null);
   }, [roomId, supabase]);
 
   useEffect(() => {
@@ -446,6 +498,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       pcRef.current = null;
     }
     clearVideoElement(remoteVideoRef);
+    setIsRemoteVideoEnabled(null);
+    setIsRemoteAudioEnabled(null);
+    resetLocalMediaState();
     setIncomingOffer(null);
     setIncomingCaller(null);
     setIsAwaitingAnswer(false);
@@ -479,6 +534,49 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
     openQrModal();
   };
+
+  const toggleCamera = useCallback(async () => {
+    try {
+      const stream = await ensureLocalStream();
+      const nextEnabled = !isCameraEnabled;
+      stream.getVideoTracks().forEach((track) => {
+        track.enabled = nextEnabled;
+      });
+      setIsCameraEnabled(nextEnabled);
+      setStatus(nextEnabled ? "Camera on" : "Camera off");
+    } catch (err) {
+      console.error("Error toggling camera", err);
+      setStatus("Cannot toggle camera");
+    }
+  }, [ensureLocalStream, isCameraEnabled]);
+
+  const toggleMicrophone = useCallback(async () => {
+    try {
+      const stream = await ensureLocalStream();
+      const nextEnabled = !isMicEnabled;
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = nextEnabled;
+      });
+      setIsMicEnabled(nextEnabled);
+      setStatus(nextEnabled ? "Microphone on" : "Microphone muted");
+    } catch (err) {
+      console.error("Error toggling microphone", err);
+      setStatus("Cannot toggle microphone");
+    }
+  }, [ensureLocalStream, isMicEnabled]);
+
+  const remoteVideoLabel =
+    isRemoteVideoEnabled === null
+      ? "Video unavailable"
+      : isRemoteVideoEnabled
+        ? "Video on"
+        : "Video off";
+  const remoteAudioLabel =
+    isRemoteAudioEnabled === null
+      ? "Audio unavailable"
+      : isRemoteAudioEnabled
+        ? "Audio on"
+        : "Audio muted";
 
   return (
     <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
@@ -552,6 +650,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             You
           </span>
+          {!isCameraEnabled && (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
+              <UserRound size={48} />
+            </div>
+          )}
         </div>
 
         <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg">
@@ -565,10 +668,63 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             Guest
           </span>
+          {isRemoteVideoEnabled !== true ? (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
+              <UserRound size={48} />
+            </div>
+          ) : null}
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+            <Chip
+              size="sm"
+              className="border border-default-100 bg-black/60 text-white"
+              startContent={
+                isRemoteVideoEnabled ? (
+                  <Camera className="h-3 w-3" />
+                ) : (
+                  <CameraOff className="h-3 w-3" />
+                )
+              }
+            ></Chip>
+            <Chip
+              size="sm"
+              className="border border-default-100 bg-black/60 text-white"
+            >
+              {isRemoteAudioEnabled ? (
+                <Mic className="h-3 w-3" />
+              ) : (
+                <MicOff className="h-3 w-3" />
+              )}
+            </Chip>
+          </div>
         </div>
       </section>
 
       <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm">
+        {isJoined && (
+          <div className="flex gap-2">
+            <Button
+              isIconOnly
+              radius="full"
+              aria-pressed={isCameraEnabled}
+              startContent={
+                isCameraEnabled ? <Video size={16} /> : <VideoOff size={16} />
+              }
+              onPress={toggleCamera}
+              color={isCameraEnabled ? "default" : "danger"}
+            ></Button>
+            <Button
+              isIconOnly
+              radius="full"
+              color={isMicEnabled ? "default" : "danger"}
+              aria-pressed={isMicEnabled}
+              startContent={
+                isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />
+              }
+              onPress={toggleMicrophone}
+            ></Button>
+          </div>
+        )}
+
         {!isJoined && (
           <Button
             onPress={joinRoom}
@@ -588,9 +744,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         )}
 
         {isAwaitingAnswer && (
-          <p className="text-sm font-medium text-default-700">
-            Callingâ€¦ waiting for guest to answer
-          </p>
+          <p className="text-sm font-medium text-default-700">Calling...</p>
         )}
 
         {isCalling && (
