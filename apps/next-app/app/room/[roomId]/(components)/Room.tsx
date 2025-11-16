@@ -18,6 +18,7 @@ import {
   ModalContent,
   ModalHeader,
   useDisclosure,
+  User,
 } from "@heroui/react";
 import ReactQRCode from "react-qr-code";
 import {
@@ -30,6 +31,7 @@ import {
   Minimize2,
   PhoneCall,
   PhoneIcon,
+  PhoneIncoming,
   PhoneOff,
   QrCode,
   Share,
@@ -681,7 +683,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         loop
       />
       <header className="flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur dark:bg-black/30">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0">
           <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
             Room id
           </p>
@@ -701,6 +703,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             </Button>
           </div>
         </div>
+        {isCalling && !isAwaitingAnswer && (
+          <div className="flex items-center">
+            <Chip size="sm" color="default" variant="flat">
+              {formattedDuration}
+            </Chip>
+          </div>
+        )}
       </header>
 
       {isRinging && (
@@ -816,21 +825,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       </section>
 
       <div className="flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm">
-        {isCalling && !isAwaitingAnswer && (
-          <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-2xl shadow-lg backdrop-blur">
-            <div className="h-10 w-10 overflow-hidden rounded-full">
-              <UserRound className="h-full w-full" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
-                Ongoing call
-              </span>
-              <span className="text-xl font-semibold tabular-nums">
-                {formattedDuration}
-              </span>
-            </div>
-          </div>
-        )}
         {isJoined && (
           <div className="flex gap-2">
             <Button
@@ -876,9 +870,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           ></Button>
         )}
 
-        {isAwaitingAnswer && (
-          <p className="text-sm font-medium text-default-700">Calling...</p>
-        )}
+        {/* {isAwaitingAnswer && (
+          <p className="text-sm font-medium text-default-700">
+            <PhoneIncoming />
+          </p>
+        )} */}
 
         {isCalling && (
           <Button
@@ -891,27 +887,25 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           ></Button>
         )}
 
-        {!isCalling && (
-          <div className="flex gap-2">
-            <Button
-              radius="full"
-              color="default"
-              size="md"
-              isIconOnly
-              startContent={<Share size={16} />}
-              onPress={copyRoomLink}
-            ></Button>
-            <Button
-              isIconOnly
-              radius="full"
-              aria-pressed={isFullscreen}
-              onPress={toggleFullscreen}
-              className="border border-default-200 text-default-700"
-            >
-              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <Button
+            radius="full"
+            color="default"
+            size="md"
+            isIconOnly
+            startContent={<Share size={16} />}
+            onPress={copyRoomLink}
+          ></Button>
+          <Button
+            isIconOnly
+            radius="full"
+            aria-pressed={isFullscreen}
+            onPress={toggleFullscreen}
+            className="border border-default-200 text-default-700"
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </Button>
+        </div>
       </div>
       <footer className="flex items-center p-3 gap-3 opacity-50 justify-between w-full">
         <Chip
@@ -953,7 +947,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                   Scan to join
                 </h2>
               </ModalHeader>
-              <ModalBody className="pb-6">
+              <ModalBody className="pb-6 pt-0">
                 <div className="flex flex-col items-center gap-3">
                   {roomLink ? (
                     <div className="rounded-2xl border border-default-200 bg-white p-4 dark:bg-black/30">
@@ -964,7 +958,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                       Preparing link
                     </div>
                   )}
-                  <p className="text-xs text-default-500 break-all text-center">
+                  <p className="text-xs mt-3 text-default-500 break-all text-center">
                     {roomLink || "Room link ready after loading"}
                   </p>
                 </div>
