@@ -1280,7 +1280,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         ref={callAreaRef}
         className={`${
           isFullscreen
-            ? "fixed inset-0 z-40 w-screen bg-foreground/95"
+            ? "fixed inset-0 z-40 w-screen"
             : "relative flex-1 w-full min-h-0"
         } grid gap-3 ${
           isFullscreen ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
@@ -1301,9 +1301,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <div
           className={`${
             isFullscreen
-              ? "pointer-events-none absolute top-4 left-4 z-20 h-28 w-36 sm:h-36 sm:w-52"
-              : "relative h-full w-full min-h-0"
-          } flex overflow-hidden rounded-2xl border border-default-100 `}
+              ? "pointer-events-none bg-default-100 absolute !border-foreground/10 top-4 left-4 z-20 h-28 w-36 sm:h-36 sm:w-52"
+              : "relative h-full w-full min-h-0 bg-default-50"
+          } flex overflow-hidden rounded-2xl `}
         >
           <video
             ref={localVideoRef}
@@ -1332,7 +1332,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           )}
         </div>
 
-        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 ">
+        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl bg-default-50">
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -1388,20 +1388,23 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             </div>
           )}
           {isFullscreen && (
-            <button
+            <Button
+              isIconOnly
+              color="default"
+              radius="full"
               type="button"
               aria-label="Exit fullscreen"
-              onClick={toggleFullscreen}
-              className="absolute bottom-3 right-3 z-30 rounded-full bg-foreground/60 p-2 text-foreground shadow-md transition hover:bg-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              onPress={toggleFullscreen}
+              className="absolute bottom-3 right-3 z-30"
             >
               <Minimize2 size={16} />
-            </button>
+            </Button>
           )}
         </div>
       </section>
 
       <div
-        className={`flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3  backdrop-blur-sm ${isFullscreen ? "hidden" : ""}`}
+        className={`flex relative flex-wrap items-center justify-center gap-3 rounded-2xl bg-default-50 p-3 backdrop-blur-sm ${isFullscreen ? "hidden" : ""}`}
       >
         {isJoined && (
           <div className="flex gap-2">
