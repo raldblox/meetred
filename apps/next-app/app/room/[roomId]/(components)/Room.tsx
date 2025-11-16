@@ -48,12 +48,12 @@ type SignalMessage =
 
 type RoomEvent =
   | { type: "joined"; sender: string }
-  | { type: "joined-ack"; sender: string }
+  | { type: "joined-ack"; sender: string; hostId: string }
   | { type: "call-start"; sender: string }
   | { type: "call-end"; sender: string }
   | { type: "call-declined"; sender: string }
   | { type: "left"; sender: string }
-  | { type: "room-full"; sender: string; target: string }
+  | { type: "room-full"; sender: string; target: string; hostId: string }
   | {
       type: "media-state";
       sender: string;
@@ -426,12 +426,12 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       pcRef.current = null;
     }
     participantsRef.current.delete(myIdRef.current);
-    updatePeerPresence();
+    refreshParticipantState();
     setIsJoined(false);
     setIsCalling(false);
     setIsAwaitingAnswer(false);
     clearVideoElement(remoteVideoRef);
-  }, [sendRoomEvent, supabase, updatePeerPresence]);
+  }, [refreshParticipantState, sendRoomEvent, supabase]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -469,18 +469,25 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           type: "room-full",
           sender: myIdRef.current,
           target: event.sender,
+          hostId: hostIdRef.current ?? myIdRef.current,
         });
         return;
       }
       addParticipant(event.sender);
       setStatus("Guest already joined");
-      void sendRoomEvent({ type: "joined-ack", sender: myIdRef.current });
+      void sendRoomEvent({
+        type: "joined-ack",
+        sender: myIdRef.current,
+        hostId: hostIdRef.current ?? myIdRef.current,
+      });
       broadcastMediaState(isCameraEnabled, isMicEnabled);
       return;
     }
 
     if (event.type === "joined-ack") {
+      hostIdRef.current = event.hostId;
       addParticipant(event.sender);
+      refreshParticipantState();
       return;
     }
 
@@ -491,6 +498,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
     if (event.type === "room-full") {
       if (event.target === myIdRef.current) {
+        hostIdRef.current = event.hostId;
         handleRoomCapacityExceeded();
       }
       return;
@@ -595,7 +603,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
       channelRef.current = channel;
       participantsRef.current.clear();
-      updatePeerPresence();
+      refreshParticipantState();
 
       channel.subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -627,7 +635,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     isMicEnabled,
     roomId,
     supabase,
-    updatePeerPresence,
+    refreshParticipantState,
   ]);
 
   useEffect(() => {
@@ -642,7 +650,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     pendingCandidatesRef.current.length = 0;
     setStatus("Not joined");
     participantsRef.current.clear();
-    updatePeerPresence();
+    refreshParticipantState();
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -654,7 +662,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     clearVideoElement(remoteVideoRef);
     setIsRemoteVideoEnabled(null);
     setIsRemoteAudioEnabled(null);
-  }, [roomId, supabase, updatePeerPresence]);
+  }, [refreshParticipantState, roomId, supabase]);
 
   useEffect(() => {
     if (isJoined) return;
@@ -895,10 +903,12 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             <Chip
               size="sm"
               variant="dot"
-              color={isJoined ? "success" : "warning"}
-              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+              color={isJoined ? "success" : "default"}
+              className="uppercase tracking-widest bg-foreground/10 text-white border-none"
             >
-              <span className="text-xs font-semibold">You</span>
+              <span className="text-xs font-semibold">
+                You · {isHost ? "Host" : isJoined ? "Guest" : "Offline"}
+              </span>
             </Chip>
           </span>
           {!isCameraEnabled && (
@@ -920,10 +930,14 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             <Chip
               size="sm"
               variant="dot"
-              color={peerPresent ? "success" : "warning"}
-              className=" uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+              color={peerPresent ? "success" : "default"}
+              className="uppercase tracking-widest bg-foreground/10 text-white border-none"
             >
-              <span className="!text-xs">Guest</span>
+              <span className="text-xs font-semibold">
+                {peerPresent
+                  ? `Peer · ${peerRole === "host" ? "Host" : "Guest"}`
+                  : "Peer · Offline"}
+              </span>
             </Chip>
           </span>
           {showRemoteStatus && !remoteVideoActive && (
