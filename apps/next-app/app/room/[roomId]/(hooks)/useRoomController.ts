@@ -36,6 +36,7 @@ export function useRoomController(roomId: string) {
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState(0);
+  const [needsResume, setNeedsResume] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
