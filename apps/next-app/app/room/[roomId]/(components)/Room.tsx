@@ -24,9 +24,15 @@ import {
   Camera,
   CameraOff,
   CopyIcon,
+  Maximize2,
   Mic,
   MicOff,
+  Minimize2,
+  PhoneCall,
+  PhoneIcon,
+  PhoneOff,
   QrCode,
+  Share,
   UserRound,
   Video,
   VideoOff,
@@ -42,7 +48,13 @@ type RoomEvent =
   | { type: "joined"; sender: string }
   | { type: "call-start"; sender: string }
   | { type: "call-end"; sender: string }
-  | { type: "call-declined"; sender: string };
+  | { type: "call-declined"; sender: string }
+  | {
+      type: "media-state";
+      sender: string;
+      cameraEnabled: boolean;
+      micEnabled: boolean;
+    };
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const [status, setStatus] = useState<string>("Not joined");
@@ -63,6 +75,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState<
     boolean | null
   >(null);
+  const [hasRemoteStream, setHasRemoteStream] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+  const [callDuration, setCallDuration] = useState(0);
   const {
     isOpen: isQrModalOpen,
     onOpen: openQrModal,
@@ -81,6 +97,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const handleRoomEventRef = useRef<(event: RoomEvent) => void>(() => {});
   const isJoiningRef = useRef(false);
   const autoJoinAttemptedRef = useRef(false);
+  const callAreaRef = useRef<HTMLDivElement | null>(null);
 
   const ensureLocalStream = useCallback(async () => {
     if (localStreamRef.current) {
@@ -123,6 +140,31 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     if (typeof window === "undefined") return;
     setRoomLink(window.location.href);
   }, [roomId]);
+
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(document.fullscreenElement === callAreaRef.current);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  useEffect(() => {
+    if (isCalling && !isAwaitingAnswer) {
+      setCallStartTime((prev) => prev ?? Date.now());
+    } else if (!isCalling) {
+      setCallStartTime(null);
+      setCallDuration(0);
+    }
+  }, [isAwaitingAnswer, isCalling]);
+
+  useEffect(() => {
+    if (callStartTime === null) return;
+    const id = window.setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [callStartTime]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -186,6 +228,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       if (!remoteVideoRef.current) return;
       const [stream] = event.streams;
       remoteVideoRef.current.srcObject = stream;
+      setHasRemoteStream(true);
       if (event.track.kind === "video") {
         setIsRemoteVideoEnabled(!event.track.muted);
         event.track.onmute = () => setIsRemoteVideoEnabled(false);
@@ -288,7 +331,33 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     } catch {
       // ignore load errors
     }
+    if (ref === remoteVideoRef) {
+      setHasRemoteStream(false);
+      setIsRemoteVideoEnabled(null);
+      setIsRemoteAudioEnabled(null);
+    }
   };
+
+  const sendRoomEvent = useCallback(async (event: RoomEvent) => {
+    if (!channelRef.current) return;
+    await channelRef.current.send({
+      type: "broadcast",
+      event: "room-event",
+      payload: event,
+    });
+  }, []);
+
+  const broadcastMediaState = useCallback(
+    (cameraEnabled: boolean, micEnabled: boolean) => {
+      void sendRoomEvent({
+        type: "media-state",
+        sender: myIdRef.current,
+        cameraEnabled,
+        micEnabled,
+      });
+    },
+    [sendRoomEvent]
+  );
 
   const resetLocalMediaState = useCallback(() => {
     const stream = localStreamRef.current;
@@ -299,16 +368,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
     setIsCameraEnabled(false);
     setIsMicEnabled(false);
-  }, []);
-
-  const sendRoomEvent = async (event: RoomEvent) => {
-    if (!channelRef.current) return;
-    await channelRef.current.send({
-      type: "broadcast",
-      event: "room-event",
-      payload: event,
-    });
-  };
+    broadcastMediaState(false, false);
+  }, [broadcastMediaState]);
 
   const handleRoomEvent = (event: RoomEvent) => {
     if (event.sender === myIdRef.current) return;
@@ -316,12 +377,19 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     if (event.type === "joined") {
       setPeerPresent(true);
       setStatus("Guest already joined");
+      broadcastMediaState(isCameraEnabled, isMicEnabled);
       return;
     }
 
     if (event.type === "call-start") {
       setIsRinging(true);
       setStatus("Incoming call");
+      return;
+    }
+
+    if (event.type === "media-state") {
+      setIsRemoteVideoEnabled(event.cameraEnabled);
+      setIsRemoteAudioEnabled(event.micEnabled);
       return;
     }
 
@@ -418,6 +486,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           setStatus("Joined room");
           setIsJoined(true);
           void sendRoomEvent({ type: "joined", sender: myIdRef.current });
+          broadcastMediaState(isCameraEnabled, isMicEnabled);
         } else if (status === "CHANNEL_ERROR") {
           setStatus("Channel error");
         } else if (status === "TIMED_OUT") {
@@ -432,7 +501,15 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     } finally {
       isJoiningRef.current = false;
     }
-  }, [ensureLocalStream, isJoined, roomId, supabase]);
+  }, [
+    broadcastMediaState,
+    ensureLocalStream,
+    isCameraEnabled,
+    isJoined,
+    isMicEnabled,
+    roomId,
+    supabase,
+  ]);
 
   useEffect(() => {
     autoJoinAttemptedRef.current = false;
@@ -543,12 +620,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         track.enabled = nextEnabled;
       });
       setIsCameraEnabled(nextEnabled);
+      broadcastMediaState(nextEnabled, isMicEnabled);
       setStatus(nextEnabled ? "Camera on" : "Camera off");
     } catch (err) {
       console.error("Error toggling camera", err);
       setStatus("Cannot toggle camera");
     }
-  }, [ensureLocalStream, isCameraEnabled]);
+  }, [broadcastMediaState, ensureLocalStream, isCameraEnabled, isMicEnabled]);
 
   const toggleMicrophone = useCallback(async () => {
     try {
@@ -558,25 +636,41 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         track.enabled = nextEnabled;
       });
       setIsMicEnabled(nextEnabled);
+      broadcastMediaState(isCameraEnabled, nextEnabled);
       setStatus(nextEnabled ? "Microphone on" : "Microphone muted");
     } catch (err) {
       console.error("Error toggling microphone", err);
       setStatus("Cannot toggle microphone");
     }
-  }, [ensureLocalStream, isMicEnabled]);
+  }, [broadcastMediaState, ensureLocalStream, isCameraEnabled, isMicEnabled]);
 
-  const remoteVideoLabel =
-    isRemoteVideoEnabled === null
-      ? "Video unavailable"
-      : isRemoteVideoEnabled
-        ? "Video on"
-        : "Video off";
-  const remoteAudioLabel =
-    isRemoteAudioEnabled === null
-      ? "Audio unavailable"
-      : isRemoteAudioEnabled
-        ? "Audio on"
-        : "Audio muted";
+  const remoteVideoActive =
+    isRemoteVideoEnabled === null ? hasRemoteStream : isRemoteVideoEnabled;
+  const remoteAudioActive =
+    isRemoteAudioEnabled === null ? hasRemoteStream : isRemoteAudioEnabled;
+  const showRemoteStatus = hasRemoteStream || peerPresent;
+  const remoteVideoLabel = remoteVideoActive
+    ? "Guest video on"
+    : "Guest video off";
+  const remoteAudioLabel = remoteAudioActive
+    ? "Guest audio on"
+    : "Guest audio muted";
+  const formattedDuration = `${String(Math.floor(callDuration / 60)).padStart(2, "0")}:${String(callDuration % 60).padStart(2, "0")}`;
+
+  const toggleFullscreen = async () => {
+    const area = callAreaRef.current;
+    if (!area) return;
+    try {
+      if (document.fullscreenElement === area) {
+        await document.exitFullscreen();
+      } else {
+        await area.requestFullscreen();
+      }
+    } catch (err) {
+      console.error("Unable to toggle fullscreen", err);
+      setStatus("Cannot change fullscreen");
+    }
+  };
 
   return (
     <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
@@ -637,8 +731,17 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </div>
       )}
 
-      <section className="flex-1 w-full min-h-0 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg">
+      <section
+        ref={callAreaRef}
+        className={`relative flex-1 w-full min-h-0 grid gap-3 ${isFullscreen ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
+      >
+        <div
+          className={`${
+            isFullscreen
+              ? "pointer-events-none absolute top-4 left-4 z-20 h-28 w-36 sm:h-36 sm:w-52"
+              : "relative h-full w-full min-h-0"
+          } flex overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg`}
+        >
           <video
             ref={localVideoRef}
             autoPlay
@@ -668,38 +771,56 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             Guest
           </span>
-          {isRemoteVideoEnabled !== true ? (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
+          {showRemoteStatus && !remoteVideoActive && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 text-white">
               <UserRound size={48} />
             </div>
-          ) : null}
-          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
-            <Chip
-              size="sm"
-              className="border border-default-100 bg-black/60 text-white"
-              startContent={
-                isRemoteVideoEnabled ? (
+          )}
+          {showRemoteStatus && (
+            <div className="absolute top-3 right-3 flex flex-col items-end">
+              <Chip
+                aria-label={remoteVideoLabel}
+                size="sm"
+                className="border border-default-100 bg-black/60 text-white"
+              >
+                {remoteVideoActive ? (
                   <Camera className="h-3 w-3" />
                 ) : (
                   <CameraOff className="h-3 w-3" />
-                )
-              }
-            ></Chip>
-            <Chip
-              size="sm"
-              className="border border-default-100 bg-black/60 text-white"
-            >
-              {isRemoteAudioEnabled ? (
-                <Mic className="h-3 w-3" />
-              ) : (
-                <MicOff className="h-3 w-3" />
-              )}
-            </Chip>
-          </div>
+                )}
+              </Chip>
+              <Chip
+                aria-label={remoteAudioLabel}
+                size="sm"
+                className="border border-default-100 bg-black/60 text-white"
+              >
+                {remoteAudioActive ? (
+                  <Mic className="h-3 w-3" />
+                ) : (
+                  <MicOff className="h-3 w-3" />
+                )}
+              </Chip>
+            </div>
+          )}
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm">
+      <div className="flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm">
+        {isCalling && !isAwaitingAnswer && (
+          <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-2xl shadow-lg backdrop-blur">
+            <div className="h-10 w-10 overflow-hidden rounded-full">
+              <UserRound className="h-full w-full" />
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                Ongoing call
+              </span>
+              <span className="text-xl font-semibold tabular-nums">
+                {formattedDuration}
+              </span>
+            </div>
+          </div>
+        )}
         {isJoined && (
           <div className="flex gap-2">
             <Button
@@ -710,12 +831,12 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 isCameraEnabled ? <Video size={16} /> : <VideoOff size={16} />
               }
               onPress={toggleCamera}
-              color={isCameraEnabled ? "default" : "danger"}
+              color={isCameraEnabled ? "default" : "secondary"}
             ></Button>
             <Button
               isIconOnly
               radius="full"
-              color={isMicEnabled ? "default" : "danger"}
+              color={isMicEnabled ? "default" : "secondary"}
               aria-pressed={isMicEnabled}
               startContent={
                 isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />
@@ -736,11 +857,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
         {isJoined && !isCalling && !isAwaitingAnswer && (
           <Button
+            size="lg"
+            color="primary"
+            isIconOnly
+            radius="full"
             onPress={startCall}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-          >
-            Start call
-          </Button>
+            startContent={<PhoneIcon size={16} />}
+          ></Button>
         )}
 
         {isAwaitingAnswer && (
@@ -749,21 +872,35 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
         {isCalling && (
           <Button
+            color="danger"
+            size="lg"
+            isIconOnly
+            radius="full"
             onPress={hangUp}
-            className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-          >
-            Hang up
-          </Button>
+            startContent={<PhoneOff size={16} />}
+          ></Button>
         )}
 
         {!isCalling && (
-          <Button
-            startContent={<CopyIcon size={16} />}
-            onPress={copyRoomLink}
-            className="rounded-full border border-default-200 px-5 py-2 text-sm font-semibold text-default-700 transition-colors hover:border-default-400 hover:bg-default-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
-          >
-            Room link
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              radius="full"
+              color="default"
+              size="md"
+              isIconOnly
+              startContent={<Share size={16} />}
+              onPress={copyRoomLink}
+            ></Button>
+            <Button
+              isIconOnly
+              radius="full"
+              aria-pressed={isFullscreen}
+              onPress={toggleFullscreen}
+              className="border border-default-200 text-default-700"
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </Button>
+          </div>
         )}
       </div>
       <footer className="flex items-center p-3 gap-3 opacity-50 justify-between w-full">
