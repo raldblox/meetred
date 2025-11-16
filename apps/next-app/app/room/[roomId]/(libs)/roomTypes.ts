@@ -13,6 +13,7 @@ export type RoomEvent =
   | { type: "call-declined"; sender: string }
   | { type: "left"; sender: string }
   | { type: "room-full"; sender: string; target: string; hostId: string }
+  | { type: "screen-share-state"; sender: string; isSharing: boolean }
   | {
       type: "media-state";
       sender: string;

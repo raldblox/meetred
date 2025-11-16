@@ -7,13 +7,15 @@ type SignalHandler = (event: { payload: any }) => void;
 
 class MockMediaStreamTrack {
   kind: "audio" | "video";
+  label: string;
   enabled = true;
   muted = false;
   readyState: "live" | "ended" = "live";
   private listeners = new Map<string, Set<() => void>>();
 
-  constructor(kind: "audio" | "video") {
+  constructor(kind: "audio" | "video", label?: string) {
     this.kind = kind;
+    this.label = label ?? kind;
   }
 
   stop() {
@@ -40,12 +42,23 @@ class MockMediaStreamTrack {
 class MockMediaStream {
   private tracks: MockMediaStreamTrack[] = [];
 
-  constructor(opts: { audio?: boolean; video?: boolean } = {}) {
+  constructor(
+    opts: {
+      audio?: boolean;
+      video?: boolean;
+      videoLabel?: string;
+      audioLabel?: string;
+    } = {},
+  ) {
     if (opts.video) {
-      this.tracks.push(new MockMediaStreamTrack("video"));
+      this.tracks.push(
+        new MockMediaStreamTrack("video", opts.videoLabel ?? "video"),
+      );
     }
     if (opts.audio) {
-      this.tracks.push(new MockMediaStreamTrack("audio"));
+      this.tracks.push(
+        new MockMediaStreamTrack("audio", opts.audioLabel ?? "audio"),
+      );
     }
   }
 
@@ -74,6 +87,7 @@ class MockRTCPeerConnection {
   localDescription: RTCSessionDescriptionInit | null = null;
   remoteDescription: RTCSessionDescriptionInit | null = null;
   signalingState: RTCSignalingState = "stable";
+  static removedSenderLabels: string[] = [];
   private senders: Array<{
     track: MockMediaStreamTrack | null;
     replaceTrack: (nextTrack: MockMediaStreamTrack | null) => Promise<void>;
@@ -99,6 +113,9 @@ class MockRTCPeerConnection {
   }
 
   removeTrack(sender: (typeof this.senders)[number]) {
+    MockRTCPeerConnection.removedSenderLabels.push(
+      sender.track?.label ?? sender.track?.kind ?? "unknown",
+    );
     this.senders = this.senders.filter((candidate) => candidate !== sender);
   }
 
@@ -194,6 +211,7 @@ class MockRealtimeChannel {
 
 let activeChannel: MockRealtimeChannel | null = null;
 let getUserMediaMock: ReturnType<typeof vi.fn>;
+let getDisplayMediaMock: ReturnType<typeof vi.fn>;
 
 const mockSupabaseClient = {
   channel: vi.fn(() => (activeChannel = new MockRealtimeChannel())),
@@ -257,6 +275,7 @@ describe("useRoomController", () => {
     activeChannel = null;
     mockSupabaseClient.channel.mockClear();
     mockSupabaseClient.removeChannel.mockClear();
+    MockRTCPeerConnection.removedSenderLabels = [];
     let nextId = 1;
 
     Object.defineProperty(globalThis, "crypto", {
@@ -276,11 +295,23 @@ describe("useRoomController", () => {
             typeof constraints?.audio === "boolean"
               ? constraints?.audio
               : Boolean(constraints?.audio),
+          videoLabel: "camera",
+          audioLabel: "microphone",
+        }),
+    );
+    getDisplayMediaMock = vi.fn(
+      async () =>
+        new MockMediaStream({
+          video: true,
+          videoLabel: "screen",
         }),
     );
     Object.defineProperty(window.navigator, "mediaDevices", {
       configurable: true,
-      value: { getUserMedia: getUserMediaMock },
+      value: {
+        getUserMedia: getUserMediaMock,
+        getDisplayMedia: getDisplayMediaMock,
+      },
     });
     Object.defineProperty(window.navigator, "clipboard", {
       configurable: true,
@@ -521,5 +552,36 @@ describe("useRoomController", () => {
       .filter((payload) => payload.type === "offer").length;
 
     expect(totalOffers).toBeGreaterThan(0);
+  });
+
+  it("keeps screen sharing active when toggling camera on the host", async () => {
+    const { hook } = await setupJoinedRoom();
+
+    await act(async () => {
+      await hook.result.current.toggleCamera();
+    });
+    await act(async () => {
+      await hook.result.current.startCall();
+    });
+    await act(async () => {
+      await hook.result.current.toggleScreenShare();
+    });
+    expect(hook.result.current.isScreenSharing).toBe(true);
+
+    await act(async () => {
+      await hook.result.current.toggleCamera();
+    });
+    await act(async () => {
+      await hook.result.current.toggleCamera();
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.isScreenSharing).toBe(true);
+    });
+    expect(
+      MockRTCPeerConnection.removedSenderLabels.filter((label) =>
+        label.includes("screen"),
+      ).length,
+    ).toBe(0);
   });
 });

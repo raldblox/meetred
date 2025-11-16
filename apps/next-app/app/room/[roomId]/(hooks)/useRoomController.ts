@@ -22,6 +22,19 @@ const logError = (...args: unknown[]) => {
   }
 };
 
+const isLikelyScreenShareTrack = (track: MediaStreamTrack) => {
+  if (typeof track.getSettings === "function") {
+    const settings = track.getSettings();
+
+    if (settings && "displaySurface" in settings) {
+      return true;
+    }
+  }
+  const label = track.label?.toLowerCase() ?? "";
+
+  return label.includes("screen") || label.includes("display");
+};
+
 export function useRoomController(roomId: string) {
   const [status, setStatus] = useState<string>("Not joined");
   const [isJoined, setIsJoined] = useState(false);
@@ -47,10 +60,18 @@ export function useRoomController(roomId: string) {
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const [callDuration, setCallDuration] = useState(0);
   const [needsResume, setNeedsResume] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteScreenVideoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenShareStreamRef = useRef<MediaStream | null>(null);
+  const screenShareSenderRef = useRef<RTCRtpSender | null>(null);
+  const localVideoSenderRef = useRef<RTCRtpSender | null>(null);
+  const localAudioSenderRef = useRef<RTCRtpSender | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
@@ -62,14 +83,29 @@ export function useRoomController(roomId: string) {
   const callAreaRef = useRef<HTMLDivElement | null>(null);
   const participantsRef = useRef<Set<string>>(new Set());
   const hostIdRef = useRef<string | null>(null);
+  const remoteScreenStreamRef = useRef<MediaStream | null>(null);
+  const remoteScreenExpectedRef = useRef(false);
   const [isHost, setIsHost] = useState(false);
   const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
+  const resetRemoteScreenShare = useCallback(() => {
+    remoteScreenExpectedRef.current = false;
+    if (remoteScreenStreamRef.current) {
+      remoteScreenStreamRef.current
+        .getTracks()
+        .forEach((track) => track.stop());
+      remoteScreenStreamRef.current = null;
+    }
+    clearVideoElement(remoteScreenVideoRef);
+    setIsRemoteScreenSharing(false);
+  }, []);
+
   const resetRemoteVideo = useCallback(() => {
     clearVideoElement(remoteVideoRef);
     setHasRemoteStream(false);
     setIsRemoteVideoEnabled(null);
     setIsRemoteAudioEnabled(null);
-  }, []);
+    resetRemoteScreenShare();
+  }, [resetRemoteScreenShare]);
 
   const refreshParticipantState = useCallback(() => {
     const participants = participantsRef.current;
@@ -169,80 +205,70 @@ export function useRoomController(roomId: string) {
     const pc = pcRef.current;
     const stream = localStreamRef.current;
 
-    if (!pc || !stream) return;
+    if (!pc) return;
 
-    // Get current senders
-    const senders = pc.getSenders();
-    const videoSender = senders.find(
-      (s) => s.track && s.track.kind === "video",
-    );
-    const audioSender = senders.find(
-      (s) => s.track && s.track.kind === "audio",
-    );
-
-    // Get current tracks
-    const videoTracks = stream.getVideoTracks();
-    const audioTracks = stream.getAudioTracks();
-    const currentVideoTrack = videoTracks[0] || null;
-    const currentAudioTrack = audioTracks[0] || null;
-
+    const videoTrack = stream?.getVideoTracks()[0] ?? null;
+    const audioTrack = stream?.getAudioTracks()[0] ?? null;
     let needsRenegotiation = false;
 
-    // Update or add video track
-    if (currentVideoTrack) {
-      if (videoSender && videoSender.track !== currentVideoTrack) {
-        try {
-          await videoSender.replaceTrack(currentVideoTrack);
-          needsRenegotiation = true;
-        } catch (err) {
-          logError("Error replacing video track:", err);
+    const videoSender = localVideoSenderRef.current;
+
+    if (videoTrack) {
+      if (videoSender) {
+        if (videoSender.track !== videoTrack) {
+          try {
+            await videoSender.replaceTrack(videoTrack);
+          } catch (err) {
+            logError("Error replacing video track:", err);
+          }
         }
-      } else if (!videoSender) {
+      } else if (stream) {
         try {
-          pc.addTrack(currentVideoTrack, stream);
+          localVideoSenderRef.current = pc.addTrack(videoTrack, stream);
           needsRenegotiation = true;
         } catch (err) {
           logError("Error adding video track:", err);
         }
       }
     } else if (videoSender) {
-      // Remove video track if disabled
       try {
         pc.removeTrack(videoSender);
+        localVideoSenderRef.current = null;
         needsRenegotiation = true;
       } catch (err) {
         logError("Error removing video track:", err);
       }
     }
 
-    // Update or add audio track
-    if (currentAudioTrack) {
-      if (audioSender && audioSender.track !== currentAudioTrack) {
-        try {
-          await audioSender.replaceTrack(currentAudioTrack);
-          needsRenegotiation = true;
-        } catch (err) {
-          logError("Error replacing audio track:", err);
+    const audioSender = localAudioSenderRef.current;
+
+    if (audioTrack) {
+      if (audioSender) {
+        if (audioSender.track !== audioTrack) {
+          try {
+            await audioSender.replaceTrack(audioTrack);
+          } catch (err) {
+            logError("Error replacing audio track:", err);
+          }
         }
-      } else if (!audioSender) {
+      } else if (stream) {
         try {
-          pc.addTrack(currentAudioTrack, stream);
+          localAudioSenderRef.current = pc.addTrack(audioTrack, stream);
           needsRenegotiation = true;
         } catch (err) {
           logError("Error adding audio track:", err);
         }
       }
     } else if (audioSender) {
-      // Remove audio track if disabled
       try {
         pc.removeTrack(audioSender);
+        localAudioSenderRef.current = null;
         needsRenegotiation = true;
       } catch (err) {
         logError("Error removing audio track:", err);
       }
     }
 
-    // Renegotiate if tracks changed and we're in an active call
     if (needsRenegotiation && isCalling && !isAwaitingAnswer) {
       await renegotiateConnection();
     }
@@ -432,6 +458,20 @@ export function useRoomController(roomId: string) {
     };
   }, [isRinging]);
 
+  const attachLocalTracks = useCallback(
+    (pc: RTCPeerConnection, stream: MediaStream) => {
+      stream.getTracks().forEach((track) => {
+        if (track.kind === "video" && !localVideoSenderRef.current) {
+          localVideoSenderRef.current = pc.addTrack(track, stream);
+        }
+        if (track.kind === "audio" && !localAudioSenderRef.current) {
+          localAudioSenderRef.current = pc.addTrack(track, stream);
+        }
+      });
+    },
+    [],
+  );
+
   const createPeerConnection = () => {
     if (pcRef.current) return pcRef.current;
 
@@ -448,16 +488,33 @@ export function useRoomController(roomId: string) {
     };
 
     pc.ontrack = (event) => {
-      if (!remoteVideoRef.current) return;
       const [stream] = event.streams;
 
-      remoteVideoRef.current.srcObject = stream;
-      setHasRemoteStream(true);
       if (event.track.kind === "video") {
+        const shouldUseScreen =
+          remoteScreenExpectedRef.current ||
+          isLikelyScreenShareTrack(event.track);
+
+        if (shouldUseScreen) {
+          remoteScreenExpectedRef.current = false;
+          remoteScreenStreamRef.current = stream;
+          if (remoteScreenVideoRef.current) {
+            remoteScreenVideoRef.current.srcObject = stream;
+          }
+          setIsRemoteScreenSharing(true);
+          event.track.onended = () => resetRemoteScreenShare();
+
+          return;
+        }
+        if (!remoteVideoRef.current) return;
+        remoteVideoRef.current.srcObject = stream;
+        setHasRemoteStream(true);
         setIsRemoteVideoEnabled(!event.track.muted);
         event.track.onmute = () => setIsRemoteVideoEnabled(false);
         event.track.onunmute = () => setIsRemoteVideoEnabled(true);
         event.track.onended = () => setIsRemoteVideoEnabled(false);
+
+        return;
       }
       if (event.track.kind === "audio") {
         setIsRemoteAudioEnabled(!event.track.muted);
@@ -469,9 +526,7 @@ export function useRoomController(roomId: string) {
 
     // Attach local tracks if we already have stream
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current as MediaStream);
-      });
+      attachLocalTracks(pc, localStreamRef.current);
     }
 
     pcRef.current = pc;
@@ -590,6 +645,98 @@ export function useRoomController(roomId: string) {
     [sendRoomEvent],
   );
 
+  const broadcastScreenShareState = useCallback(
+    (isSharing: boolean) => {
+      void sendRoomEvent({
+        type: "screen-share-state",
+        sender: myIdRef.current,
+        isSharing,
+      });
+    },
+    [sendRoomEvent],
+  );
+
+  const stopScreenShare = useCallback(
+    async (shouldBroadcast = true) => {
+      const pc = pcRef.current;
+      const sender = screenShareSenderRef.current;
+
+      if (sender && pc) {
+        try {
+          pc.removeTrack(sender);
+          await renegotiateConnection();
+        } catch (err) {
+          logError("Error removing screen share track:", err);
+        }
+      }
+      screenShareSenderRef.current = null;
+
+      const stream = screenShareStreamRef.current;
+
+      if (stream) {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
+        screenShareStreamRef.current = null;
+      }
+      clearVideoElement(screenShareVideoRef);
+      setIsScreenSharing(false);
+      if (shouldBroadcast) {
+        broadcastScreenShareState(false);
+      }
+    },
+    [broadcastScreenShareState, renegotiateConnection],
+  );
+
+  const startScreenShare = useCallback(async () => {
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        setStatus("Screen share unsupported");
+
+        return;
+      }
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: "monitor",
+          frameRate: { ideal: 30, max: 30 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      });
+
+      screenShareStreamRef.current = stream;
+      if (screenShareVideoRef.current) {
+        screenShareVideoRef.current.srcObject = stream;
+      }
+      const [track] = stream.getVideoTracks();
+
+      if (!track) {
+        setStatus("No screen track available");
+
+        return;
+      }
+      const pc = createPeerConnection();
+
+      screenShareSenderRef.current = pc.addTrack(track, stream);
+      track.onended = () => {
+        void stopScreenShare();
+      };
+      setIsScreenSharing(true);
+      broadcastScreenShareState(true);
+      await renegotiateConnection();
+      setStatus("Sharing screen");
+    } catch (err) {
+      logError("Error starting screen share", err);
+      setStatus("Cannot start screen share");
+    }
+  }, [
+    broadcastScreenShareState,
+    createPeerConnection,
+    renegotiateConnection,
+    stopScreenShare,
+  ]);
+
   // Sync button state with actual track state to reflect hardware connection
   useEffect(() => {
     const stream = localStreamRef.current;
@@ -645,6 +792,7 @@ export function useRoomController(roomId: string) {
   }, [isCameraEnabled, isMicEnabled, broadcastMediaState]);
 
   const resetLocalMediaState = useCallback(() => {
+    void stopScreenShare();
     const stream = localStreamRef.current;
 
     if (stream) {
@@ -657,10 +805,11 @@ export function useRoomController(roomId: string) {
     setIsCameraEnabled(false);
     setIsMicEnabled(false);
     broadcastMediaState(false, false);
-  }, [broadcastMediaState]);
+  }, [broadcastMediaState, stopScreenShare]);
 
   const handleRoomCapacityExceeded = useCallback(() => {
     setStatus("Room full");
+    void stopScreenShare();
     if (channelRef.current) {
       void sendRoomEvent({ type: "left", sender: myIdRef.current });
       supabase.removeChannel(channelRef.current);
@@ -670,6 +819,8 @@ export function useRoomController(roomId: string) {
       pcRef.current.close();
       pcRef.current = null;
     }
+    localVideoSenderRef.current = null;
+    localAudioSenderRef.current = null;
     participantsRef.current.delete(myIdRef.current);
     refreshParticipantState();
     setIsJoined(false);
@@ -677,7 +828,13 @@ export function useRoomController(roomId: string) {
     setIsAwaitingAnswer(false);
     setNeedsResume(false);
     resetRemoteVideo();
-  }, [refreshParticipantState, resetRemoteVideo, sendRoomEvent, supabase]);
+  }, [
+    refreshParticipantState,
+    resetRemoteVideo,
+    sendRoomEvent,
+    stopScreenShare,
+    supabase,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -692,6 +849,7 @@ export function useRoomController(roomId: string) {
     return () => {
       window.removeEventListener("beforeunload", notifyDeparture);
       notifyDeparture();
+      void stopScreenShare();
       if (pcRef.current) {
         // Stop all tracks from senders
         pcRef.current.getSenders().forEach((s) => {
@@ -702,6 +860,8 @@ export function useRoomController(roomId: string) {
         pcRef.current.close();
         pcRef.current = null;
       }
+      localVideoSenderRef.current = null;
+      localAudioSenderRef.current = null;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -722,7 +882,7 @@ export function useRoomController(roomId: string) {
       }
       participantsRef.current.clear();
     };
-  }, [sendRoomEvent, supabase]);
+  }, [sendRoomEvent, stopScreenShare, supabase]);
 
   const handleRoomEvent = (event: RoomEvent) => {
     if (event.sender === myIdRef.current) return;
@@ -768,6 +928,7 @@ export function useRoomController(roomId: string) {
 
     if (event.type === "left") {
       removeParticipant(event.sender);
+      resetRemoteScreenShare();
       if (event.sender !== myIdRef.current && isCalling) {
         setNeedsResume(true);
         setStatus("Peer disconnected");
@@ -800,10 +961,25 @@ export function useRoomController(roomId: string) {
       return;
     }
 
+    if (event.type === "screen-share-state") {
+      if (event.sender === myIdRef.current) return;
+      if (event.isSharing) {
+        remoteScreenExpectedRef.current = true;
+        setIsRemoteScreenSharing(true);
+        setStatus("Peer started screen share");
+      } else {
+        resetRemoteScreenShare();
+        setStatus("Peer stopped screen share");
+      }
+
+      return;
+    }
+
     if (event.type === "call-end") {
       setIsCalling(false);
       setIsRinging(false);
       resetRemoteVideo();
+      resetRemoteScreenShare();
       resetLocalMediaState();
       setIncomingOffer(null);
       setIncomingCaller(null);
@@ -1020,6 +1196,7 @@ export function useRoomController(roomId: string) {
   };
 
   const hangUp = () => {
+    void stopScreenShare();
     // Close peer connection
     if (pcRef.current) {
       // Stop all tracks from senders before closing
@@ -1062,6 +1239,16 @@ export function useRoomController(roomId: string) {
     broadcastMediaState(false, false);
     void sendRoomEvent({ type: "call-end", sender: myIdRef.current });
   };
+
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharing) {
+      await stopScreenShare();
+      setStatus("Stopped screen share");
+
+      return;
+    }
+    await startScreenShare();
+  }, [isScreenSharing, startScreenShare, stopScreenShare]);
 
   const toggleCamera = useCallback(async () => {
     try {
@@ -1259,6 +1446,8 @@ export function useRoomController(roomId: string) {
     callAreaRef,
     localVideoRef,
     remoteVideoRef,
+    screenShareVideoRef,
+    remoteScreenVideoRef,
     status,
     isCalling,
     isAwaitingAnswer,
@@ -1268,6 +1457,8 @@ export function useRoomController(roomId: string) {
     peerRole,
     isCameraEnabled,
     isMicEnabled,
+    isScreenSharing,
+    isRemoteScreenSharing,
     remoteVideoActive,
     remoteAudioActive,
     remoteVideoLabel,
@@ -1282,6 +1473,7 @@ export function useRoomController(roomId: string) {
     startCall,
     resumeCall,
     hangUp,
+    toggleScreenShare,
     toggleCamera,
     toggleMicrophone,
     acceptIncomingCall,
