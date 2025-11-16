@@ -48,9 +48,12 @@ type SignalMessage =
 
 type RoomEvent =
   | { type: "joined"; sender: string }
+  | { type: "joined-ack"; sender: string }
   | { type: "call-start"; sender: string }
   | { type: "call-end"; sender: string }
   | { type: "call-declined"; sender: string }
+  | { type: "left"; sender: string }
+  | { type: "room-full"; sender: string; target: string }
   | {
       type: "media-state";
       sender: string;
@@ -100,6 +103,60 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const isJoiningRef = useRef(false);
   const autoJoinAttemptedRef = useRef(false);
   const callAreaRef = useRef<HTMLDivElement | null>(null);
+  const participantsRef = useRef<Set<string>>(new Set());
+  const hostIdRef = useRef<string | null>(null);
+  const [isHost, setIsHost] = useState(false);
+  const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
+
+  const refreshParticipantState = useCallback(() => {
+    const participants = participantsRef.current;
+    if (participants.size === 0) {
+      hostIdRef.current = null;
+      setIsHost(false);
+      setPeerRole(null);
+      setPeerPresent(false);
+      return;
+    }
+    if (!hostIdRef.current || !participants.has(hostIdRef.current)) {
+      const firstEntry = participants.values().next().value ?? null;
+      hostIdRef.current = firstEntry ?? null;
+    }
+    const currentHost = hostIdRef.current;
+    setIsHost(currentHost === myIdRef.current);
+    const peerId =
+      Array.from(participants).find((id) => id !== myIdRef.current) ?? null;
+    setPeerPresent(Boolean(peerId));
+    if (peerId && currentHost) {
+      setPeerRole(peerId === currentHost ? "host" : "guest");
+    } else {
+      setPeerRole(null);
+    }
+  }, []);
+
+  const addParticipant = useCallback(
+    (id: string) => {
+      if (!id) return participantsRef.current.size;
+      const participants = participantsRef.current;
+      if (!participants.has(id)) {
+        participants.add(id);
+        refreshParticipantState();
+      }
+      return participants.size;
+    },
+    [refreshParticipantState]
+  );
+
+  const removeParticipant = useCallback(
+    (id: string) => {
+      if (!id) return participantsRef.current.size;
+      const participants = participantsRef.current;
+      if (participants.delete(id)) {
+        refreshParticipantState();
+      }
+      return participants.size;
+    },
+    [refreshParticipantState]
+  );
 
   const ensureLocalStream = useCallback(async () => {
     if (localStreamRef.current) {
@@ -167,22 +224,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }, 1000);
     return () => window.clearInterval(id);
   }, [callStartTime]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pcRef.current) {
-        pcRef.current.getSenders().forEach((s) => s.track?.stop());
-        pcRef.current.close();
-      }
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
-    };
-  }, [supabase]);
 
   useEffect(() => {
     const audio = ringtoneRef.current;
@@ -373,13 +414,85 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     broadcastMediaState(false, false);
   }, [broadcastMediaState]);
 
+  const handleRoomCapacityExceeded = useCallback(() => {
+    setStatus("Room full");
+    if (channelRef.current) {
+      void sendRoomEvent({ type: "left", sender: myIdRef.current });
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    participantsRef.current.delete(myIdRef.current);
+    updatePeerPresence();
+    setIsJoined(false);
+    setIsCalling(false);
+    setIsAwaitingAnswer(false);
+    clearVideoElement(remoteVideoRef);
+  }, [sendRoomEvent, supabase, updatePeerPresence]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const notifyDeparture = () => {
+      if (!channelRef.current) return;
+      void sendRoomEvent({ type: "left", sender: myIdRef.current });
+    };
+
+    window.addEventListener("beforeunload", notifyDeparture);
+    return () => {
+      window.removeEventListener("beforeunload", notifyDeparture);
+      notifyDeparture();
+      if (pcRef.current) {
+        pcRef.current.getSenders().forEach((s) => s.track?.stop());
+        pcRef.current.close();
+      }
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      participantsRef.current.clear();
+    };
+  }, [sendRoomEvent, supabase]);
+
   const handleRoomEvent = (event: RoomEvent) => {
     if (event.sender === myIdRef.current) return;
 
     if (event.type === "joined") {
-      setPeerPresent(true);
+      if (participantsRef.current.size >= 2) {
+        void sendRoomEvent({
+          type: "room-full",
+          sender: myIdRef.current,
+          target: event.sender,
+        });
+        return;
+      }
+      addParticipant(event.sender);
       setStatus("Guest already joined");
+      void sendRoomEvent({ type: "joined-ack", sender: myIdRef.current });
       broadcastMediaState(isCameraEnabled, isMicEnabled);
+      return;
+    }
+
+    if (event.type === "joined-ack") {
+      addParticipant(event.sender);
+      return;
+    }
+
+    if (event.type === "left") {
+      removeParticipant(event.sender);
+      return;
+    }
+
+    if (event.type === "room-full") {
+      if (event.target === myIdRef.current) {
+        handleRoomCapacityExceeded();
+      }
       return;
     }
 
@@ -407,7 +520,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       setIsAwaitingAnswer(false);
       pendingCandidatesRef.current.length = 0;
       setStatus("Ended the call");
-      setPeerPresent(false);
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -482,11 +594,14 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         });
 
       channelRef.current = channel;
+      participantsRef.current.clear();
+      updatePeerPresence();
 
       channel.subscribe((status) => {
         if (status === "SUBSCRIBED") {
           setStatus("Joined room");
           setIsJoined(true);
+          addParticipant(myIdRef.current);
           void sendRoomEvent({ type: "joined", sender: myIdRef.current });
           broadcastMediaState(isCameraEnabled, isMicEnabled);
         } else if (status === "CHANNEL_ERROR") {
@@ -504,6 +619,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       isJoiningRef.current = false;
     }
   }, [
+    addParticipant,
     broadcastMediaState,
     ensureLocalStream,
     isCameraEnabled,
@@ -511,13 +627,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     isMicEnabled,
     roomId,
     supabase,
+    updatePeerPresence,
   ]);
 
   useEffect(() => {
     autoJoinAttemptedRef.current = false;
     isJoiningRef.current = false;
     setIsJoined(false);
-    setPeerPresent(false);
     setIsCalling(false);
     setIsRinging(false);
     setIncomingOffer(null);
@@ -525,6 +641,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     setIsAwaitingAnswer(false);
     pendingCandidatesRef.current.length = 0;
     setStatus("Not joined");
+    participantsRef.current.clear();
+    updatePeerPresence();
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -536,7 +654,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     clearVideoElement(remoteVideoRef);
     setIsRemoteVideoEnabled(null);
     setIsRemoteAudioEnabled(null);
-  }, [roomId, supabase]);
+  }, [roomId, supabase, updatePeerPresence]);
 
   useEffect(() => {
     if (isJoined) return;
@@ -703,13 +821,27 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             </Button>
           </div>
         </div>
-        {isCalling && !isAwaitingAnswer && (
-          <div className="flex items-center">
-            <Chip size="sm" color="default" variant="flat">
+        <div className="flex items-center gap-2">
+          {/* <Chip
+            size="sm"
+            variant="dot"
+            color={peerPresent ? "success" : "default"}
+            className="text-xs font-semibold uppercase tracking-widest"
+            classNames={{ base: "border border-default-200 px-3" }}
+          >
+            {peerPresent ? "Ready" : "Waiting"}
+          </Chip> */}
+          {isCalling && !isAwaitingAnswer && (
+            <Chip
+              size="sm"
+              color="default"
+              variant="flat"
+              className="font-mono"
+            >
               {formattedDuration}
             </Chip>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       {isRinging && (
@@ -759,17 +891,24 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             className="h-full w-full object-cover"
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-            You
+          <span className="pointer-events-none absolute bottom-3 left-3">
+            <Chip
+              size="sm"
+              variant="dot"
+              color={isJoined ? "success" : "warning"}
+              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+            >
+              <span className="text-xs font-semibold">You</span>
+            </Chip>
           </span>
           {!isCameraEnabled && (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
               <UserRound size={48} />
             </div>
           )}
         </div>
 
-        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg">
+        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 shadow-lg">
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -777,11 +916,18 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             className="h-full w-full object-cover"
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-            Guest
+          <span className="pointer-events-none absolute bottom-3 left-3">
+            <Chip
+              size="sm"
+              variant="dot"
+              color={peerPresent ? "success" : "warning"}
+              className=" uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+            >
+              <span className="!text-xs">Guest</span>
+            </Chip>
           </span>
           {showRemoteStatus && !remoteVideoActive && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 text-white">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <UserRound size={48} />
             </div>
           )}
