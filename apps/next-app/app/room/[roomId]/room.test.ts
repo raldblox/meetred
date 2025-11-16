@@ -554,34 +554,152 @@ describe("useRoomController", () => {
     expect(totalOffers).toBeGreaterThan(0);
   });
 
-  it("keeps screen sharing active when toggling camera on the host", async () => {
-    const { hook } = await setupJoinedRoom();
+  describe("Priority scenarios", () => {
+    it("handles camera permission denied gracefully", async () => {
+      getUserMediaMock.mockRejectedValue(
+        new DOMException("Permission denied", "NotAllowedError"),
+      );
+      const { result: hook } = renderHook(() =>
+        useRoomController("denied-room"),
+      );
 
-    await act(async () => {
-      await hook.result.current.toggleCamera();
-    });
-    await act(async () => {
-      await hook.result.current.startCall();
-    });
-    await act(async () => {
-      await hook.result.current.toggleScreenShare();
-    });
-    expect(hook.result.current.isScreenSharing).toBe(true);
+      await act(async () => {
+        await hook.current.toggleCamera();
+      });
 
-    await act(async () => {
-      await hook.result.current.toggleCamera();
-    });
-    await act(async () => {
-      await hook.result.current.toggleCamera();
+      expect(hook.current.status).toBe("Cannot toggle camera");
+      expect(hook.current.isCameraEnabled).toBe(false);
     });
 
-    await waitFor(() => {
+    it("handles channel status errors", async () => {
+      const { hook } = await setupJoinedRoom();
+
+      await act(async () => {
+        activeChannel!.triggerStatus("TIMED_OUT");
+      });
+      await waitFor(() =>
+        expect(hook.result.current.status).toBe("Channel timed out"),
+      );
+
+      await act(async () => {
+        activeChannel!.triggerStatus("CHANNEL_ERROR");
+      });
+      await waitFor(() =>
+        expect(hook.result.current.status).toBe("Channel error"),
+      );
+
+      await act(async () => {
+        activeChannel!.triggerStatus("CLOSED");
+      });
+      await waitFor(() =>
+        expect(hook.result.current.status).toBe("Channel closed"),
+      );
+    });
+
+    it("handles screen share permission denied", async () => {
+      const { hook } = await setupJoinedRoom();
+
+      getDisplayMediaMock.mockRejectedValueOnce(
+        new DOMException("Permission denied", "NotAllowedError"),
+      );
+      await act(async () => {
+        await hook.result.current.toggleScreenShare();
+      });
+
+      expect(hook.result.current.isScreenSharing).toBe(false);
+      expect(hook.result.current.status).toBe("Cannot start screen share");
+    });
+
+    it("handles screen share unsupported", async () => {
+      const { hook } = await setupJoinedRoom();
+      const original = navigator.mediaDevices.getDisplayMedia;
+
+      // @ts-expect-error: delete for test
+      delete navigator.mediaDevices.getDisplayMedia;
+
+      await act(async () => {
+        await hook.result.current.toggleScreenShare();
+      });
+
+      expect(hook.result.current.status).toBe("Screen share unsupported");
+      expect(hook.result.current.isScreenSharing).toBe(false);
+
+      navigator.mediaDevices.getDisplayMedia = original;
+    });
+
+    it("cleans up devices when hanging up", async () => {
+      const { hook } = await setupJoinedRoom();
+
+      await act(async () => {
+        await hook.result.current.toggleCamera();
+      });
+      await act(async () => {
+        await hook.result.current.startCall();
+      });
+      await act(async () => {
+        await hook.result.current.toggleScreenShare();
+      });
+
+      await act(async () => {
+        hook.result.current.hangUp();
+      });
+
+      expect(hook.result.current.isCalling).toBe(false);
+      expect(hook.result.current.isScreenSharing).toBe(false);
+      expect(hook.result.current.isCameraEnabled).toBe(false);
+      expect(hook.result.current.isMicEnabled).toBe(false);
+    });
+
+    it("enforces room capacity by emitting room-full events", async () => {
+      const { hook, channel } = await setupJoinedRoom();
+
+      await act(async () => {
+        channel.emitRoomEvent({ type: "joined", sender: "peer-1" });
+        await flushAsync();
+      });
+      await waitFor(() => expect(hook.result.current.peerPresent).toBe(true));
+
+      await act(async () => {
+        channel.emitRoomEvent({ type: "joined", sender: "peer-2" });
+        await flushAsync();
+      });
+
+      expect(
+        channel
+          .getRoomEvents()
+          .some((evt) => evt.type === "room-full" && evt.target === "peer-2"),
+      ).toBe(true);
+    });
+
+    it("keeps screen sharing active when toggling camera on the host", async () => {
+      const { hook } = await setupJoinedRoom();
+
+      await act(async () => {
+        await hook.result.current.toggleCamera();
+      });
+      await act(async () => {
+        await hook.result.current.startCall();
+      });
+      await act(async () => {
+        await hook.result.current.toggleScreenShare();
+      });
       expect(hook.result.current.isScreenSharing).toBe(true);
+
+      await act(async () => {
+        await hook.result.current.toggleCamera();
+      });
+      await act(async () => {
+        await hook.result.current.toggleCamera();
+      });
+
+      await waitFor(() => {
+        expect(hook.result.current.isScreenSharing).toBe(true);
+      });
+      expect(
+        MockRTCPeerConnection.removedSenderLabels.filter((label) =>
+          label.includes("screen"),
+        ).length,
+      ).toBe(0);
     });
-    expect(
-      MockRTCPeerConnection.removedSenderLabels.filter((label) =>
-        label.includes("screen"),
-      ).length,
-    ).toBe(0);
   });
 });

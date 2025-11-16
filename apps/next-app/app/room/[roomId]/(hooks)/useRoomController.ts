@@ -792,6 +792,7 @@ export function useRoomController(roomId: string) {
   }, [isCameraEnabled, isMicEnabled, broadcastMediaState]);
 
   const resetLocalMediaState = useCallback(() => {
+    setIsScreenSharing(false);
     void stopScreenShare();
     const stream = localStreamRef.current;
 
@@ -1196,7 +1197,7 @@ export function useRoomController(roomId: string) {
   };
 
   const hangUp = () => {
-    void stopScreenShare();
+    resetLocalMediaState();
     // Close peer connection
     if (pcRef.current) {
       // Stop all tracks from senders before closing
@@ -1208,20 +1209,11 @@ export function useRoomController(roomId: string) {
       pcRef.current.close();
       pcRef.current = null;
     }
+    localVideoSenderRef.current = null;
+    localAudioSenderRef.current = null;
 
     // Clear remote video
     resetRemoteVideo();
-
-    // Fully disconnect all local devices
-    const stream = localStreamRef.current;
-
-    if (stream) {
-      stream.getTracks().forEach((track) => {
-        track.stop(); // Fully stop all tracks (disconnects hardware)
-        stream.removeTrack(track);
-      });
-    }
-    // Clear local video element
     clearVideoElement(localVideoRef);
     localStreamRef.current = null;
 
