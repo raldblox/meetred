@@ -17,13 +17,16 @@ import {
   ModalBody,
   ModalContent,
   ModalHeader,
+  Snippet,
   useDisclosure,
   User,
 } from "@heroui/react";
 import ReactQRCode from "react-qr-code";
 import {
+  Blocks,
   Camera,
   CameraOff,
+  Copy,
   CopyIcon,
   Maximize2,
   Mic,
@@ -817,16 +820,6 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             <h1 className="text-2xl font-semibold text-default-900 break-all">
               {roomId}
             </h1>
-            <Button
-              isIconOnly
-              variant="light"
-              radius="full"
-              size="sm"
-              aria-label="Show room QR code"
-              onPress={handleOpenQrModal}
-            >
-              <QrCode size={18} />
-            </Button>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1054,7 +1047,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             size="md"
             isIconOnly
             startContent={<Share size={16} />}
-            onPress={copyRoomLink}
+            onPress={handleOpenQrModal}
           ></Button>
           <Button
             isIconOnly
@@ -1118,9 +1111,18 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                       Preparing link
                     </div>
                   )}
-                  <p className="text-xs mt-3 text-default-500 break-all text-center">
-                    {roomLink || "Room link ready after loading"}
-                  </p>
+
+                  <Snippet
+                    size="sm"
+                    color="primary"
+                    variant="flat"
+                    hideSymbol
+                    hideCopyButton={!roomLink}
+                    className="pl-5 bg-transparent uppercase hover:bg-default-100 transition-all"
+                    codeString={roomLink}
+                  >
+                    Copy Room Link
+                  </Snippet>
                 </div>
               </ModalBody>
             </>
