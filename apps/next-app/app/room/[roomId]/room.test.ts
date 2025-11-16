@@ -471,6 +471,7 @@ describe("useRoomController", () => {
       await flushAsync();
     });
     await waitFor(() => expect(hook.result.current.peerPresent).toBe(false));
+    await waitFor(() => expect(hook.result.current.needsResume).toBe(true));
     expect(hook.result.current.isCalling).toBe(true);
 
     // Remote rejoins existing channel
@@ -479,13 +480,18 @@ describe("useRoomController", () => {
       await flushAsync();
     });
     await waitFor(() => expect(hook.result.current.peerPresent).toBe(true));
-    expect(hook.result.current.status).toBe("Guest already joined");
+    await waitFor(() => expect(hook.result.current.needsResume).toBe(false));
+    expect(hook.result.current.isAwaitingAnswer).toBe(true);
 
     const roomEvents = channel.getRoomEvents();
     const joinedAckCount = roomEvents.filter(
       (evt) => evt.type === "joined-ack"
     ).length;
     expect(joinedAckCount).toBeGreaterThanOrEqual(1);
-    expect(roomEvents.at(-1)).toMatchObject({ type: "media-state" });
+    expect(roomEvents.some((evt) => evt.type === "call-start")).toBe(true);
+    const totalOffers = channel
+      .getSignals()
+      .filter((payload) => payload.type === "offer").length;
+    expect(totalOffers).toBeGreaterThan(0);
   });
 });

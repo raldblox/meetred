@@ -629,6 +629,7 @@ export function useRoomController(roomId: string) {
     setIsJoined(false);
     setIsCalling(false);
     setIsAwaitingAnswer(false);
+    setNeedsResume(false);
     resetRemoteVideo();
   }, [refreshParticipantState, resetRemoteVideo, sendRoomEvent, supabase]);
 
@@ -697,6 +698,10 @@ export function useRoomController(roomId: string) {
         hostId: hostIdRef.current ?? myIdRef.current,
       });
       broadcastMediaState(isCameraEnabled, isMicEnabled);
+      if (needsResume) {
+        setStatus("Peer rejoined, resuming call");
+        void resumeCall();
+      }
       return;
     }
 
@@ -704,11 +709,20 @@ export function useRoomController(roomId: string) {
       hostIdRef.current = event.hostId;
       addParticipant(event.sender);
       refreshParticipantState();
+      if (needsResume) {
+        setStatus("Host rejoined, resuming call");
+        void resumeCall();
+      }
       return;
     }
 
     if (event.type === "left") {
       removeParticipant(event.sender);
+      if (event.sender !== myIdRef.current && isCalling) {
+        setNeedsResume(true);
+        setStatus("Peer disconnected");
+        resetRemoteVideo();
+      }
       return;
     }
 
@@ -741,6 +755,7 @@ export function useRoomController(roomId: string) {
       setIncomingCaller(null);
       setIsAwaitingAnswer(false);
       pendingCandidatesRef.current.length = 0;
+      setNeedsResume(false);
       setStatus("Ended the call");
       if (pcRef.current) {
         pcRef.current.close();
@@ -753,6 +768,7 @@ export function useRoomController(roomId: string) {
       setIsAwaitingAnswer(false);
       setIsCalling(false);
       setStatus("Guest declined the call");
+      setNeedsResume(false);
       return;
     }
   };
@@ -780,6 +796,7 @@ export function useRoomController(roomId: string) {
     setIncomingOffer(null);
     setIncomingCaller(null);
     setIsAwaitingAnswer(false);
+    setNeedsResume(false);
     setStatus("In call");
   };
 
@@ -906,7 +923,34 @@ export function useRoomController(roomId: string) {
 
     setIsCalling(true);
     setIsAwaitingAnswer(true);
+    setNeedsResume(false);
     setStatus("Waiting for answer");
+  };
+
+  const resumeCall = async () => {
+    if (!isCalling) return;
+    try {
+      await ensureLocalStream();
+      const pc = createPeerConnection();
+      setStatus("Resuming call");
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      await sendSignal({
+        type: "offer",
+        sdp: offer,
+        sender: myIdRef.current,
+      });
+
+      void sendRoomEvent({ type: "call-start", sender: myIdRef.current });
+
+      setIsAwaitingAnswer(true);
+      setNeedsResume(false);
+    } catch (err) {
+      console.error("Error resuming call", err);
+      setStatus("Cannot resume call");
+    }
   };
 
   const hangUp = () => {
@@ -946,6 +990,7 @@ export function useRoomController(roomId: string) {
     pendingCandidatesRef.current.length = 0;
     setIsCalling(false);
     setIsRinging(false);
+    setNeedsResume(false);
     setStatus("Call ended");
     broadcastMediaState(false, false);
     void sendRoomEvent({ type: "call-end", sender: myIdRef.current });
@@ -1158,6 +1203,7 @@ export function useRoomController(roomId: string) {
     toggleFullscreen,
     joinRoom,
     startCall,
+    resumeCall,
     hangUp,
     toggleCamera,
     toggleMicrophone,
@@ -1168,5 +1214,6 @@ export function useRoomController(roomId: string) {
     incomingOffer,
     roomLink,
     ensureRoomLinkAvailable,
+    needsResume,
   };
 }

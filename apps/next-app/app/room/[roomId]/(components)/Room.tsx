@@ -22,6 +22,7 @@ import {
   PhoneCall,
   PhoneIcon,
   PhoneOff,
+  RotateCcw,
   Share,
   UserRound,
   Video,
@@ -67,6 +68,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     incomingOffer,
     roomLink,
     ensureRoomLinkAvailable,
+    resumeCall,
+    needsResume,
   } = useRoomController(roomId);
 
   const {
@@ -298,6 +301,18 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             radius="full"
             onPress={startCall}
             startContent={<PhoneIcon size={16} />}
+          ></Button>
+        )}
+
+        {isCalling && needsResume && (
+          <Button
+            size="lg"
+            color="warning"
+            isIconOnly
+            radius="full"
+            aria-label="Resume call"
+            onPress={resumeCall}
+            startContent={<RotateCcw size={16} />}
           ></Button>
         )}
 
