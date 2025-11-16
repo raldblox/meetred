@@ -1241,7 +1241,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         loop
       />
       <header
-        className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 bg-white/80 px-4 py-3 shadow-sm backdrop-blur dark:bg-black/30 ${isFullscreen ? "hidden" : ""}`}
+        className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 /80 px-4 py-3  backdrop-blur ${isFullscreen ? "hidden" : ""}`}
       >
         <div className="flex flex-col gap-0">
           <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">
@@ -1280,7 +1280,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         ref={callAreaRef}
         className={`${
           isFullscreen
-            ? "fixed inset-0 z-40 w-screen bg-black/95"
+            ? "fixed inset-0 z-40 w-screen bg-foreground/95"
             : "relative flex-1 w-full min-h-0"
         } grid gap-3 ${
           isFullscreen ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
@@ -1303,7 +1303,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             isFullscreen
               ? "pointer-events-none absolute top-4 left-4 z-20 h-28 w-36 sm:h-36 sm:w-52"
               : "relative h-full w-full min-h-0"
-          } flex overflow-hidden rounded-2xl border border-default-100 bg-black/70 shadow-lg`}
+          } flex overflow-hidden rounded-2xl border border-default-100 `}
         >
           <video
             ref={localVideoRef}
@@ -1312,13 +1312,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             muted
             className="h-full w-full object-cover"
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-0" />
           <span className="pointer-events-none absolute bottom-3 left-3">
             <Chip
               size="sm"
               variant="dot"
               color={isJoined ? "success" : "default"}
-              className="uppercase tracking-widest bg-foreground/10 text-white border-none"
+              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
             >
               <span className="text-xs font-semibold">
                 You · {isHost ? "Host" : isJoined ? "Guest" : "Offline"}
@@ -1332,20 +1332,20 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           )}
         </div>
 
-        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 shadow-lg">
+        <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl border border-default-100 ">
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
             className="h-full w-full object-cover"
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-0" />
           <span className="pointer-events-none absolute bottom-3 left-3">
             <Chip
               size="sm"
               variant="dot"
               color={peerPresent ? "success" : "default"}
-              className="uppercase tracking-widest bg-foreground/10 text-white border-none"
+              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
             >
               <span className="text-xs font-semibold">
                 {peerPresent
@@ -1362,9 +1362,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           {showRemoteStatus && (
             <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
               <Chip
+                variant="bordered"
                 aria-label={remoteVideoLabel}
                 size="sm"
-                className="border border-default-100 bg-black/60 text-white"
+                className="border-1 border-default-100 text-foreground"
               >
                 {remoteVideoActive ? (
                   <Camera className="h-3 w-3" />
@@ -1373,9 +1374,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 )}
               </Chip>
               <Chip
+                variant="bordered"
                 aria-label={remoteAudioLabel}
                 size="sm"
-                className="border border-default-100 bg-black/60 text-white"
+                className="border-1 border-default-100 text-foreground"
               >
                 {remoteAudioActive ? (
                   <Mic className="h-3 w-3" />
@@ -1390,7 +1392,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               type="button"
               aria-label="Exit fullscreen"
               onClick={toggleFullscreen}
-              className="absolute bottom-3 right-3 z-30 rounded-full bg-black/60 p-2 text-white shadow-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="absolute bottom-3 right-3 z-30 rounded-full bg-foreground/60 p-2 text-foreground shadow-md transition hover:bg-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <Minimize2 size={16} />
             </button>
@@ -1399,7 +1401,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       </section>
 
       <div
-        className={`flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3 shadow-sm backdrop-blur-sm ${isFullscreen ? "hidden" : ""}`}
+        className={`flex relative flex-wrap items-center justify-center gap-3 rounded-2xl border border-default-100 bg-default-50 p-3  backdrop-blur-sm ${isFullscreen ? "hidden" : ""}`}
       >
         {isJoined && (
           <div className="flex gap-2">
@@ -1429,7 +1431,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         {!isJoined && (
           <Button
             onPress={joinRoom}
-            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             Join room
           </Button>
@@ -1484,7 +1486,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </div>
       </div>
       <footer
-        className={`flex items-center p-3 gap-3 opacity-50 justify-between w-full ${isFullscreen ? "hidden" : ""}`}
+        className={`flex items-center px-3 gap-3 opacity-50 justify-between w-full ${isFullscreen ? "hidden" : ""}`}
       >
         <Chip
           variant="dot"
@@ -1522,19 +1524,19 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <ModalContent className="shadow-none px-6 pb-6 pt-8">
           {() => (
             <div className="flex flex-col items-center gap-5">
-              <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white/10 bg-slate-800 shadow-inner">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-700">
-                  <UserRound className="h-14 w-14 text-white/80" />
+              <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-foreground/10 bg-default-800 shadow-inner">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-default-700">
+                  <UserRound className="h-14 w-14 text-foreground/80" />
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-white/60">
+                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-foreground/60">
                   Incoming call
                 </p>
                 <h3 className="mt-1 text-2xl font-semibold">
                   {incomingCaller ?? "Guest"}
                 </h3>
-                <p className="text-sm text-white/60">
+                <p className="text-sm text-foreground/60">
                   wants to start a call with you
                 </p>
               </div>
@@ -1584,7 +1586,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               <ModalBody className="pb-6 pt-0">
                 <div className="flex flex-col items-center gap-3">
                   {roomLink ? (
-                    <div className="rounded-2xl border border-default-200 bg-white p-4 dark:bg-black/30">
+                    <div className="rounded-xl border border-default-200 p-3">
                       <ReactQRCode value={roomLink} className="h-full w-full" />
                     </div>
                   ) : (
