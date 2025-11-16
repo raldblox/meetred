@@ -777,7 +777,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             </div>
           )}
           {showRemoteStatus && (
-            <div className="absolute top-3 right-3 flex flex-col items-end">
+            <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
               <Chip
                 aria-label={remoteVideoLabel}
                 size="sm"
@@ -801,6 +801,16 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 )}
               </Chip>
             </div>
+          )}
+          {isFullscreen && (
+            <button
+              type="button"
+              aria-label="Exit fullscreen"
+              onClick={toggleFullscreen}
+              className="absolute bottom-3 right-3 z-30 rounded-full bg-black/60 p-2 text-white shadow-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Minimize2 size={16} />
+            </button>
           )}
         </div>
       </section>
