@@ -1,0 +1,1171 @@
+// app/room/[roomId]/page.tsx
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createRoomSupabaseClient } from "../(libs)/supabaseClient";
+import {
+  ICE_SERVER_CONFIG,
+  ROOM_CHANNEL_PREFIX,
+  type RoomEvent,
+  type SignalMessage,
+} from "../(libs)/roomTypes";
+import { clearVideoElement, formatCallDuration } from "../(utils)/media";
+
+export function useRoomController(roomId: string) {
+  const [status, setStatus] = useState<string>("Not joined");
+  const [isJoined, setIsJoined] = useState(false);
+  const [isCalling, setIsCalling] = useState(false);
+  const [peerPresent, setPeerPresent] = useState(false);
+  const [isRinging, setIsRinging] = useState(false);
+  const [incomingOffer, setIncomingOffer] =
+    useState<RTCSessionDescriptionInit | null>(null);
+  const [incomingCaller, setIncomingCaller] = useState<string | null>(null);
+  const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
+  const [roomLink, setRoomLink] = useState("");
+  const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+  const [isMicEnabled, setIsMicEnabled] = useState(false);
+  const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState<
+    boolean | null
+  >(null);
+  const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState<
+    boolean | null
+  >(null);
+  const [hasRemoteStream, setHasRemoteStream] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+  const [callDuration, setCallDuration] = useState(0);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+  const myIdRef = useRef<string>("");
+  const handleSignalRef = useRef<(msg: SignalMessage) => void>(() => {});
+  const handleRoomEventRef = useRef<(event: RoomEvent) => void>(() => {});
+  const isJoiningRef = useRef(false);
+  const autoJoinAttemptedRef = useRef(false);
+  const callAreaRef = useRef<HTMLDivElement | null>(null);
+  const participantsRef = useRef<Set<string>>(new Set());
+  const hostIdRef = useRef<string | null>(null);
+  const [isHost, setIsHost] = useState(false);
+  const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
+  const resetRemoteVideo = useCallback(() => {
+    clearVideoElement(remoteVideoRef);
+    setHasRemoteStream(false);
+    setIsRemoteVideoEnabled(null);
+    setIsRemoteAudioEnabled(null);
+  }, []);
+
+  const refreshParticipantState = useCallback(() => {
+    const participants = participantsRef.current;
+    if (participants.size === 0) {
+      hostIdRef.current = null;
+      setIsHost(false);
+      setPeerRole(null);
+      setPeerPresent(false);
+      return;
+    }
+    if (!hostIdRef.current || !participants.has(hostIdRef.current)) {
+      const firstEntry = participants.values().next().value ?? null;
+      hostIdRef.current = firstEntry ?? null;
+    }
+    const currentHost = hostIdRef.current;
+    setIsHost(currentHost === myIdRef.current);
+    const peerId =
+      Array.from(participants).find((id) => id !== myIdRef.current) ?? null;
+    setPeerPresent(Boolean(peerId));
+    if (peerId && currentHost) {
+      setPeerRole(peerId === currentHost ? "host" : "guest");
+    } else {
+      setPeerRole(null);
+    }
+  }, []);
+
+  const addParticipant = useCallback(
+    (id: string) => {
+      if (!id) return participantsRef.current.size;
+      const participants = participantsRef.current;
+      if (!participants.has(id)) {
+        participants.add(id);
+        refreshParticipantState();
+      }
+      return participants.size;
+    },
+    [refreshParticipantState]
+  );
+
+  const removeParticipant = useCallback(
+    (id: string) => {
+      if (!id) return participantsRef.current.size;
+      const participants = participantsRef.current;
+      if (participants.delete(id)) {
+        refreshParticipantState();
+      }
+      return participants.size;
+    },
+    [refreshParticipantState]
+  );
+
+  const sendSignal = async (msg: SignalMessage) => {
+    if (!channelRef.current) return;
+    await channelRef.current.send({
+      type: "broadcast",
+      event: "signal",
+      payload: msg,
+    });
+  };
+
+  // Helper to renegotiate peer connection when tracks change
+  const renegotiateConnection = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc || pc.signalingState === "closed") return;
+    // Only renegotiate when connection is stable (call is established)
+    if (pc.signalingState === "stable") {
+      try {
+        // Only renegotiate if we have a remote description (call is established)
+        if (pc.remoteDescription && pc.remoteDescription.type) {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await sendSignal({
+            type: "offer",
+            sdp: offer,
+            sender: myIdRef.current,
+          });
+        }
+      } catch (err) {
+        console.error("Error renegotiating connection:", err);
+      }
+    }
+  }, []);
+
+  // Helper to update peer connection with current tracks
+  const updatePeerConnectionTracks = useCallback(async () => {
+    const pc = pcRef.current;
+    const stream = localStreamRef.current;
+    if (!pc || !stream) return;
+
+    // Get current senders
+    const senders = pc.getSenders();
+    const videoSender = senders.find(
+      (s) => s.track && s.track.kind === "video"
+    );
+    const audioSender = senders.find(
+      (s) => s.track && s.track.kind === "audio"
+    );
+
+    // Get current tracks
+    const videoTracks = stream.getVideoTracks();
+    const audioTracks = stream.getAudioTracks();
+    const currentVideoTrack = videoTracks[0] || null;
+    const currentAudioTrack = audioTracks[0] || null;
+
+    let needsRenegotiation = false;
+
+    // Update or add video track
+    if (currentVideoTrack) {
+      if (videoSender && videoSender.track !== currentVideoTrack) {
+        try {
+          await videoSender.replaceTrack(currentVideoTrack);
+          needsRenegotiation = true;
+        } catch (err) {
+          console.error("Error replacing video track:", err);
+        }
+      } else if (!videoSender) {
+        try {
+          pc.addTrack(currentVideoTrack, stream);
+          needsRenegotiation = true;
+        } catch (err) {
+          console.error("Error adding video track:", err);
+        }
+      }
+    } else if (videoSender) {
+      // Remove video track if disabled
+      try {
+        pc.removeTrack(videoSender);
+        needsRenegotiation = true;
+      } catch (err) {
+        console.error("Error removing video track:", err);
+      }
+    }
+
+    // Update or add audio track
+    if (currentAudioTrack) {
+      if (audioSender && audioSender.track !== currentAudioTrack) {
+        try {
+          await audioSender.replaceTrack(currentAudioTrack);
+          needsRenegotiation = true;
+        } catch (err) {
+          console.error("Error replacing audio track:", err);
+        }
+      } else if (!audioSender) {
+        try {
+          pc.addTrack(currentAudioTrack, stream);
+          needsRenegotiation = true;
+        } catch (err) {
+          console.error("Error adding audio track:", err);
+        }
+      }
+    } else if (audioSender) {
+      // Remove audio track if disabled
+      try {
+        pc.removeTrack(audioSender);
+        needsRenegotiation = true;
+      } catch (err) {
+        console.error("Error removing audio track:", err);
+      }
+    }
+
+    // Renegotiate if tracks changed and we're in an active call
+    if (needsRenegotiation && isCalling && !isAwaitingAnswer) {
+      await renegotiateConnection();
+    }
+  }, [isCalling, isAwaitingAnswer, renegotiateConnection]);
+
+  const ensureLocalStream = useCallback(async () => {
+    // If stream exists and has the tracks we need, return it
+    if (localStreamRef.current) {
+      const stream = localStreamRef.current;
+      const hasVideo = stream.getVideoTracks().length > 0;
+      const hasAudio = stream.getAudioTracks().length > 0;
+
+      // If we need video but don't have it, or need audio but don't have it
+      if ((isCameraEnabled && !hasVideo) || (isMicEnabled && !hasAudio)) {
+        // Request missing tracks
+        const constraints: MediaStreamConstraints = {};
+        if (isCameraEnabled && !hasVideo) {
+          constraints.video = true;
+        }
+        if (isMicEnabled && !hasAudio) {
+          constraints.audio = true;
+        }
+
+        try {
+          const newStream =
+            await navigator.mediaDevices.getUserMedia(constraints);
+          newStream.getVideoTracks().forEach((track) => {
+            stream.addTrack(track);
+          });
+          newStream.getAudioTracks().forEach((track) => {
+            stream.addTrack(track);
+          });
+          // Update peer connection if in call
+          if (pcRef.current) {
+            updatePeerConnectionTracks();
+          }
+        } catch (err) {
+          console.error("Error adding tracks:", err);
+          throw err;
+        }
+      }
+      return stream;
+    }
+
+    // Create new stream only with requested devices
+    setStatus("Requesting access");
+    const constraints: MediaStreamConstraints = {
+      video: isCameraEnabled,
+      audio: isMicEnabled,
+    };
+
+    // If both are false, we still need to create an empty stream for consistency
+    if (!isCameraEnabled && !isMicEnabled) {
+      localStreamRef.current = new MediaStream();
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+      return localStreamRef.current;
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    localStreamRef.current = stream;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+    return stream;
+  }, [isCameraEnabled, isMicEnabled, updatePeerConnectionTracks]);
+
+  // Create Supabase client (works both server/client, but we only use it in effects)
+  const supabase = useMemo(() => createRoomSupabaseClient(), []);
+
+  // Initialize myId once on client
+  useEffect(() => {
+    myIdRef.current = crypto.randomUUID();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setRoomLink(window.location.href);
+  }, [roomId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const applyViewportHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight ?? 0;
+      setViewportHeight(Math.round(height));
+    };
+
+    applyViewportHeight();
+
+    const handleResize = () => applyViewportHeight();
+    const handleOrientation = () => applyViewportHeight();
+    const visualViewport = window.visualViewport;
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleOrientation);
+    visualViewport?.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientation);
+      visualViewport?.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !isFullscreen) return;
+
+    const { style } = document.body;
+    const originalOverflow = style.overflow;
+    const originalHeight = style.height;
+
+    style.overflow = "hidden";
+    style.height = "100%";
+
+    return () => {
+      style.overflow = originalOverflow;
+      style.height = originalHeight;
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !isFullscreen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsFullscreen(false);
+        setStatus("Immersive view disabled");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (isCalling && !isAwaitingAnswer) {
+      setCallStartTime((prev) => prev ?? Date.now());
+    } else if (!isCalling) {
+      setCallStartTime(null);
+      setCallDuration(0);
+    }
+  }, [isAwaitingAnswer, isCalling]);
+
+  useEffect(() => {
+    if (callStartTime === null) return;
+    const id = window.setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [callStartTime]);
+
+  useEffect(() => {
+    const audio = ringtoneRef.current;
+    if (!audio) return;
+
+    if (isRinging) {
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise) {
+        playPromise.catch(() => {
+          // ignore autoplay rejections
+        });
+      }
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, [isRinging]);
+
+  const createPeerConnection = () => {
+    if (pcRef.current) return pcRef.current;
+
+    const pc = new RTCPeerConnection(ICE_SERVER_CONFIG);
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal({
+          type: "candidate",
+          candidate: event.candidate.toJSON(),
+          sender: myIdRef.current,
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (!remoteVideoRef.current) return;
+      const [stream] = event.streams;
+      remoteVideoRef.current.srcObject = stream;
+      setHasRemoteStream(true);
+      if (event.track.kind === "video") {
+        setIsRemoteVideoEnabled(!event.track.muted);
+        event.track.onmute = () => setIsRemoteVideoEnabled(false);
+        event.track.onunmute = () => setIsRemoteVideoEnabled(true);
+        event.track.onended = () => setIsRemoteVideoEnabled(false);
+      }
+      if (event.track.kind === "audio") {
+        setIsRemoteAudioEnabled(!event.track.muted);
+        event.track.onmute = () => setIsRemoteAudioEnabled(false);
+        event.track.onunmute = () => setIsRemoteAudioEnabled(true);
+        event.track.onended = () => setIsRemoteAudioEnabled(false);
+      }
+    };
+
+    // Attach local tracks if we already have stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStreamRef.current as MediaStream);
+      });
+    }
+
+    pcRef.current = pc;
+    return pc;
+  };
+
+  const handleSignal = async (msg: SignalMessage) => {
+    // Ignore our own messages
+    if (msg.sender === myIdRef.current) return;
+
+    const pc = createPeerConnection();
+
+    if (msg.type === "offer") {
+      // If we're already in a call with an established connection, this is a renegotiation offer
+      if (
+        isCalling &&
+        !isAwaitingAnswer &&
+        pc.remoteDescription &&
+        (pc.signalingState === "stable" ||
+          pc.signalingState === "have-remote-offer")
+      ) {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          await flushPendingCandidates();
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await sendSignal({
+            type: "answer",
+            sdp: answer,
+            sender: myIdRef.current,
+          });
+        } catch (err) {
+          console.error("Error handling renegotiation offer:", err);
+        }
+        return;
+      }
+      // Otherwise, it's a new incoming call
+      setIncomingOffer(msg.sdp);
+      setIncomingCaller(msg.sender);
+      setIsRinging(true);
+      setStatus("Incoming call");
+      return;
+    }
+
+    if (msg.type === "answer") {
+      setStatus("Received answer, connecting...");
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      await flushPendingCandidates();
+      setIsCalling(true);
+      setIsAwaitingAnswer(false);
+      setIsRinging(false);
+      setStatus("In call");
+    } else if (msg.type === "candidate") {
+      await queueIceCandidate(msg.candidate);
+    }
+  };
+  handleSignalRef.current = handleSignal;
+
+  const flushPendingCandidates = async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    const remoteDesc = pc.remoteDescription;
+    if (!remoteDesc || !remoteDesc.type) return;
+    const queued = pendingCandidatesRef.current.splice(0);
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.error("Error adding queued candidate", err);
+      }
+    }
+  };
+
+  const queueIceCandidate = async (candidate: RTCIceCandidateInit) => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    if (!pc.remoteDescription || !pc.remoteDescription.type) {
+      pendingCandidatesRef.current.push(candidate);
+      return;
+    }
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.error("Error adding ice candidate", err);
+    }
+  };
+
+  const sendRoomEvent = useCallback(async (event: RoomEvent) => {
+    if (!channelRef.current) return;
+    await channelRef.current.send({
+      type: "broadcast",
+      event: "room-event",
+      payload: event,
+    });
+  }, []);
+
+  const broadcastMediaState = useCallback(
+    (cameraEnabled: boolean, micEnabled: boolean) => {
+      void sendRoomEvent({
+        type: "media-state",
+        sender: myIdRef.current,
+        cameraEnabled,
+        micEnabled,
+      });
+    },
+    [sendRoomEvent]
+  );
+
+  // Sync button state with actual track state to reflect hardware connection
+  useEffect(() => {
+    const stream = localStreamRef.current;
+    if (!stream) {
+      // If no stream, ensure state reflects no devices
+      if (isCameraEnabled) setIsCameraEnabled(false);
+      if (isMicEnabled) setIsMicEnabled(false);
+      return;
+    }
+
+    const videoTracks = stream.getVideoTracks();
+    const audioTracks = stream.getAudioTracks();
+    const hasActiveVideo =
+      videoTracks.length > 0 && videoTracks[0].readyState === "live";
+    const hasActiveAudio =
+      audioTracks.length > 0 && audioTracks[0].readyState === "live";
+
+    // Sync state with actual track state
+    if (hasActiveVideo !== isCameraEnabled) {
+      setIsCameraEnabled(hasActiveVideo);
+    }
+    if (hasActiveAudio !== isMicEnabled) {
+      setIsMicEnabled(hasActiveAudio);
+    }
+
+    // Listen for track ended events to update state
+    const handleVideoTrackEnd = () => {
+      setIsCameraEnabled(false);
+      broadcastMediaState(false, isMicEnabled);
+    };
+    const handleAudioTrackEnd = () => {
+      setIsMicEnabled(false);
+      broadcastMediaState(isCameraEnabled, false);
+    };
+
+    videoTracks.forEach((track) => {
+      track.addEventListener("ended", handleVideoTrackEnd);
+    });
+    audioTracks.forEach((track) => {
+      track.addEventListener("ended", handleAudioTrackEnd);
+    });
+
+    return () => {
+      videoTracks.forEach((track) => {
+        track.removeEventListener("ended", handleVideoTrackEnd);
+      });
+      audioTracks.forEach((track) => {
+        track.removeEventListener("ended", handleAudioTrackEnd);
+      });
+    };
+  }, [isCameraEnabled, isMicEnabled, broadcastMediaState]);
+
+  const resetLocalMediaState = useCallback(() => {
+    const stream = localStreamRef.current;
+    if (stream) {
+      // Stop all tracks completely
+      stream.getTracks().forEach((track) => {
+        track.stop();
+        stream.removeTrack(track);
+      });
+    }
+    setIsCameraEnabled(false);
+    setIsMicEnabled(false);
+    broadcastMediaState(false, false);
+  }, [broadcastMediaState]);
+
+  const handleRoomCapacityExceeded = useCallback(() => {
+    setStatus("Room full");
+    if (channelRef.current) {
+      void sendRoomEvent({ type: "left", sender: myIdRef.current });
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    participantsRef.current.delete(myIdRef.current);
+    refreshParticipantState();
+    setIsJoined(false);
+    setIsCalling(false);
+    setIsAwaitingAnswer(false);
+    resetRemoteVideo();
+  }, [refreshParticipantState, resetRemoteVideo, sendRoomEvent, supabase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const notifyDeparture = () => {
+      if (!channelRef.current) return;
+      void sendRoomEvent({ type: "left", sender: myIdRef.current });
+    };
+
+    window.addEventListener("beforeunload", notifyDeparture);
+    return () => {
+      window.removeEventListener("beforeunload", notifyDeparture);
+      notifyDeparture();
+      if (pcRef.current) {
+        // Stop all tracks from senders
+        pcRef.current.getSenders().forEach((s) => {
+          if (s.track) {
+            s.track.stop();
+          }
+        });
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      // Fully disconnect all local devices
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => {
+          t.stop(); // Fully stop (disconnects hardware)
+        });
+        localStreamRef.current = null;
+      }
+      // Clear video elements
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+      participantsRef.current.clear();
+    };
+  }, [sendRoomEvent, supabase]);
+
+  const handleRoomEvent = (event: RoomEvent) => {
+    if (event.sender === myIdRef.current) return;
+
+    if (event.type === "joined") {
+      if (participantsRef.current.size >= 2) {
+        void sendRoomEvent({
+          type: "room-full",
+          sender: myIdRef.current,
+          target: event.sender,
+          hostId: hostIdRef.current ?? myIdRef.current,
+        });
+        return;
+      }
+      addParticipant(event.sender);
+      setStatus("Guest already joined");
+      void sendRoomEvent({
+        type: "joined-ack",
+        sender: myIdRef.current,
+        hostId: hostIdRef.current ?? myIdRef.current,
+      });
+      broadcastMediaState(isCameraEnabled, isMicEnabled);
+      return;
+    }
+
+    if (event.type === "joined-ack") {
+      hostIdRef.current = event.hostId;
+      addParticipant(event.sender);
+      refreshParticipantState();
+      return;
+    }
+
+    if (event.type === "left") {
+      removeParticipant(event.sender);
+      return;
+    }
+
+    if (event.type === "room-full") {
+      if (event.target === myIdRef.current) {
+        hostIdRef.current = event.hostId;
+        handleRoomCapacityExceeded();
+      }
+      return;
+    }
+
+    if (event.type === "call-start") {
+      setIsRinging(true);
+      setStatus("Incoming call");
+      return;
+    }
+
+    if (event.type === "media-state") {
+      setIsRemoteVideoEnabled(event.cameraEnabled);
+      setIsRemoteAudioEnabled(event.micEnabled);
+      return;
+    }
+
+    if (event.type === "call-end") {
+      setIsCalling(false);
+      setIsRinging(false);
+      resetRemoteVideo();
+      resetLocalMediaState();
+      setIncomingOffer(null);
+      setIncomingCaller(null);
+      setIsAwaitingAnswer(false);
+      pendingCandidatesRef.current.length = 0;
+      setStatus("Ended the call");
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      return;
+    }
+
+    if (event.type === "call-declined") {
+      setIsAwaitingAnswer(false);
+      setIsCalling(false);
+      setStatus("Guest declined the call");
+      return;
+    }
+  };
+  handleRoomEventRef.current = handleRoomEvent;
+
+  const acceptIncomingCall = async () => {
+    if (!incomingOffer) return;
+
+    const pc = createPeerConnection();
+    setStatus("Answering call\u2026");
+    await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer));
+    await flushPendingCandidates();
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await sendSignal({
+      type: "answer",
+      sdp: answer,
+      sender: myIdRef.current,
+    });
+
+    setIsCalling(true);
+    setIsRinging(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setIsAwaitingAnswer(false);
+    setStatus("In call");
+  };
+
+  const declineIncomingCall = async () => {
+    setIsRinging(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setStatus("Call declined");
+    await sendRoomEvent({ type: "call-declined", sender: myIdRef.current });
+  };
+
+  const joinRoom = useCallback(async () => {
+    if (isJoined || isJoiningRef.current) return;
+
+    isJoiningRef.current = true;
+    try {
+      await ensureLocalStream();
+      setStatus("Joining signaling channel…");
+      const channel = supabase
+        .channel(`${ROOM_CHANNEL_PREFIX}${roomId}`, {
+          config: {
+            broadcast: {
+              self: false,
+            },
+          },
+        })
+        .on("broadcast", { event: "signal" }, (event) => {
+          const payload = event.payload as SignalMessage;
+          handleSignalRef.current?.(payload);
+        })
+        .on("broadcast", { event: "room-event" }, (event) => {
+          const payload = event.payload as RoomEvent;
+          handleRoomEventRef.current?.(payload);
+        });
+
+      channelRef.current = channel;
+      participantsRef.current.clear();
+      refreshParticipantState();
+
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setStatus("Joined room");
+          setIsJoined(true);
+          addParticipant(myIdRef.current);
+          void sendRoomEvent({ type: "joined", sender: myIdRef.current });
+          broadcastMediaState(isCameraEnabled, isMicEnabled);
+        } else if (status === "CHANNEL_ERROR") {
+          setStatus("Channel error");
+        } else if (status === "TIMED_OUT") {
+          setStatus("Channel timed out");
+        } else if (status === "CLOSED") {
+          setStatus("Channel closed");
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      setStatus("Cannot access camera/mic");
+    } finally {
+      isJoiningRef.current = false;
+    }
+  }, [
+    addParticipant,
+    broadcastMediaState,
+    ensureLocalStream,
+    isCameraEnabled,
+    isJoined,
+    isMicEnabled,
+    roomId,
+    supabase,
+    refreshParticipantState,
+  ]);
+
+  useEffect(() => {
+    autoJoinAttemptedRef.current = false;
+    isJoiningRef.current = false;
+    setIsJoined(false);
+    setIsCalling(false);
+    setIsRinging(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setIsAwaitingAnswer(false);
+    pendingCandidatesRef.current.length = 0;
+    setStatus("Not joined");
+    participantsRef.current.clear();
+    refreshParticipantState();
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    resetRemoteVideo();
+  }, [refreshParticipantState, resetRemoteVideo, roomId, supabase]);
+
+  useEffect(() => {
+    if (isJoined) return;
+    if (autoJoinAttemptedRef.current) return;
+    autoJoinAttemptedRef.current = true;
+    void joinRoom();
+  }, [isJoined, joinRoom]);
+
+  const startCall = async () => {
+    if (!isJoined) {
+      setStatus("Join the room first");
+      return;
+    }
+
+    await ensureLocalStream();
+    const pc = createPeerConnection();
+    setStatus("Creating the call");
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    await sendSignal({
+      type: "offer",
+      sdp: offer,
+      sender: myIdRef.current,
+    });
+
+    void sendRoomEvent({ type: "call-start", sender: myIdRef.current });
+
+    setIsCalling(true);
+    setIsAwaitingAnswer(true);
+    setStatus("Waiting for answer");
+  };
+
+  const hangUp = () => {
+    // Close peer connection
+    if (pcRef.current) {
+      // Stop all tracks from senders before closing
+      pcRef.current.getSenders().forEach((sender) => {
+        if (sender.track) {
+          sender.track.stop();
+        }
+      });
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+
+    // Clear remote video
+    resetRemoteVideo();
+
+    // Fully disconnect all local devices
+    const stream = localStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        track.stop(); // Fully stop all tracks (disconnects hardware)
+        stream.removeTrack(track);
+      });
+    }
+    // Clear local video element
+    clearVideoElement(localVideoRef);
+    localStreamRef.current = null;
+
+    // Reset state
+    setIsCameraEnabled(false);
+    setIsMicEnabled(false);
+    setIncomingOffer(null);
+    setIncomingCaller(null);
+    setIsAwaitingAnswer(false);
+    pendingCandidatesRef.current.length = 0;
+    setIsCalling(false);
+    setIsRinging(false);
+    setStatus("Call ended");
+    broadcastMediaState(false, false);
+    void sendRoomEvent({ type: "call-end", sender: myIdRef.current });
+  };
+
+  const toggleCamera = useCallback(async () => {
+    try {
+      const nextEnabled = !isCameraEnabled;
+      const stream = localStreamRef.current;
+      const pc = pcRef.current;
+
+      if (nextEnabled) {
+        // Enable camera: request new video track
+        if (!stream) {
+          await ensureLocalStream();
+        } else {
+          const hasVideo = stream.getVideoTracks().length > 0;
+          if (!hasVideo) {
+            setStatus("Requesting camera access");
+            const newStream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+            });
+            newStream.getVideoTracks().forEach((track) => {
+              stream.addTrack(track);
+            });
+            // Update peer connection if in call
+            if (pc) {
+              await updatePeerConnectionTracks();
+            }
+          }
+        }
+        setIsCameraEnabled(true);
+        broadcastMediaState(true, isMicEnabled);
+        setStatus("Camera on");
+      } else {
+        // Disable camera: stop and remove all video tracks
+        if (stream) {
+          const videoTracks = stream.getVideoTracks();
+          videoTracks.forEach((track) => {
+            track.stop(); // Fully stop the track (disconnects hardware)
+            stream.removeTrack(track);
+          });
+          // Remove from peer connection if in call
+          if (pc) {
+            const senders = pc.getSenders();
+            const videoSender = senders.find(
+              (s) => s.track && s.track.kind === "video"
+            );
+            if (videoSender) {
+              await pc.removeTrack(videoSender);
+            }
+          }
+        }
+        setIsCameraEnabled(false);
+        broadcastMediaState(false, isMicEnabled);
+        setStatus("Camera off");
+      }
+    } catch (err) {
+      console.error("Error toggling camera", err);
+      setStatus("Cannot toggle camera");
+      // Revert state on error
+      setIsCameraEnabled(isCameraEnabled);
+    }
+  }, [
+    broadcastMediaState,
+    ensureLocalStream,
+    isCameraEnabled,
+    isMicEnabled,
+    updatePeerConnectionTracks,
+  ]);
+
+  const toggleMicrophone = useCallback(async () => {
+    try {
+      const nextEnabled = !isMicEnabled;
+      const stream = localStreamRef.current;
+      const pc = pcRef.current;
+
+      if (nextEnabled) {
+        // Enable microphone: request new audio track
+        if (!stream) {
+          await ensureLocalStream();
+        } else {
+          const hasAudio = stream.getAudioTracks().length > 0;
+          if (!hasAudio) {
+            setStatus("Requesting microphone access");
+            const newStream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+            });
+            newStream.getAudioTracks().forEach((track) => {
+              stream.addTrack(track);
+            });
+            // Update peer connection if in call
+            if (pc) {
+              await updatePeerConnectionTracks();
+            }
+          }
+        }
+        setIsMicEnabled(true);
+        broadcastMediaState(isCameraEnabled, true);
+        setStatus("Microphone on");
+      } else {
+        // Disable microphone: stop and remove all audio tracks
+        if (stream) {
+          const audioTracks = stream.getAudioTracks();
+          audioTracks.forEach((track) => {
+            track.stop(); // Fully stop the track (disconnects hardware)
+            stream.removeTrack(track);
+          });
+          // Remove from peer connection if in call
+          if (pc) {
+            const senders = pc.getSenders();
+            const audioSender = senders.find(
+              (s) => s.track && s.track.kind === "audio"
+            );
+            if (audioSender) {
+              await pc.removeTrack(audioSender);
+            }
+          }
+        }
+        setIsMicEnabled(false);
+        broadcastMediaState(isCameraEnabled, false);
+        setStatus("Microphone off");
+      }
+    } catch (err) {
+      console.error("Error toggling microphone", err);
+      setStatus("Cannot toggle microphone");
+      // Revert state on error
+      setIsMicEnabled(isMicEnabled);
+    }
+  }, [
+    broadcastMediaState,
+    ensureLocalStream,
+    isCameraEnabled,
+    isMicEnabled,
+    updatePeerConnectionTracks,
+  ]);
+
+  const ensureRoomLinkAvailable = useCallback(() => {
+    const link =
+      roomLink ||
+      (typeof window !== "undefined" ? window.location.href : "");
+    if (!link) {
+      setStatus("Room link unavailable");
+      return null;
+    }
+    return link;
+  }, [roomLink]);
+
+  const remoteVideoActive =
+    isRemoteVideoEnabled === null ? hasRemoteStream : isRemoteVideoEnabled;
+  const remoteAudioActive =
+    isRemoteAudioEnabled === null ? hasRemoteStream : isRemoteAudioEnabled;
+  const showRemoteStatus = hasRemoteStream || peerPresent;
+  const remoteVideoLabel = remoteVideoActive
+    ? "Guest video on"
+    : "Guest video off";
+  const remoteAudioLabel = remoteAudioActive
+    ? "Guest audio on"
+    : "Guest audio muted";
+  const formattedDuration = formatCallDuration(callDuration);
+  const immersiveViewportHeight = viewportHeight
+    ? `${viewportHeight}px`
+    : "100vh";
+  const immersiveInsets = isFullscreen
+    ? {
+        top: "calc(env(safe-area-inset-top, 0px) + 8px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+        left: "calc(env(safe-area-inset-left, 0px) + 8px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 8px)",
+      }
+    : null;
+  const immersivePadding = immersiveInsets ?? {
+    top: "24px",
+    bottom: "24px",
+    left: "16px",
+    right: "16px",
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      return next;
+    });
+  };
+
+
+  return {
+    ringtoneRef,
+    callAreaRef,
+    localVideoRef,
+    remoteVideoRef,
+    status,
+    isCalling,
+    isAwaitingAnswer,
+    peerPresent,
+    isJoined,
+    isHost,
+    peerRole,
+    isCameraEnabled,
+    isMicEnabled,
+    remoteVideoActive,
+    remoteAudioActive,
+    remoteVideoLabel,
+    remoteAudioLabel,
+    showRemoteStatus,
+    formattedDuration,
+    immersiveViewportHeight,
+    immersivePadding,
+    isFullscreen,
+    toggleFullscreen,
+    joinRoom,
+    startCall,
+    hangUp,
+    toggleCamera,
+    toggleMicrophone,
+    acceptIncomingCall,
+    declineIncomingCall,
+    isRinging,
+    incomingCaller,
+    incomingOffer,
+    roomLink,
+    ensureRoomLinkAvailable,
+  };
+}
