@@ -28,8 +28,10 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
-import { ThemeSwitch } from "@/components/theme-switch";
+
 import { useRoomController } from "../(hooks)/useRoomController";
+
+import { ThemeSwitch } from "@/components/theme-switch";
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const {
@@ -87,11 +89,12 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
   return (
     <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-0">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio
         ref={ringtoneRef}
-        src="/skype_caller_tone.mp3"
-        preload="auto"
         loop
+        preload="auto"
+        src="/skype_caller_tone.mp3"
       />
       <header
         className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-2xl border border-default-100 /80 px-4 py-3  backdrop-blur ${isFullscreen ? "hidden" : ""}`}
@@ -118,10 +121,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           </Chip> */}
           {isCalling && !isAwaitingAnswer && (
             <Chip
-              size="sm"
-              color="default"
-              variant="flat"
               className="font-mono"
+              color="default"
+              size="sm"
+              variant="flat"
             >
               {formattedDuration}
             </Chip>
@@ -158,20 +161,21 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               : "relative h-full w-full min-h-0 bg-default-50"
           } flex overflow-hidden rounded-2xl `}
         >
+          {}
           <video
             ref={localVideoRef}
             autoPlay
-            playsInline
             muted
+            playsInline
             className="h-full w-full object-cover"
           />
           <div className="pointer-events-none absolute inset-0" />
           <span className="pointer-events-none absolute bottom-3 left-3">
             <Chip
+              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+              color={isJoined ? "success" : "default"}
               size="sm"
               variant="dot"
-              color={isJoined ? "success" : "default"}
-              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
             >
               <span className="text-xs font-semibold">
                 You · {isHost ? "Host" : isJoined ? "Guest" : "Offline"}
@@ -186,6 +190,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </div>
 
         <div className="relative flex h-full w-full min-h-0 overflow-hidden rounded-2xl bg-default-50">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -195,10 +200,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-none absolute inset-0" />
           <span className="pointer-events-none absolute bottom-3 left-3">
             <Chip
+              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
+              color={peerPresent ? "success" : "default"}
               size="sm"
               variant="dot"
-              color={peerPresent ? "success" : "default"}
-              className="uppercase tracking-widest bg-foreground/10 text-foreground border-none"
             >
               <span className="text-xs font-semibold">
                 {peerPresent
@@ -215,10 +220,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           {showRemoteStatus && (
             <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
               <Chip
-                variant="bordered"
                 aria-label={remoteVideoLabel}
-                size="sm"
                 className="border-1 border-default-100 text-foreground"
+                size="sm"
+                variant="bordered"
               >
                 {remoteVideoActive ? (
                   <Camera className="h-3 w-3" />
@@ -227,10 +232,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 )}
               </Chip>
               <Chip
-                variant="bordered"
                 aria-label={remoteAudioLabel}
-                size="sm"
                 className="border-1 border-default-100 text-foreground"
+                size="sm"
+                variant="bordered"
               >
                 {remoteAudioActive ? (
                   <Mic className="h-3 w-3" />
@@ -243,12 +248,12 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           {isFullscreen && (
             <Button
               isIconOnly
+              aria-label="Exit fullscreen"
+              className="absolute bottom-3 right-3 z-30"
               color="default"
               radius="full"
               type="button"
-              aria-label="Exit fullscreen"
               onPress={toggleFullscreen}
-              className="absolute bottom-3 right-3 z-30"
             >
               <Minimize2 size={16} />
             </Button>
@@ -263,31 +268,31 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="flex gap-2">
             <Button
               isIconOnly
-              radius="full"
               aria-pressed={isCameraEnabled}
+              color={isCameraEnabled ? "default" : "secondary"}
+              radius="full"
               startContent={
                 isCameraEnabled ? <Video size={16} /> : <VideoOff size={16} />
               }
               onPress={toggleCamera}
-              color={isCameraEnabled ? "default" : "secondary"}
-            ></Button>
+            />
             <Button
               isIconOnly
-              radius="full"
-              color={isMicEnabled ? "default" : "secondary"}
               aria-pressed={isMicEnabled}
+              color={isMicEnabled ? "default" : "secondary"}
+              radius="full"
               startContent={
                 isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />
               }
               onPress={toggleMicrophone}
-            ></Button>
+            />
           </div>
         )}
 
         {!isJoined && (
           <Button
-            onPress={joinRoom}
             className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            onPress={joinRoom}
           >
             Join room
           </Button>
@@ -295,53 +300,53 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
         {isJoined && !isCalling && !isAwaitingAnswer && (
           <Button
-            size="lg"
-            color="primary"
             isIconOnly
+            color="primary"
             radius="full"
-            onPress={startCall}
+            size="lg"
             startContent={<PhoneIcon size={16} />}
-          ></Button>
+            onPress={startCall}
+          />
         )}
 
         {isCalling && needsResume && (
           <Button
-            size="lg"
-            color="warning"
             isIconOnly
-            radius="full"
             aria-label="Resume call"
-            onPress={resumeCall}
+            color="warning"
+            radius="full"
+            size="lg"
             startContent={<RotateCcw size={16} />}
-          ></Button>
+            onPress={resumeCall}
+          />
         )}
 
         {isCalling && (
           <Button
-            color="danger"
-            size="lg"
             isIconOnly
+            color="danger"
             radius="full"
-            onPress={hangUp}
+            size="lg"
             startContent={<PhoneOff size={16} />}
-          ></Button>
+            onPress={hangUp}
+          />
         )}
 
         <div className="flex gap-2">
           <Button
-            radius="full"
-            color="default"
-            size="md"
             isIconOnly
+            color="default"
+            radius="full"
+            size="md"
             startContent={<Share size={16} />}
             onPress={handleOpenQrModal}
-          ></Button>
+          />
           <Button
             isIconOnly
-            radius="full"
             aria-pressed={isFullscreen}
-            onPress={toggleFullscreen}
             className="border border-default-200 text-default-700"
+            radius="full"
+            onPress={toggleFullscreen}
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </Button>
@@ -351,7 +356,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         className={`flex items-center px-3 gap-3 opacity-50 justify-between w-full ${isFullscreen ? "hidden" : ""}`}
       >
         <Chip
-          variant="dot"
+          className="px-3 py-1"
+          classNames={{ base: "border-1 !py-0 !px-2" }}
           color={
             isCalling
               ? "secondary"
@@ -364,24 +370,23 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                     : "default"
           }
           size="sm"
-          classNames={{ base: "border-1 !py-0 !px-2" }}
-          className="px-3 py-1"
+          variant="dot"
         >
           {status}
         </Chip>
         <ThemeSwitch />
       </footer>
       <Modal
-        size="sm"
-        backdrop="blur"
-        isOpen={isRinging}
-        onOpenChange={() => undefined}
-        placement="center"
         hideCloseButton
-        isDismissable={false}
+        backdrop="blur"
         classNames={{
           base: "bg-transparent",
         }}
+        isDismissable={false}
+        isOpen={isRinging}
+        placement="center"
+        size="sm"
+        onOpenChange={() => undefined}
       >
         <ModalContent className="shadow-none px-6 pb-6 pt-8">
           {() => (
@@ -404,35 +409,35 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               </div>
               <div className="flex w-full items-center justify-center gap-6 py-6">
                 <Button
-                  radius="full"
+                  isIconOnly
                   className="h-18 w-18"
-                  size="lg"
-                  isIconOnly
-                  onPress={declineIncomingCall}
                   color="danger"
-                  startContent={<PhoneOff className="h-5 w-5" />}
-                ></Button>
-                <Button
                   radius="full"
                   size="lg"
-                  className="h-18 w-18 animate-"
+                  startContent={<PhoneOff className="h-5 w-5" />}
+                  onPress={declineIncomingCall}
+                />
+                <Button
                   isIconOnly
-                  onPress={acceptIncomingCall}
-                  disabled={!incomingOffer}
+                  className="h-18 w-18 animate-"
                   color="success"
+                  disabled={!incomingOffer}
+                  radius="full"
+                  size="lg"
                   startContent={<PhoneCall className="h-5 w-5" />}
-                ></Button>
+                  onPress={acceptIncomingCall}
+                />
               </div>
             </div>
           )}
         </ModalContent>
       </Modal>
       <Modal
-        size="xs"
-        isOpen={isQrModalOpen}
-        onOpenChange={onQrModalOpenChange}
-        placement="center"
         hideCloseButton={false}
+        isOpen={isQrModalOpen}
+        placement="center"
+        size="xs"
+        onOpenChange={onQrModalOpenChange}
       >
         <ModalContent>
           {(_onClose) => (
@@ -449,7 +454,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 <div className="flex flex-col items-center gap-3">
                   {roomLink ? (
                     <div className="rounded-xl border border-default-200 p-3">
-                      <ReactQRCode value={roomLink} className="h-full w-full" />
+                      <ReactQRCode className="h-full w-full" value={roomLink} />
                     </div>
                   ) : (
                     <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-200 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">
@@ -458,13 +463,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                   )}
 
                   <Snippet
-                    size="sm"
-                    color="primary"
-                    variant="flat"
                     hideSymbol
-                    hideCopyButton={!roomLink}
                     className="pl-5 bg-transparent uppercase hover:bg-default-100 transition-all"
                     codeString={roomLink}
+                    color="primary"
+                    hideCopyButton={!roomLink}
+                    size="sm"
+                    variant="flat"
                   >
                     Copy Room Link
                   </Snippet>

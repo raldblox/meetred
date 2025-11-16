@@ -49,6 +49,7 @@
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-unused-imports": "4.1.4",
     "globals": "16.0.0",
+    "@eslint/compat": "^1.1.1",
     "@testing-library/react": "14.2.2",
     "jsdom": "24.1.1",
     "vitest": "1.6.0",

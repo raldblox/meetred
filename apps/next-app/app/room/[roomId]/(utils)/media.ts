@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 
 export function clearVideoElement(ref: RefObject<HTMLVideoElement | null>) {
   const video = ref.current;
+
   if (!video) return;
 
   video.pause();
@@ -22,5 +23,6 @@ export function formatCallDuration(totalSeconds: number) {
     .toString()
     .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
   return `${minutes}:${seconds}`;
 }

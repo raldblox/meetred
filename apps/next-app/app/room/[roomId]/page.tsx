@@ -6,5 +6,6 @@ export default async function Room({
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = await params;
+
   return <RoomPage roomId={roomId} />;
 }

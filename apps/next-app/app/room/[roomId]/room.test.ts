@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, beforeAll, beforeEach, expect, it, vi } from "vitest";
+
 import { useRoomController } from "./(hooks)/useRoomController";
 
 type SignalHandler = (event: { payload: any }) => void;
@@ -87,7 +88,9 @@ class MockRTCPeerConnection {
         sender.track = nextTrack;
       },
     };
+
     this.senders.push(sender);
+
     return sender;
   }
 
@@ -100,11 +103,17 @@ class MockRTCPeerConnection {
   }
 
   async createOffer() {
-    return { type: "offer", sdp: "mock-offer" } satisfies RTCSessionDescriptionInit;
+    return {
+      type: "offer",
+      sdp: "mock-offer",
+    } satisfies RTCSessionDescriptionInit;
   }
 
   async createAnswer() {
-    return { type: "answer", sdp: "mock-answer" } satisfies RTCSessionDescriptionInit;
+    return {
+      type: "answer",
+      sdp: "mock-answer",
+    } satisfies RTCSessionDescriptionInit;
   }
 
   async setLocalDescription(description: RTCSessionDescriptionInit) {
@@ -134,17 +143,23 @@ class MockRealtimeChannel {
   private statusCallback: ((status: string) => void) | null = null;
   private broadcasts: Array<{ event: string; payload: any }> = [];
 
-  on(_type: string, filter: { event: "signal" | "room-event" }, handler: SignalHandler) {
+  on(
+    _type: string,
+    filter: { event: "signal" | "room-event" },
+    handler: SignalHandler,
+  ) {
     if (filter.event === "signal") {
       this.signalHandlers.push(handler);
     } else {
       this.roomHandlers.push(handler);
     }
+
     return this;
   }
 
   subscribe(callback: (status: string) => void) {
     this.statusCallback = callback;
+
     return this;
   }
 
@@ -157,15 +172,11 @@ class MockRealtimeChannel {
   }
 
   emitSignal(payload: any) {
-    this.signalHandlers.forEach((handler) =>
-      handler({ payload })
-    );
+    this.signalHandlers.forEach((handler) => handler({ payload }));
   }
 
   emitRoomEvent(payload: any) {
-    this.roomHandlers.forEach((handler) =>
-      handler({ payload })
-    );
+    this.roomHandlers.forEach((handler) => handler({ payload }));
   }
 
   getSignals() {
@@ -185,10 +196,7 @@ let activeChannel: MockRealtimeChannel | null = null;
 let getUserMediaMock: ReturnType<typeof vi.fn>;
 
 const mockSupabaseClient = {
-  channel: vi.fn(
-    () =>
-      (activeChannel = new MockRealtimeChannel())
-  ),
+  channel: vi.fn(() => (activeChannel = new MockRealtimeChannel())),
   removeChannel: vi.fn(),
 };
 
@@ -237,11 +245,11 @@ describe("useRoomController", () => {
         (this as any).__srcObject = value;
       },
     });
-    vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(
-      () => Promise.resolve()
+    vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(() =>
+      Promise.resolve(),
     );
     vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(
-      () => {}
+      () => {},
     );
   });
 
@@ -250,6 +258,7 @@ describe("useRoomController", () => {
     mockSupabaseClient.channel.mockClear();
     mockSupabaseClient.removeChannel.mockClear();
     let nextId = 1;
+
     Object.defineProperty(globalThis, "crypto", {
       configurable: true,
       value: {
@@ -267,7 +276,7 @@ describe("useRoomController", () => {
             typeof constraints?.audio === "boolean"
               ? constraints?.audio
               : Boolean(constraints?.audio),
-        })
+        }),
     );
     Object.defineProperty(window.navigator, "mediaDevices", {
       configurable: true,
@@ -281,6 +290,7 @@ describe("useRoomController", () => {
 
   const setupJoinedRoom = async () => {
     const hook = renderHook(() => useRoomController("demo-room"));
+
     await waitFor(() => {
       expect(activeChannel).not.toBeNull();
     });
@@ -291,6 +301,7 @@ describe("useRoomController", () => {
     await waitFor(() => {
       expect(hook.result.current.isJoined).toBe(true);
     });
+
     return { hook, channel: activeChannel! };
   };
 
@@ -299,36 +310,41 @@ describe("useRoomController", () => {
     const mediaEvents = activeChannel
       .getRoomEvents()
       .filter((event) => event.type === "media-state");
+
     return mediaEvents.at(-1);
   };
 
-  const wasMediaRequested = (check: (constraints?: MediaStreamConstraints) => boolean) =>
-    getUserMediaMock.mock.calls.some(([constraints]) => check(constraints));
+  const wasMediaRequested = (
+    check: (constraints?: MediaStreamConstraints) => boolean,
+  ) => getUserMediaMock.mock.calls.some(([constraints]) => check(constraints));
 
   it("joins the room and announces presence", async () => {
     const { hook, channel } = await setupJoinedRoom();
+
     expect(hook.result.current.status).toBe("Joined room");
-    expect(
-      channel.getRoomEvents().some((evt) => evt.type === "joined")
-    ).toBe(true);
+    expect(channel.getRoomEvents().some((evt) => evt.type === "joined")).toBe(
+      true,
+    );
   });
 
   it("starts a call and emits offer plus call-start events", async () => {
     const { hook, channel } = await setupJoinedRoom();
+
     await act(async () => {
       await hook.result.current.startCall();
     });
     expect(hook.result.current.isCalling).toBe(true);
     expect(
-      channel.getSignals().some((payload) => payload.type === "offer")
+      channel.getSignals().some((payload) => payload.type === "offer"),
     ).toBe(true);
     expect(
-      channel.getRoomEvents().some((evt) => evt.type === "call-start")
+      channel.getRoomEvents().some((evt) => evt.type === "call-start"),
     ).toBe(true);
   });
 
   it("accepts an incoming offer and responds with an answer", async () => {
     const { hook, channel } = await setupJoinedRoom();
+
     await act(async () => {
       channel.emitSignal({
         type: "offer",
@@ -343,7 +359,7 @@ describe("useRoomController", () => {
     });
     expect(hook.result.current.isCalling).toBe(true);
     expect(
-      channel.getSignals().some((payload) => payload.type === "answer")
+      channel.getSignals().some((payload) => payload.type === "answer"),
     ).toBe(true);
   });
 
@@ -356,7 +372,7 @@ describe("useRoomController", () => {
     });
     await waitFor(() => expect(hook.result.current.isCameraEnabled).toBe(true));
     expect(
-      wasMediaRequested((constraints) => Boolean(constraints?.video))
+      wasMediaRequested((constraints) => Boolean(constraints?.video)),
     ).toBe(true);
     expect(getLatestMediaState()).toMatchObject({
       cameraEnabled: true,
@@ -366,7 +382,9 @@ describe("useRoomController", () => {
     await act(async () => {
       await hook.result.current.toggleCamera();
     });
-    await waitFor(() => expect(hook.result.current.isCameraEnabled).toBe(false));
+    await waitFor(() =>
+      expect(hook.result.current.isCameraEnabled).toBe(false),
+    );
     expect(getLatestMediaState()).toMatchObject({
       cameraEnabled: false,
     });
@@ -377,7 +395,7 @@ describe("useRoomController", () => {
     });
     await waitFor(() => expect(hook.result.current.isMicEnabled).toBe(true));
     expect(
-      wasMediaRequested((constraints) => Boolean(constraints?.audio))
+      wasMediaRequested((constraints) => Boolean(constraints?.audio)),
     ).toBe(true);
     expect(getLatestMediaState()).toMatchObject({
       micEnabled: true,
@@ -395,6 +413,7 @@ describe("useRoomController", () => {
 
   it("renegotiates media when toggling devices during an active call", async () => {
     const { hook, channel } = await setupJoinedRoom();
+
     // Turn camera on before call to provide a track
     await act(async () => {
       await hook.result.current.toggleCamera();
@@ -411,7 +430,9 @@ describe("useRoomController", () => {
       });
       await flushAsync();
     });
-    await waitFor(() => expect(hook.result.current.isAwaitingAnswer).toBe(false));
+    await waitFor(() =>
+      expect(hook.result.current.isAwaitingAnswer).toBe(false),
+    );
     const initialOfferCount = channel
       .getSignals()
       .filter((payload) => payload.type === "offer").length;
@@ -430,7 +451,9 @@ describe("useRoomController", () => {
     await act(async () => {
       await hook.result.current.toggleCamera();
     });
-    await waitFor(() => expect(hook.result.current.isCameraEnabled).toBe(false));
+    await waitFor(() =>
+      expect(hook.result.current.isCameraEnabled).toBe(false),
+    );
     expect(getLatestMediaState()).toMatchObject({
       micEnabled: true,
       cameraEnabled: false,
@@ -439,6 +462,7 @@ describe("useRoomController", () => {
     const renegotiatedOfferCount = channel
       .getSignals()
       .filter((payload) => payload.type === "offer").length;
+
     expect(renegotiatedOfferCount).toBeGreaterThan(initialOfferCount);
   });
 
@@ -463,7 +487,9 @@ describe("useRoomController", () => {
       });
       await flushAsync();
     });
-    await waitFor(() => expect(hook.result.current.isAwaitingAnswer).toBe(false));
+    await waitFor(() =>
+      expect(hook.result.current.isAwaitingAnswer).toBe(false),
+    );
 
     // Remote disconnects
     await act(async () => {
@@ -485,13 +511,15 @@ describe("useRoomController", () => {
 
     const roomEvents = channel.getRoomEvents();
     const joinedAckCount = roomEvents.filter(
-      (evt) => evt.type === "joined-ack"
+      (evt) => evt.type === "joined-ack",
     ).length;
+
     expect(joinedAckCount).toBeGreaterThanOrEqual(1);
     expect(roomEvents.some((evt) => evt.type === "call-start")).toBe(true);
     const totalOffers = channel
       .getSignals()
       .filter((payload) => payload.type === "offer").length;
+
     expect(totalOffers).toBeGreaterThan(0);
   });
 });

@@ -1,8 +1,10 @@
 // app/room/[roomId]/page.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { createRoomSupabaseClient } from "../(libs)/supabaseClient";
 import {
   ICE_SERVER_CONFIG,
@@ -11,6 +13,14 @@ import {
   type SignalMessage,
 } from "../(libs)/roomTypes";
 import { clearVideoElement, formatCallDuration } from "../(utils)/media";
+
+const isProduction = process.env.NODE_ENV === "production";
+const logError = (...args: unknown[]) => {
+  if (!isProduction) {
+    // eslint-disable-next-line no-console
+    console.error(...args);
+  }
+};
 
 export function useRoomController(roomId: string) {
   const [status, setStatus] = useState<string>("Not joined");
@@ -63,21 +73,26 @@ export function useRoomController(roomId: string) {
 
   const refreshParticipantState = useCallback(() => {
     const participants = participantsRef.current;
+
     if (participants.size === 0) {
       hostIdRef.current = null;
       setIsHost(false);
       setPeerRole(null);
       setPeerPresent(false);
+
       return;
     }
     if (!hostIdRef.current || !participants.has(hostIdRef.current)) {
       const firstEntry = participants.values().next().value ?? null;
+
       hostIdRef.current = firstEntry ?? null;
     }
     const currentHost = hostIdRef.current;
+
     setIsHost(currentHost === myIdRef.current);
     const peerId =
       Array.from(participants).find((id) => id !== myIdRef.current) ?? null;
+
     setPeerPresent(Boolean(peerId));
     if (peerId && currentHost) {
       setPeerRole(peerId === currentHost ? "host" : "guest");
@@ -90,25 +105,29 @@ export function useRoomController(roomId: string) {
     (id: string) => {
       if (!id) return participantsRef.current.size;
       const participants = participantsRef.current;
+
       if (!participants.has(id)) {
         participants.add(id);
         refreshParticipantState();
       }
+
       return participants.size;
     },
-    [refreshParticipantState]
+    [refreshParticipantState],
   );
 
   const removeParticipant = useCallback(
     (id: string) => {
       if (!id) return participantsRef.current.size;
       const participants = participantsRef.current;
+
       if (participants.delete(id)) {
         refreshParticipantState();
       }
+
       return participants.size;
     },
-    [refreshParticipantState]
+    [refreshParticipantState],
   );
 
   const sendSignal = async (msg: SignalMessage) => {
@@ -123,6 +142,7 @@ export function useRoomController(roomId: string) {
   // Helper to renegotiate peer connection when tracks change
   const renegotiateConnection = useCallback(async () => {
     const pc = pcRef.current;
+
     if (!pc || pc.signalingState === "closed") return;
     // Only renegotiate when connection is stable (call is established)
     if (pc.signalingState === "stable") {
@@ -130,6 +150,7 @@ export function useRoomController(roomId: string) {
         // Only renegotiate if we have a remote description (call is established)
         if (pc.remoteDescription && pc.remoteDescription.type) {
           const offer = await pc.createOffer();
+
           await pc.setLocalDescription(offer);
           await sendSignal({
             type: "offer",
@@ -138,7 +159,7 @@ export function useRoomController(roomId: string) {
           });
         }
       } catch (err) {
-        console.error("Error renegotiating connection:", err);
+        logError("Error renegotiating connection:", err);
       }
     }
   }, []);
@@ -147,15 +168,16 @@ export function useRoomController(roomId: string) {
   const updatePeerConnectionTracks = useCallback(async () => {
     const pc = pcRef.current;
     const stream = localStreamRef.current;
+
     if (!pc || !stream) return;
 
     // Get current senders
     const senders = pc.getSenders();
     const videoSender = senders.find(
-      (s) => s.track && s.track.kind === "video"
+      (s) => s.track && s.track.kind === "video",
     );
     const audioSender = senders.find(
-      (s) => s.track && s.track.kind === "audio"
+      (s) => s.track && s.track.kind === "audio",
     );
 
     // Get current tracks
@@ -173,14 +195,14 @@ export function useRoomController(roomId: string) {
           await videoSender.replaceTrack(currentVideoTrack);
           needsRenegotiation = true;
         } catch (err) {
-          console.error("Error replacing video track:", err);
+          logError("Error replacing video track:", err);
         }
       } else if (!videoSender) {
         try {
           pc.addTrack(currentVideoTrack, stream);
           needsRenegotiation = true;
         } catch (err) {
-          console.error("Error adding video track:", err);
+          logError("Error adding video track:", err);
         }
       }
     } else if (videoSender) {
@@ -189,7 +211,7 @@ export function useRoomController(roomId: string) {
         pc.removeTrack(videoSender);
         needsRenegotiation = true;
       } catch (err) {
-        console.error("Error removing video track:", err);
+        logError("Error removing video track:", err);
       }
     }
 
@@ -200,14 +222,14 @@ export function useRoomController(roomId: string) {
           await audioSender.replaceTrack(currentAudioTrack);
           needsRenegotiation = true;
         } catch (err) {
-          console.error("Error replacing audio track:", err);
+          logError("Error replacing audio track:", err);
         }
       } else if (!audioSender) {
         try {
           pc.addTrack(currentAudioTrack, stream);
           needsRenegotiation = true;
         } catch (err) {
-          console.error("Error adding audio track:", err);
+          logError("Error adding audio track:", err);
         }
       }
     } else if (audioSender) {
@@ -216,7 +238,7 @@ export function useRoomController(roomId: string) {
         pc.removeTrack(audioSender);
         needsRenegotiation = true;
       } catch (err) {
-        console.error("Error removing audio track:", err);
+        logError("Error removing audio track:", err);
       }
     }
 
@@ -237,6 +259,7 @@ export function useRoomController(roomId: string) {
       if ((isCameraEnabled && !hasVideo) || (isMicEnabled && !hasAudio)) {
         // Request missing tracks
         const constraints: MediaStreamConstraints = {};
+
         if (isCameraEnabled && !hasVideo) {
           constraints.video = true;
         }
@@ -247,6 +270,7 @@ export function useRoomController(roomId: string) {
         try {
           const newStream =
             await navigator.mediaDevices.getUserMedia(constraints);
+
           newStream.getVideoTracks().forEach((track) => {
             stream.addTrack(track);
           });
@@ -258,10 +282,11 @@ export function useRoomController(roomId: string) {
             updatePeerConnectionTracks();
           }
         } catch (err) {
-          console.error("Error adding tracks:", err);
+          logError("Error adding tracks:", err);
           throw err;
         }
       }
+
       return stream;
     }
 
@@ -278,14 +303,17 @@ export function useRoomController(roomId: string) {
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStreamRef.current;
       }
+
       return localStreamRef.current;
     }
 
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
     localStreamRef.current = stream;
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
     }
+
     return stream;
   }, [isCameraEnabled, isMicEnabled, updatePeerConnectionTracks]);
 
@@ -307,6 +335,7 @@ export function useRoomController(roomId: string) {
 
     const applyViewportHeight = () => {
       const height = window.visualViewport?.height ?? window.innerHeight ?? 0;
+
       setViewportHeight(Math.round(height));
     };
 
@@ -374,16 +403,19 @@ export function useRoomController(roomId: string) {
     const id = window.setInterval(() => {
       setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
     }, 1000);
+
     return () => window.clearInterval(id);
   }, [callStartTime]);
 
   useEffect(() => {
     const audio = ringtoneRef.current;
+
     if (!audio) return;
 
     if (isRinging) {
       audio.currentTime = 0;
       const playPromise = audio.play();
+
       if (playPromise) {
         playPromise.catch(() => {
           // ignore autoplay rejections
@@ -418,6 +450,7 @@ export function useRoomController(roomId: string) {
     pc.ontrack = (event) => {
       if (!remoteVideoRef.current) return;
       const [stream] = event.streams;
+
       remoteVideoRef.current.srcObject = stream;
       setHasRemoteStream(true);
       if (event.track.kind === "video") {
@@ -442,6 +475,7 @@ export function useRoomController(roomId: string) {
     }
 
     pcRef.current = pc;
+
     return pc;
   };
 
@@ -464,6 +498,7 @@ export function useRoomController(roomId: string) {
           await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
           await flushPendingCandidates();
           const answer = await pc.createAnswer();
+
           await pc.setLocalDescription(answer);
           await sendSignal({
             type: "answer",
@@ -471,8 +506,9 @@ export function useRoomController(roomId: string) {
             sender: myIdRef.current,
           });
         } catch (err) {
-          console.error("Error handling renegotiation offer:", err);
+          logError("Error handling renegotiation offer:", err);
         }
+
         return;
       }
       // Otherwise, it's a new incoming call
@@ -480,6 +516,7 @@ export function useRoomController(roomId: string) {
       setIncomingCaller(msg.sender);
       setIsRinging(true);
       setStatus("Incoming call");
+
       return;
     }
 
@@ -495,34 +532,40 @@ export function useRoomController(roomId: string) {
       await queueIceCandidate(msg.candidate);
     }
   };
+
   handleSignalRef.current = handleSignal;
 
   const flushPendingCandidates = async () => {
     const pc = pcRef.current;
+
     if (!pc) return;
     const remoteDesc = pc.remoteDescription;
+
     if (!remoteDesc || !remoteDesc.type) return;
     const queued = pendingCandidatesRef.current.splice(0);
+
     for (const candidate of queued) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
-        console.error("Error adding queued candidate", err);
+        logError("Error adding queued candidate", err);
       }
     }
   };
 
   const queueIceCandidate = async (candidate: RTCIceCandidateInit) => {
     const pc = pcRef.current;
+
     if (!pc) return;
     if (!pc.remoteDescription || !pc.remoteDescription.type) {
       pendingCandidatesRef.current.push(candidate);
+
       return;
     }
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
-      console.error("Error adding ice candidate", err);
+      logError("Error adding ice candidate", err);
     }
   };
 
@@ -544,16 +587,18 @@ export function useRoomController(roomId: string) {
         micEnabled,
       });
     },
-    [sendRoomEvent]
+    [sendRoomEvent],
   );
 
   // Sync button state with actual track state to reflect hardware connection
   useEffect(() => {
     const stream = localStreamRef.current;
+
     if (!stream) {
       // If no stream, ensure state reflects no devices
       if (isCameraEnabled) setIsCameraEnabled(false);
       if (isMicEnabled) setIsMicEnabled(false);
+
       return;
     }
 
@@ -601,6 +646,7 @@ export function useRoomController(roomId: string) {
 
   const resetLocalMediaState = useCallback(() => {
     const stream = localStreamRef.current;
+
     if (stream) {
       // Stop all tracks completely
       stream.getTracks().forEach((track) => {
@@ -642,6 +688,7 @@ export function useRoomController(roomId: string) {
     };
 
     window.addEventListener("beforeunload", notifyDeparture);
+
     return () => {
       window.removeEventListener("beforeunload", notifyDeparture);
       notifyDeparture();
@@ -688,6 +735,7 @@ export function useRoomController(roomId: string) {
           target: event.sender,
           hostId: hostIdRef.current ?? myIdRef.current,
         });
+
         return;
       }
       addParticipant(event.sender);
@@ -702,6 +750,7 @@ export function useRoomController(roomId: string) {
         setStatus("Peer rejoined, resuming call");
         void resumeCall();
       }
+
       return;
     }
 
@@ -713,6 +762,7 @@ export function useRoomController(roomId: string) {
         setStatus("Host rejoined, resuming call");
         void resumeCall();
       }
+
       return;
     }
 
@@ -723,6 +773,7 @@ export function useRoomController(roomId: string) {
         setStatus("Peer disconnected");
         resetRemoteVideo();
       }
+
       return;
     }
 
@@ -731,18 +782,21 @@ export function useRoomController(roomId: string) {
         hostIdRef.current = event.hostId;
         handleRoomCapacityExceeded();
       }
+
       return;
     }
 
     if (event.type === "call-start") {
       setIsRinging(true);
       setStatus("Incoming call");
+
       return;
     }
 
     if (event.type === "media-state") {
       setIsRemoteVideoEnabled(event.cameraEnabled);
       setIsRemoteAudioEnabled(event.micEnabled);
+
       return;
     }
 
@@ -761,6 +815,7 @@ export function useRoomController(roomId: string) {
         pcRef.current.close();
         pcRef.current = null;
       }
+
       return;
     }
 
@@ -769,20 +824,24 @@ export function useRoomController(roomId: string) {
       setIsCalling(false);
       setStatus("Guest declined the call");
       setNeedsResume(false);
+
       return;
     }
   };
+
   handleRoomEventRef.current = handleRoomEvent;
 
   const acceptIncomingCall = async () => {
     if (!incomingOffer) return;
 
     const pc = createPeerConnection();
+
     setStatus("Answering call\u2026");
     await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer));
     await flushPendingCandidates();
 
     const answer = await pc.createAnswer();
+
     await pc.setLocalDescription(answer);
 
     await sendSignal({
@@ -825,10 +884,12 @@ export function useRoomController(roomId: string) {
         })
         .on("broadcast", { event: "signal" }, (event) => {
           const payload = event.payload as SignalMessage;
+
           handleSignalRef.current?.(payload);
         })
         .on("broadcast", { event: "room-event" }, (event) => {
           const payload = event.payload as RoomEvent;
+
           handleRoomEventRef.current?.(payload);
         });
 
@@ -852,7 +913,7 @@ export function useRoomController(roomId: string) {
         }
       });
     } catch (err) {
-      console.error(err);
+      logError(err);
       setStatus("Cannot access camera/mic");
     } finally {
       isJoiningRef.current = false;
@@ -903,14 +964,17 @@ export function useRoomController(roomId: string) {
   const startCall = async () => {
     if (!isJoined) {
       setStatus("Join the room first");
+
       return;
     }
 
     await ensureLocalStream();
     const pc = createPeerConnection();
+
     setStatus("Creating the call");
 
     const offer = await pc.createOffer();
+
     await pc.setLocalDescription(offer);
 
     await sendSignal({
@@ -932,9 +996,11 @@ export function useRoomController(roomId: string) {
     try {
       await ensureLocalStream();
       const pc = createPeerConnection();
+
       setStatus("Resuming call");
 
       const offer = await pc.createOffer();
+
       await pc.setLocalDescription(offer);
 
       await sendSignal({
@@ -948,7 +1014,7 @@ export function useRoomController(roomId: string) {
       setIsAwaitingAnswer(true);
       setNeedsResume(false);
     } catch (err) {
-      console.error("Error resuming call", err);
+      logError("Error resuming call", err);
       setStatus("Cannot resume call");
     }
   };
@@ -971,6 +1037,7 @@ export function useRoomController(roomId: string) {
 
     // Fully disconnect all local devices
     const stream = localStreamRef.current;
+
     if (stream) {
       stream.getTracks().forEach((track) => {
         track.stop(); // Fully stop all tracks (disconnects hardware)
@@ -1008,11 +1075,13 @@ export function useRoomController(roomId: string) {
           await ensureLocalStream();
         } else {
           const hasVideo = stream.getVideoTracks().length > 0;
+
           if (!hasVideo) {
             setStatus("Requesting camera access");
             const newStream = await navigator.mediaDevices.getUserMedia({
               video: true,
             });
+
             newStream.getVideoTracks().forEach((track) => {
               stream.addTrack(track);
             });
@@ -1029,6 +1098,7 @@ export function useRoomController(roomId: string) {
         // Disable camera: stop and remove all video tracks
         if (stream) {
           const videoTracks = stream.getVideoTracks();
+
           videoTracks.forEach((track) => {
             track.stop(); // Fully stop the track (disconnects hardware)
             stream.removeTrack(track);
@@ -1037,8 +1107,9 @@ export function useRoomController(roomId: string) {
           if (pc) {
             const senders = pc.getSenders();
             const videoSender = senders.find(
-              (s) => s.track && s.track.kind === "video"
+              (s) => s.track && s.track.kind === "video",
             );
+
             if (videoSender) {
               await pc.removeTrack(videoSender);
             }
@@ -1049,7 +1120,7 @@ export function useRoomController(roomId: string) {
         setStatus("Camera off");
       }
     } catch (err) {
-      console.error("Error toggling camera", err);
+      logError("Error toggling camera", err);
       setStatus("Cannot toggle camera");
       // Revert state on error
       setIsCameraEnabled(isCameraEnabled);
@@ -1074,11 +1145,13 @@ export function useRoomController(roomId: string) {
           await ensureLocalStream();
         } else {
           const hasAudio = stream.getAudioTracks().length > 0;
+
           if (!hasAudio) {
             setStatus("Requesting microphone access");
             const newStream = await navigator.mediaDevices.getUserMedia({
               audio: true,
             });
+
             newStream.getAudioTracks().forEach((track) => {
               stream.addTrack(track);
             });
@@ -1095,6 +1168,7 @@ export function useRoomController(roomId: string) {
         // Disable microphone: stop and remove all audio tracks
         if (stream) {
           const audioTracks = stream.getAudioTracks();
+
           audioTracks.forEach((track) => {
             track.stop(); // Fully stop the track (disconnects hardware)
             stream.removeTrack(track);
@@ -1103,8 +1177,9 @@ export function useRoomController(roomId: string) {
           if (pc) {
             const senders = pc.getSenders();
             const audioSender = senders.find(
-              (s) => s.track && s.track.kind === "audio"
+              (s) => s.track && s.track.kind === "audio",
             );
+
             if (audioSender) {
               await pc.removeTrack(audioSender);
             }
@@ -1115,7 +1190,7 @@ export function useRoomController(roomId: string) {
         setStatus("Microphone off");
       }
     } catch (err) {
-      console.error("Error toggling microphone", err);
+      logError("Error toggling microphone", err);
       setStatus("Cannot toggle microphone");
       // Revert state on error
       setIsMicEnabled(isMicEnabled);
@@ -1130,12 +1205,14 @@ export function useRoomController(roomId: string) {
 
   const ensureRoomLinkAvailable = useCallback(() => {
     const link =
-      roomLink ||
-      (typeof window !== "undefined" ? window.location.href : "");
+      roomLink || (typeof window !== "undefined" ? window.location.href : "");
+
     if (!link) {
       setStatus("Room link unavailable");
+
       return null;
     }
+
     return link;
   }, [roomLink]);
 
@@ -1172,10 +1249,10 @@ export function useRoomController(roomId: string) {
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => {
       const next = !prev;
+
       return next;
     });
   };
-
 
   return {
     ringtoneRef,
