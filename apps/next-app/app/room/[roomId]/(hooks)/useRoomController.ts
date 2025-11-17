@@ -2,7 +2,10 @@
 "use client";
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { NoiseSuppressionStatus } from "@/components/noise-suppression";
+import type {
+  NoiseSuppressionMode,
+  NoiseSuppressionStatus,
+} from "@/components/noise-suppression";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -22,6 +25,24 @@ const logError = (...args: unknown[]) => {
     console.error(...args);
   }
 };
+
+type WindowWithAudioContext = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+  };
+
+type SpeexNoiseSuppressorModule =
+  typeof import("@sapphi-red/web-noise-suppressor");
+
+const SPEEX_WORKLET_URL = new URL(
+  "@sapphi-red/web-noise-suppressor/speexWorklet.js",
+  import.meta.url,
+).toString();
+
+const SPEEX_WASM_URL = new URL(
+  "@sapphi-red/web-noise-suppressor/speex.wasm",
+  import.meta.url,
+).toString();
 
 const isLikelyScreenShareTrack = (track: MediaStreamTrack) => {
   if (typeof track.getSettings === "function") {
@@ -67,6 +88,8 @@ export function useRoomController(roomId: string) {
     useState(true);
   const [noiseSuppressionStatus, setNoiseSuppressionStatus] =
     useState<NoiseSuppressionStatus>("idle");
+  const [noiseSuppressionMode, setNoiseSuppressionMode] =
+    useState<NoiseSuppressionMode>("system");
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -92,6 +115,23 @@ export function useRoomController(roomId: string) {
   const remoteScreenStreamIdRef = useRef<string | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteScreenExpectedRef = useRef(false);
+  const rawAudioTrackRef = useRef<MediaStreamTrack | null>(null);
+  const processedAudioTrackRef = useRef<MediaStreamTrack | null>(null);
+  const speexResourcesRef = useRef<{
+    context: AudioContext | null;
+    source: MediaStreamAudioSourceNode | null;
+    worklet: AudioWorkletNode | null;
+    destination: MediaStreamAudioDestinationNode | null;
+    originalTrack: MediaStreamTrack | null;
+  }>({
+    context: null,
+    source: null,
+    worklet: null,
+    destination: null,
+    originalTrack: null,
+  });
+  const speexWasmBinaryRef = useRef<ArrayBuffer | null>(null);
+  const speexModuleRef = useRef<SpeexNoiseSuppressorModule | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
   const resetRemoteScreenShare = useCallback(() => {
@@ -116,41 +156,27 @@ export function useRoomController(roomId: string) {
     resetRemoteScreenShare();
   }, [resetRemoteScreenShare]);
 
-  const getNoiseControlledConstraints = useCallback(
-    (override?: boolean): MediaTrackConstraints => ({
-      echoCancellation: true,
-      noiseSuppression:
-        typeof override === "boolean" ? override : isNoiseSuppressionEnabled,
-      autoGainControl: true,
-    }),
-    [isNoiseSuppressionEnabled],
-  );
+  const ensureSpeexModule = useCallback(async () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
 
-  const applyNoiseSuppressionToTrack = useCallback(
-    async (track?: MediaStreamTrack | null) => {
-      if (!track) return false;
-      if (typeof track.applyConstraints !== "function") {
-        setNoiseSuppressionStatus("unsupported");
+    if (speexModuleRef.current) {
+      return speexModuleRef.current;
+    }
 
-        return false;
-      }
-      try {
-        setNoiseSuppressionStatus("pending");
-        await track.applyConstraints(getNoiseControlledConstraints());
-        setNoiseSuppressionStatus(
-          isNoiseSuppressionEnabled ? "active" : "idle",
-        );
+    try {
+      const speexModule = await import("@sapphi-red/web-noise-suppressor");
 
-        return true;
-      } catch (err) {
-        logError("Error applying noise suppression", err);
-        setNoiseSuppressionStatus("error");
+      speexModuleRef.current = speexModule;
 
-        return false;
-      }
-    },
-    [getNoiseControlledConstraints, isNoiseSuppressionEnabled],
-  );
+      return speexModule;
+    } catch (err) {
+      logError("Unable to load Speex module", err);
+
+      return null;
+    }
+  }, []);
 
   const refreshParticipantState = useCallback(() => {
     const participants = participantsRef.current;
@@ -318,6 +344,270 @@ export function useRoomController(roomId: string) {
       await renegotiateConnection();
     }
   }, [isCalling, isAwaitingAnswer, renegotiateConnection]);
+
+  const getNoiseControlledConstraints = useCallback(
+    (override?: boolean): MediaTrackConstraints => ({
+      echoCancellation: true,
+      noiseSuppression:
+        typeof override === "boolean"
+          ? override
+          : isNoiseSuppressionEnabled && noiseSuppressionMode === "system",
+      autoGainControl: true,
+    }),
+    [isNoiseSuppressionEnabled, noiseSuppressionMode],
+  );
+
+  const applyNoiseSuppressionToTrack = useCallback(
+    async (track?: MediaStreamTrack | null) => {
+      if (!track) return false;
+      if (typeof track.applyConstraints !== "function") {
+        setNoiseSuppressionStatus("unsupported");
+
+        return false;
+      }
+      try {
+        setNoiseSuppressionStatus("pending");
+        await track.applyConstraints(getNoiseControlledConstraints());
+        setNoiseSuppressionStatus(
+          isNoiseSuppressionEnabled ? "active" : "idle",
+        );
+
+        return true;
+      } catch (err) {
+        logError("Error applying noise suppression", err);
+        setNoiseSuppressionStatus("error");
+
+        return false;
+      }
+    },
+    [getNoiseControlledConstraints, isNoiseSuppressionEnabled],
+  );
+
+  const teardownSpeexSuppression = useCallback(
+    async ({
+      restoreOriginalTrack = true,
+      resetStatus = false,
+      stopOriginalTrack = false,
+    }: {
+      restoreOriginalTrack?: boolean;
+      resetStatus?: boolean;
+      stopOriginalTrack?: boolean;
+    } = {}) => {
+      const stream = localStreamRef.current;
+      const processedTrack = processedAudioTrackRef.current;
+      const originalTrack =
+        speexResourcesRef.current.originalTrack ?? rawAudioTrackRef.current;
+      const { context, source, worklet, destination } =
+        speexResourcesRef.current;
+
+      speexResourcesRef.current = {
+        context: null,
+        source: null,
+        worklet: null,
+        destination: null,
+        originalTrack,
+      };
+
+      [source, worklet, destination].forEach((node) => {
+        try {
+          node?.disconnect();
+        } catch {
+          // ignore disconnect errors
+        }
+      });
+
+      if (context) {
+        try {
+          await context.close();
+        } catch {
+          // ignore closing errors
+        }
+      }
+
+      if (processedTrack) {
+        processedAudioTrackRef.current = null;
+        if (stream && stream.getAudioTracks().includes(processedTrack)) {
+          stream.removeTrack(processedTrack);
+        }
+        processedTrack.stop();
+      }
+
+      if (restoreOriginalTrack && stream && originalTrack) {
+        const alreadyInStream = stream.getAudioTracks().includes(originalTrack);
+
+        if (!alreadyInStream) {
+          stream.addTrack(originalTrack);
+        }
+        rawAudioTrackRef.current = originalTrack;
+      }
+
+      if (stopOriginalTrack && originalTrack) {
+        originalTrack.stop();
+        rawAudioTrackRef.current = null;
+      }
+
+      if (resetStatus) {
+        setNoiseSuppressionStatus("idle");
+      }
+
+      if (stream) {
+        await updatePeerConnectionTracks();
+      }
+    },
+    [updatePeerConnectionTracks],
+  );
+
+  const activateSpeexSuppression = useCallback(
+    async (inputTrack?: MediaStreamTrack | null) => {
+      const stream = localStreamRef.current;
+
+      if (!stream) {
+        return false;
+      }
+      const AudioContextCtor =
+        typeof window === "undefined"
+          ? null
+          : ((window as WindowWithAudioContext).AudioContext ??
+            (window as WindowWithAudioContext).webkitAudioContext ??
+            null);
+
+      if (!AudioContextCtor) {
+        setNoiseSuppressionStatus("unsupported");
+
+        return false;
+      }
+
+      const track =
+        inputTrack ??
+        rawAudioTrackRef.current ??
+        stream.getAudioTracks()[0] ??
+        null;
+
+      if (!track) {
+        return false;
+      }
+
+      const speexModule = await ensureSpeexModule();
+
+      if (!speexModule) {
+        setNoiseSuppressionStatus("unsupported");
+
+        return false;
+      }
+      const { SpeexWorkletNode, loadSpeex } = speexModule;
+
+      rawAudioTrackRef.current = track;
+
+      try {
+        await teardownSpeexSuppression({
+          restoreOriginalTrack: false,
+        });
+        setNoiseSuppressionStatus("pending");
+
+        const audioContext = new AudioContextCtor();
+        const wasmBinary =
+          speexWasmBinaryRef.current ??
+          (speexWasmBinaryRef.current = await loadSpeex({
+            url: SPEEX_WASM_URL,
+          }));
+
+        await audioContext.audioWorklet.addModule(SPEEX_WORKLET_URL);
+
+        const sourceStream = new MediaStream([track]);
+        const source = audioContext.createMediaStreamSource(sourceStream);
+        const worklet = new SpeexWorkletNode(audioContext, {
+          wasmBinary,
+          maxChannels: 1,
+        });
+        const destination = audioContext.createMediaStreamDestination();
+
+        source.connect(worklet).connect(destination);
+
+        const [processedTrack] = destination.stream.getAudioTracks();
+
+        if (!processedTrack) {
+          throw new Error("Unable to create processed audio track");
+        }
+
+        processedTrack.contentHint = "speech";
+        processedAudioTrackRef.current = processedTrack;
+        speexResourcesRef.current = {
+          context: audioContext,
+          source,
+          worklet,
+          destination,
+          originalTrack: track,
+        };
+
+        if (stream.getAudioTracks().includes(track)) {
+          stream.removeTrack(track);
+        }
+        stream.addTrack(processedTrack);
+
+        await updatePeerConnectionTracks();
+        setNoiseSuppressionStatus("active");
+
+        return true;
+      } catch (err) {
+        logError("Error enabling Speex noise suppression", err);
+        await teardownSpeexSuppression({
+          restoreOriginalTrack: true,
+          resetStatus: true,
+        });
+
+        return false;
+      }
+    },
+    [ensureSpeexModule, teardownSpeexSuppression, updatePeerConnectionTracks],
+  );
+
+  const applyNoiseSuppressionPipeline = useCallback(
+    async (modeOverride?: NoiseSuppressionMode) => {
+      if (!isNoiseSuppressionEnabled) {
+        setNoiseSuppressionStatus("idle");
+
+        return;
+      }
+      const stream = localStreamRef.current;
+      const track =
+        rawAudioTrackRef.current ?? stream?.getAudioTracks()[0] ?? null;
+
+      if (!track) {
+        return;
+      }
+
+      const mode = modeOverride ?? noiseSuppressionMode;
+
+      if (mode === "speex") {
+        await activateSpeexSuppression(track);
+      } else {
+        await teardownSpeexSuppression({
+          restoreOriginalTrack: true,
+        });
+        await applyNoiseSuppressionToTrack(track);
+      }
+    },
+    [
+      activateSpeexSuppression,
+      applyNoiseSuppressionToTrack,
+      isNoiseSuppressionEnabled,
+      noiseSuppressionMode,
+      teardownSpeexSuppression,
+    ],
+  );
+
+  const changeNoiseSuppressionMode = useCallback(
+    async (mode: NoiseSuppressionMode) => {
+      setNoiseSuppressionMode(mode);
+
+      if (!isNoiseSuppressionEnabled || !isMicEnabled) {
+        return;
+      }
+
+      await applyNoiseSuppressionPipeline(mode);
+    },
+    [applyNoiseSuppressionPipeline, isMicEnabled, isNoiseSuppressionEnabled],
+  );
 
   const ensureLocalStream = useCallback(async () => {
     // If stream exists and has the tracks we need, return it
@@ -1310,7 +1600,12 @@ export function useRoomController(roomId: string) {
           await ensureLocalStream();
           stream = localStreamRef.current;
         } else {
-          const hasVideo = stream.getVideoTracks().length > 0;
+          const existingStream = stream;
+
+          if (!existingStream) {
+            return;
+          }
+          const hasVideo = existingStream.getVideoTracks().length > 0;
 
           if (!hasVideo) {
             setStatus("Requesting camera access");
@@ -1319,7 +1614,7 @@ export function useRoomController(roomId: string) {
             });
 
             newStream.getVideoTracks().forEach((track) => {
-              stream.addTrack(track);
+              existingStream.addTrack(track);
             });
             // Update peer connection if in call
             if (pc) {
@@ -1332,12 +1627,14 @@ export function useRoomController(roomId: string) {
         setStatus("Camera on");
       } else {
         // Disable camera: stop and remove all video tracks
-        if (stream) {
-          const videoTracks = stream.getVideoTracks();
+        const currentStream = stream;
+
+        if (currentStream) {
+          const videoTracks = currentStream.getVideoTracks();
 
           videoTracks.forEach((track) => {
             track.stop(); // Fully stop the track (disconnects hardware)
-            stream.removeTrack(track);
+            currentStream.removeTrack(track);
           });
           // Remove from peer connection if in call
           if (pc) {
@@ -1381,7 +1678,12 @@ export function useRoomController(roomId: string) {
           await ensureLocalStream();
           stream = localStreamRef.current;
         } else {
-          const hasAudio = stream.getAudioTracks().length > 0;
+          const existingStream = stream;
+
+          if (!existingStream) {
+            return;
+          }
+          const hasAudio = existingStream.getAudioTracks().length > 0;
 
           if (!hasAudio) {
             setStatus("Requesting microphone access");
@@ -1390,7 +1692,7 @@ export function useRoomController(roomId: string) {
             });
 
             newStream.getAudioTracks().forEach((track) => {
-              stream.addTrack(track);
+              existingStream.addTrack(track);
             });
             // Update peer connection if in call
             if (pc) {
@@ -1398,22 +1700,34 @@ export function useRoomController(roomId: string) {
             }
           }
         }
-        const activeTrack = stream?.getAudioTracks()[0];
+        const activeTrack = stream?.getAudioTracks()[0] ?? null;
 
         if (activeTrack) {
-          await applyNoiseSuppressionToTrack(activeTrack);
+          rawAudioTrackRef.current = activeTrack;
+        }
+        if (isNoiseSuppressionEnabled && activeTrack) {
+          await applyNoiseSuppressionPipeline();
+        } else {
+          setNoiseSuppressionStatus("idle");
         }
         setIsMicEnabled(true);
         broadcastMediaState(isCameraEnabled, true);
         setStatus("Microphone on");
       } else {
         // Disable microphone: stop and remove all audio tracks
-        if (stream) {
-          const audioTracks = stream.getAudioTracks();
+        await teardownSpeexSuppression({
+          restoreOriginalTrack: false,
+          resetStatus: true,
+          stopOriginalTrack: true,
+        });
+        const currentStream = stream;
+
+        if (currentStream) {
+          const audioTracks = currentStream.getAudioTracks();
 
           audioTracks.forEach((track) => {
             track.stop(); // Fully stop the track (disconnects hardware)
-            stream.removeTrack(track);
+            currentStream.removeTrack(track);
           });
           // Remove from peer connection if in call
           if (pc) {
@@ -1439,28 +1753,45 @@ export function useRoomController(roomId: string) {
       setIsMicEnabled(isMicEnabled);
     }
   }, [
-    applyNoiseSuppressionToTrack,
+    applyNoiseSuppressionPipeline,
     broadcastMediaState,
     ensureLocalStream,
     getNoiseControlledConstraints,
     isCameraEnabled,
     isMicEnabled,
+    isNoiseSuppressionEnabled,
+    teardownSpeexSuppression,
     updatePeerConnectionTracks,
   ]);
 
-  const toggleNoiseSuppression = useCallback(() => {
-    setIsNoiseSuppressionEnabled((prev) => {
-      const next = !prev;
+  const toggleNoiseSuppression = useCallback(async () => {
+    const nextEnabled = !isNoiseSuppressionEnabled;
 
-      setStatus(next ? "Noise suppression on" : "Noise suppression off");
+    setIsNoiseSuppressionEnabled(nextEnabled);
 
-      if (!isMicEnabled) {
-        setNoiseSuppressionStatus("idle");
-      }
+    if (!nextEnabled) {
+      await teardownSpeexSuppression({
+        restoreOriginalTrack: true,
+        resetStatus: true,
+      });
+      setNoiseSuppressionStatus("idle");
 
-      return next;
-    });
-  }, [isMicEnabled]);
+      return;
+    }
+
+    if (!isMicEnabled) {
+      setStatus("Noise suppression will activate when the mic is on");
+
+      return;
+    }
+
+    await applyNoiseSuppressionPipeline();
+  }, [
+    applyNoiseSuppressionPipeline,
+    isMicEnabled,
+    isNoiseSuppressionEnabled,
+    teardownSpeexSuppression,
+  ]);
 
   const ensureRoomLinkAvailable = useCallback(() => {
     const link =
@@ -1504,9 +1835,6 @@ export function useRoomController(roomId: string) {
     left: "16px",
     right: "16px",
   };
-  const isNoiseSuppressionActive =
-    isNoiseSuppressionEnabled && noiseSuppressionStatus === "active";
-
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => {
       const next = !prev;
@@ -1518,17 +1846,25 @@ export function useRoomController(roomId: string) {
   useEffect(() => {
     if (!isMicEnabled) {
       setNoiseSuppressionStatus("idle");
+      void teardownSpeexSuppression({
+        restoreOriginalTrack: true,
+      });
 
       return;
     }
-    const track = localStreamRef.current?.getAudioTracks()[0];
+    if (!isNoiseSuppressionEnabled) {
+      setNoiseSuppressionStatus("idle");
 
-    if (!track) {
       return;
     }
 
-    void applyNoiseSuppressionToTrack(track);
-  }, [applyNoiseSuppressionToTrack, isMicEnabled]);
+    void applyNoiseSuppressionPipeline();
+  }, [
+    applyNoiseSuppressionPipeline,
+    isMicEnabled,
+    isNoiseSuppressionEnabled,
+    teardownSpeexSuppression,
+  ]);
 
   useEffect(() => {
     const video = localVideoRef.current;
@@ -1616,8 +1952,9 @@ export function useRoomController(roomId: string) {
     toggleMicrophone,
     isNoiseSuppressionEnabled,
     noiseSuppressionStatus,
-    isNoiseSuppressionActive,
+    noiseSuppressionMode,
     toggleNoiseSuppression,
+    changeNoiseSuppressionMode,
     acceptIncomingCall,
     declineIncomingCall,
     isRinging,

@@ -1,6 +1,8 @@
 // app/room/[roomId]/page.tsx
 "use client";
 
+import type { NoiseSuppressionMode } from "@/components/noise-suppression";
+
 import {
   Button,
   Chip,
@@ -29,13 +31,15 @@ import {
   UserRound,
   Video,
   VideoOff,
+  Wind,
 } from "lucide-react";
 
 import { useRoomController } from "../(hooks)/useRoomController";
 
 import {
+  NoiseSuppressionSelector,
   NoiseSuppressionStatusChip,
-  NoiseSuppressionToggle,
+  getNoiseSuppressionPreset,
 } from "@/components/noise-suppression";
 import { ThemeSwitch } from "@/components/theme-switch";
 
@@ -58,6 +62,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     isMicEnabled,
     isNoiseSuppressionEnabled,
     noiseSuppressionStatus,
+    noiseSuppressionMode,
     isScreenSharing,
     isRemoteScreenSharing,
     remoteVideoActive,
@@ -75,6 +80,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     toggleScreenShare,
     toggleCamera,
     toggleMicrophone,
+    changeNoiseSuppressionMode,
     toggleNoiseSuppression,
     acceptIncomingCall,
     declineIncomingCall,
@@ -92,6 +98,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     onOpen: openQrModal,
     onOpenChange: onQrModalOpenChange,
   } = useDisclosure();
+  const {
+    isOpen: isNoiseSelectorOpen,
+    onOpen: openNoiseSelector,
+    onOpenChange: onNoiseSelectorOpenChange,
+  } = useDisclosure();
 
   const handleOpenQrModal = () => {
     if (!ensureRoomLinkAvailable()) {
@@ -99,6 +110,23 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
     openQrModal();
   };
+  const handleNoiseModeSelect = async (mode: NoiseSuppressionMode) => {
+    await changeNoiseSuppressionMode(mode);
+    onNoiseSelectorOpenChange();
+  };
+  const activeNoisePreset = getNoiseSuppressionPreset(noiseSuppressionMode);
+  const noiseModeLabel = activeNoisePreset?.label ?? "Noise mode";
+  const noiseStatusLabel = !isNoiseSuppressionEnabled
+    ? "Noise suppression disabled"
+    : noiseSuppressionStatus === "pending"
+      ? "Calibrating..."
+      : noiseSuppressionStatus === "error"
+        ? "Error"
+        : noiseSuppressionStatus === "unsupported"
+          ? "Unsupported"
+          : noiseSuppressionStatus === "active"
+            ? `${noiseModeLabel} active`
+            : `${noiseModeLabel} ready`;
 
   const springTransition = { type: "spring", damping: 28, stiffness: 320 };
   const MotionSection = motion.section;
@@ -465,11 +493,17 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               }
               onPress={toggleMicrophone}
             />
-            <NoiseSuppressionToggle
-              isMicEnabled={isMicEnabled}
-              isNoiseSuppressionEnabled={isNoiseSuppressionEnabled}
-              status={noiseSuppressionStatus}
-              onToggle={toggleNoiseSuppression}
+
+            <Button
+              isIconOnly
+              aria-label="Open noise suppression settings"
+              aria-pressed={isNoiseSuppressionEnabled}
+              color={isNoiseSuppressionEnabled ? "success" : "default"}
+              radius="full"
+              size="md"
+              startContent={<Wind size={16} />}
+              variant={isNoiseSuppressionEnabled ? "ghost" : "flat"}
+              onPress={openNoiseSelector}
             />
           </div>
         )}
@@ -573,6 +607,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <NoiseSuppressionStatusChip
           isMicEnabled={isMicEnabled}
           isNoiseSuppressionEnabled={isNoiseSuppressionEnabled}
+          mode={noiseSuppressionMode}
           status={noiseSuppressionStatus}
         />
         <ThemeSwitch />
@@ -680,6 +715,19 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           )}
         </ModalContent>
       </Modal>
+      <NoiseSuppressionSelector
+        currentMode={noiseSuppressionMode}
+        isEnabled={isNoiseSuppressionEnabled}
+        isOpen={isNoiseSelectorOpen}
+        statusLabel={noiseStatusLabel}
+        onModeChange={handleNoiseModeSelect}
+        onOpenChange={onNoiseSelectorOpenChange}
+        onToggle={async (value) => {
+          if (value !== isNoiseSuppressionEnabled) {
+            await toggleNoiseSuppression();
+          }
+        }}
+      />
     </main>
   );
 }
