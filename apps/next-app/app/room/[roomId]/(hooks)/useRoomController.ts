@@ -346,15 +346,12 @@ export function useRoomController(roomId: string) {
   }, [isCalling, isAwaitingAnswer, renegotiateConnection]);
 
   const getNoiseControlledConstraints = useCallback(
-    (override?: boolean): MediaTrackConstraints => ({
+    (): MediaTrackConstraints => ({
       echoCancellation: true,
-      noiseSuppression:
-        typeof override === "boolean"
-          ? override
-          : isNoiseSuppressionEnabled && noiseSuppressionMode === "system",
+      noiseSuppression: true,
       autoGainControl: true,
     }),
-    [isNoiseSuppressionEnabled, noiseSuppressionMode],
+    [],
   );
 
   const applyNoiseSuppressionToTrack = useCallback(
