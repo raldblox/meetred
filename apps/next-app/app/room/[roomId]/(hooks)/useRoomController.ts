@@ -2,6 +2,7 @@
 "use client";
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { NoiseSuppressionStatus } from "@/components/noise-suppression";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -62,6 +63,10 @@ export function useRoomController(roomId: string) {
   const [needsResume, setNeedsResume] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
+  const [isNoiseSuppressionEnabled, setIsNoiseSuppressionEnabled] =
+    useState(true);
+  const [noiseSuppressionStatus, setNoiseSuppressionStatus] =
+    useState<NoiseSuppressionStatus>("idle");
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -110,6 +115,42 @@ export function useRoomController(roomId: string) {
     setIsRemoteAudioEnabled(null);
     resetRemoteScreenShare();
   }, [resetRemoteScreenShare]);
+
+  const getNoiseControlledConstraints = useCallback(
+    (override?: boolean): MediaTrackConstraints => ({
+      echoCancellation: true,
+      noiseSuppression:
+        typeof override === "boolean" ? override : isNoiseSuppressionEnabled,
+      autoGainControl: true,
+    }),
+    [isNoiseSuppressionEnabled],
+  );
+
+  const applyNoiseSuppressionToTrack = useCallback(
+    async (track?: MediaStreamTrack | null) => {
+      if (!track) return false;
+      if (typeof track.applyConstraints !== "function") {
+        setNoiseSuppressionStatus("unsupported");
+
+        return false;
+      }
+      try {
+        setNoiseSuppressionStatus("pending");
+        await track.applyConstraints(getNoiseControlledConstraints());
+        setNoiseSuppressionStatus(
+          isNoiseSuppressionEnabled ? "active" : "idle",
+        );
+
+        return true;
+      } catch (err) {
+        logError("Error applying noise suppression", err);
+        setNoiseSuppressionStatus("error");
+
+        return false;
+      }
+    },
+    [getNoiseControlledConstraints, isNoiseSuppressionEnabled],
+  );
 
   const refreshParticipantState = useCallback(() => {
     const participants = participantsRef.current;
@@ -294,7 +335,7 @@ export function useRoomController(roomId: string) {
           constraints.video = true;
         }
         if (isMicEnabled && !hasAudio) {
-          constraints.audio = true;
+          constraints.audio = getNoiseControlledConstraints();
         }
 
         try {
@@ -324,7 +365,7 @@ export function useRoomController(roomId: string) {
     setStatus("Requesting access");
     const constraints: MediaStreamConstraints = {
       video: isCameraEnabled,
-      audio: isMicEnabled,
+      audio: isMicEnabled ? getNoiseControlledConstraints() : false,
     };
 
     // If both are false, we still need to create an empty stream for consistency
@@ -345,7 +386,12 @@ export function useRoomController(roomId: string) {
     }
 
     return stream;
-  }, [isCameraEnabled, isMicEnabled, updatePeerConnectionTracks]);
+  }, [
+    getNoiseControlledConstraints,
+    isCameraEnabled,
+    isMicEnabled,
+    updatePeerConnectionTracks,
+  ]);
 
   // Create Supabase client (works both server/client, but we only use it in effects)
   const supabase = useMemo(() => createRoomSupabaseClient(), []);
@@ -1340,7 +1386,7 @@ export function useRoomController(roomId: string) {
           if (!hasAudio) {
             setStatus("Requesting microphone access");
             const newStream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
+              audio: getNoiseControlledConstraints(),
             });
 
             newStream.getAudioTracks().forEach((track) => {
@@ -1351,6 +1397,11 @@ export function useRoomController(roomId: string) {
               await updatePeerConnectionTracks();
             }
           }
+        }
+        const activeTrack = stream?.getAudioTracks()[0];
+
+        if (activeTrack) {
+          await applyNoiseSuppressionToTrack(activeTrack);
         }
         setIsMicEnabled(true);
         broadcastMediaState(isCameraEnabled, true);
@@ -1379,6 +1430,7 @@ export function useRoomController(roomId: string) {
         setIsMicEnabled(false);
         broadcastMediaState(isCameraEnabled, false);
         setStatus("Microphone off");
+        setNoiseSuppressionStatus("idle");
       }
     } catch (err) {
       logError("Error toggling microphone", err);
@@ -1387,12 +1439,28 @@ export function useRoomController(roomId: string) {
       setIsMicEnabled(isMicEnabled);
     }
   }, [
+    applyNoiseSuppressionToTrack,
     broadcastMediaState,
     ensureLocalStream,
+    getNoiseControlledConstraints,
     isCameraEnabled,
     isMicEnabled,
     updatePeerConnectionTracks,
   ]);
+
+  const toggleNoiseSuppression = useCallback(() => {
+    setIsNoiseSuppressionEnabled((prev) => {
+      const next = !prev;
+
+      setStatus(next ? "Noise suppression on" : "Noise suppression off");
+
+      if (!isMicEnabled) {
+        setNoiseSuppressionStatus("idle");
+      }
+
+      return next;
+    });
+  }, [isMicEnabled]);
 
   const ensureRoomLinkAvailable = useCallback(() => {
     const link =
@@ -1436,6 +1504,8 @@ export function useRoomController(roomId: string) {
     left: "16px",
     right: "16px",
   };
+  const isNoiseSuppressionActive =
+    isNoiseSuppressionEnabled && noiseSuppressionStatus === "active";
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => {
@@ -1444,6 +1514,21 @@ export function useRoomController(roomId: string) {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!isMicEnabled) {
+      setNoiseSuppressionStatus("idle");
+
+      return;
+    }
+    const track = localStreamRef.current?.getAudioTracks()[0];
+
+    if (!track) {
+      return;
+    }
+
+    void applyNoiseSuppressionToTrack(track);
+  }, [applyNoiseSuppressionToTrack, isMicEnabled]);
 
   useEffect(() => {
     const video = localVideoRef.current;
@@ -1529,6 +1614,10 @@ export function useRoomController(roomId: string) {
     toggleScreenShare,
     toggleCamera,
     toggleMicrophone,
+    isNoiseSuppressionEnabled,
+    noiseSuppressionStatus,
+    isNoiseSuppressionActive,
+    toggleNoiseSuppression,
     acceptIncomingCall,
     declineIncomingCall,
     isRinging,

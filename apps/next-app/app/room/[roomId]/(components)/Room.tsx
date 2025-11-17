@@ -33,6 +33,10 @@ import {
 
 import { useRoomController } from "../(hooks)/useRoomController";
 
+import {
+  NoiseSuppressionStatusChip,
+  NoiseSuppressionToggle,
+} from "@/components/noise-suppression";
 import { ThemeSwitch } from "@/components/theme-switch";
 
 export default function RoomPage({ roomId }: { roomId: string }) {
@@ -52,6 +56,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     peerRole,
     isCameraEnabled,
     isMicEnabled,
+    isNoiseSuppressionEnabled,
+    noiseSuppressionStatus,
     isScreenSharing,
     isRemoteScreenSharing,
     remoteVideoActive,
@@ -69,6 +75,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     toggleScreenShare,
     toggleCamera,
     toggleMicrophone,
+    toggleNoiseSuppression,
     acceptIncomingCall,
     declineIncomingCall,
     isRinging,
@@ -263,7 +270,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   };
 
   const remoteTile = renderRemoteTile(
-    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full"
+    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full",
   );
   const hasRemoteTile = Boolean(remoteTile);
   const localTileVariant = showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full";
@@ -348,7 +355,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
             {renderLocalTile(
               "border border-default-200 shadow-2xl bg-background/80",
-              true
+              true,
             )}
           </div>
         </>
@@ -358,7 +365,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
             {renderLocalTile(
               "border border-default-200 shadow-2xl bg-background/80",
-              true
+              true,
             )}
           </div>
         </>
@@ -457,6 +464,12 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />
               }
               onPress={toggleMicrophone}
+            />
+            <NoiseSuppressionToggle
+              isMicEnabled={isMicEnabled}
+              isNoiseSuppressionEnabled={isNoiseSuppressionEnabled}
+              status={noiseSuppressionStatus}
+              onToggle={toggleNoiseSuppression}
             />
           </div>
         )}
@@ -557,6 +570,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         >
           {status}
         </Chip>
+        <NoiseSuppressionStatusChip
+          isMicEnabled={isMicEnabled}
+          isNoiseSuppressionEnabled={isNoiseSuppressionEnabled}
+          status={noiseSuppressionStatus}
+        />
         <ThemeSwitch />
       </footer>
       <Modal
