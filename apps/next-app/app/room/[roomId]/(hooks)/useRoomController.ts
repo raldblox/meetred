@@ -633,10 +633,14 @@ export function useRoomController(roomId: string) {
             await navigator.mediaDevices.getUserMedia(constraints);
 
           newStream.getVideoTracks().forEach((track) => {
-            stream.addTrack(track);
+            if (stream) {
+              stream.addTrack(track);
+            }
           });
           newStream.getAudioTracks().forEach((track) => {
-            stream.addTrack(track);
+            if (stream) {
+              stream.addTrack(track);
+            }
           });
           // Update peer connection if in call
           if (pcRef.current) {
