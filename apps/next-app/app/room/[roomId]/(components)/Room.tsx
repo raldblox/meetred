@@ -305,7 +305,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <MotionDiv
           key="screen-share"
           layout
-          className="min-h-[240px]"
+          className="min-h-[220px]"
           transition={springTransition}
         >
           {renderScreenSharePanel()}
@@ -315,7 +315,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <MotionDiv
           key="stacked-tiles"
           layout
-          className="flex h-full min-h-0 flex-col gap-3 overflow-hidden"
+          className="flex h-full min-h-0 flex-row md:flex-col gap-3 overflow-hidden"
           transition={springTransition}
         >
           {localTileNode}
