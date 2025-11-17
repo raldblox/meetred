@@ -78,6 +78,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     ensureRoomLinkAvailable,
     resumeCall,
     needsResume,
+    audioLevel,
   } = useRoomController(roomId);
 
   const {
@@ -448,13 +449,19 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               }
               onPress={toggleCamera}
             />
+
             <Button
               isIconOnly
               aria-pressed={isMicEnabled}
               color={isMicEnabled ? "default" : "secondary"}
               radius="full"
               startContent={
-                isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />
+                <motion.div
+                  animate={{ scale: isMicEnabled ? 1 + audioLevel * 0.2 : 1 }}
+                  transition={{ type: "spring", damping: 10, stiffness: 300 }}
+                >
+                  {isMicEnabled ? <Mic size={16} /> : <MicOff size={16} />}
+                </motion.div>
               }
               onPress={toggleMicrophone}
             />

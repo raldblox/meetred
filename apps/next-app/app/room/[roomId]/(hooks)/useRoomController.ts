@@ -62,6 +62,7 @@ export function useRoomController(roomId: string) {
   const [needsResume, setNeedsResume] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -87,6 +88,9 @@ export function useRoomController(roomId: string) {
   const remoteScreenStreamIdRef = useRef<string | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteScreenExpectedRef = useRef(false);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const animationFrameIdRef = useRef<number | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
   const resetRemoteScreenShare = useCallback(() => {
@@ -1358,11 +1362,45 @@ export function useRoomController(roomId: string) {
             }
           }
         }
+        if (stream) {
+          const audioContext = new (window.AudioContext ||
+            (window as any).webkitAudioContext)();
+          const analyser = audioContext.createAnalyser();
+
+          analyser.fftSize = 256;
+          const source = audioContext.createMediaStreamSource(stream);
+
+          source.connect(analyser);
+          analyserRef.current = analyser;
+          dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+
+          const updateAudioLevel = () => {
+            if (analyserRef.current && dataArrayRef.current) {
+              analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+              const average =
+                dataArrayRef.current.reduce((a, b) => a + b, 0) /
+                dataArrayRef.current.length;
+
+              setAudioLevel(average / 128); // Normalize to 0-1 range
+              animationFrameIdRef.current =
+                requestAnimationFrame(updateAudioLevel);
+            }
+          };
+
+          animationFrameIdRef.current = requestAnimationFrame(updateAudioLevel);
+        }
         setIsMicEnabled(true);
         broadcastMediaState(isCameraEnabled, true);
         setStatus("Microphone on");
       } else {
         // Disable microphone: stop and remove all audio tracks
+        if (animationFrameIdRef.current) {
+          cancelAnimationFrame(animationFrameIdRef.current);
+          animationFrameIdRef.current = null;
+        }
+        analyserRef.current = null;
+        dataArrayRef.current = null;
+        setAudioLevel(0);
         if (stream) {
           const audioTracks = stream.getAudioTracks();
 
@@ -1545,5 +1583,6 @@ export function useRoomController(roomId: string) {
     roomLink,
     ensureRoomLinkAvailable,
     needsResume,
+    audioLevel,
   };
 }
