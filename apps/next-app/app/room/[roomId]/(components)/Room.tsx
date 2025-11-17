@@ -263,7 +263,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   };
 
   const remoteTile = renderRemoteTile(
-    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full",
+    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full"
   );
   const hasRemoteTile = Boolean(remoteTile);
   const localTileVariant = showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full";
@@ -348,7 +348,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
             {renderLocalTile(
               "border border-default-200 shadow-2xl bg-background/80",
-              true,
+              true
             )}
           </div>
         </>
@@ -358,7 +358,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
             {renderLocalTile(
               "border border-default-200 shadow-2xl bg-background/80",
-              true,
+              true
             )}
           </div>
         </>
