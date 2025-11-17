@@ -1273,7 +1273,9 @@ export function useRoomController(roomId: string) {
             });
 
             newStream.getVideoTracks().forEach((track) => {
-              stream.addTrack(track);
+              if (stream) {
+                stream.addTrack(track);
+              }
             });
             // Update peer connection if in call
             if (pc) {
@@ -1291,7 +1293,9 @@ export function useRoomController(roomId: string) {
 
           videoTracks.forEach((track) => {
             track.stop(); // Fully stop the track (disconnects hardware)
-            stream.removeTrack(track);
+            if (stream) {
+              stream.removeTrack(track);
+            }
           });
           // Remove from peer connection if in call
           if (pc) {
@@ -1344,7 +1348,9 @@ export function useRoomController(roomId: string) {
             });
 
             newStream.getAudioTracks().forEach((track) => {
-              stream.addTrack(track);
+              if (stream) {
+                stream.addTrack(track);
+              }
             });
             // Update peer connection if in call
             if (pc) {
@@ -1362,7 +1368,9 @@ export function useRoomController(roomId: string) {
 
           audioTracks.forEach((track) => {
             track.stop(); // Fully stop the track (disconnects hardware)
-            stream.removeTrack(track);
+            if (stream) {
+              stream.removeTrack(track);
+            }
           });
           // Remove from peer connection if in call
           if (pc) {
