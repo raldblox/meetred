@@ -1190,6 +1190,26 @@ export function useRoomController(roomId: string) {
     resetRemoteVideo();
   }, [refreshParticipantState, resetRemoteVideo, roomId, supabase]);
 
+  // Auto-join when URL has autoJoin parameter
+  useEffect(() => {
+    if (typeof window === "undefined" || autoJoinAttemptedRef.current || isJoined) return;
+    
+    try {
+      const url = new URL(window.location.href);
+      const shouldAutoJoin = url.searchParams.get('autoJoin') === 'true';
+      
+      if (shouldAutoJoin) {
+        autoJoinAttemptedRef.current = true;
+        // Small delay to ensure component is fully mounted
+        setTimeout(() => {
+          void joinRoom();
+        }, 500);
+      }
+    } catch (err) {
+      // Ignore URL parsing errors
+    }
+  }, [isJoined, joinRoom]);
+
   const startCall = async () => {
     if (!isJoined) {
       setStatus("Join the room first");
@@ -1492,16 +1512,25 @@ export function useRoomController(roomId: string) {
   ]);
 
   const ensureRoomLinkAvailable = useCallback(() => {
-    const link =
+    const baseLink =
       roomLink || (typeof window !== "undefined" ? window.location.href : "");
 
-    if (!link) {
+    if (!baseLink) {
       setStatus("Room link unavailable");
 
       return null;
     }
 
-    return link;
+    // Add autoJoin parameter for shared links
+    try {
+      const url = new URL(baseLink);
+      if (!url.searchParams.has('autoJoin')) {
+        url.searchParams.set('autoJoin', 'true');
+      }
+      return url.toString();
+    } catch {
+      return baseLink;
+    }
   }, [roomLink]);
 
   const remoteVideoActive =

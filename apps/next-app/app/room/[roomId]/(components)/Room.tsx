@@ -34,6 +34,7 @@ import {
 import { useRoomController } from "../(hooks)/useRoomController";
 
 import { ThemeSwitch } from "@/components/theme-switch";
+import { useMemo } from "react";
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const {
@@ -94,6 +95,20 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     }
     openQrModal();
   };
+
+  // Memoized shareable link to prevent re-renders
+  const shareableLink = useMemo(() => {
+    if (!roomLink) return "";
+    try {
+      const url = new URL(roomLink);
+      if (!url.searchParams.has('autoJoin')) {
+        url.searchParams.set('autoJoin', 'true');
+      }
+      return url.toString();
+    } catch {
+      return roomLink;
+    }
+  }, [roomLink]);
 
   const springTransition = { type: "spring", damping: 28, stiffness: 320 };
   const MotionSection = motion.section;
@@ -655,9 +670,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               </ModalHeader>
               <ModalBody className="pb-6 pt-0">
                 <div className="flex flex-col items-center gap-3">
-                  {roomLink ? (
+                  {shareableLink ? (
                     <div className="rounded-xl border border-default-200 p-3">
-                      <ReactQRCode className="h-full w-full" value={roomLink} />
+                      <ReactQRCode className="h-full w-full" value={shareableLink} />
                     </div>
                   ) : (
                     <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-200 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">
@@ -668,9 +683,9 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                   <Snippet
                     hideSymbol
                     className="pl-5 bg-transparent uppercase hover:bg-default-100 transition-all"
-                    codeString={roomLink}
+                    codeString={shareableLink}
                     color="primary"
-                    hideCopyButton={!roomLink}
+                    hideCopyButton={!shareableLink}
                     size="sm"
                     variant="flat"
                   >
