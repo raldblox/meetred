@@ -1436,6 +1436,19 @@ export function useRoomController(roomId: string) {
           cancelAnimationFrame(animationFrameIdRef.current);
           animationFrameIdRef.current = null;
         }
+        
+        // Close AudioContext to prevent memory leak and crashes
+        if (analyserRef.current) {
+          try {
+            const audioContext = analyserRef.current.context as AudioContext;
+            if (audioContext && audioContext.state !== 'closed') {
+              audioContext.close();
+            }
+          } catch (err) {
+            // Ignore cleanup errors
+          }
+        }
+        
         analyserRef.current = null;
         dataArrayRef.current = null;
         setAudioLevel(0);
