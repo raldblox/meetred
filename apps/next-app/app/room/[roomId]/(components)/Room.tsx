@@ -79,6 +79,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     resumeCall,
     needsResume,
     audioLevel,
+    latency,
   } = useRoomController(roomId);
 
   const {
@@ -394,14 +395,26 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           </div>
           <div className="flex items-center gap-2">
             {isCalling && !isAwaitingAnswer && (
-              <Chip
-                className="font-mono"
-                color="default"
-                size="sm"
-                variant="flat"
-              >
-                {formattedDuration}
-              </Chip>
+              <>
+                <Chip
+                  className="font-mono"
+                  color="default"
+                  size="sm"
+                  variant="flat"
+                >
+                  {formattedDuration}
+                </Chip>
+                {latency !== null && (
+                  <Chip
+                    className="font-mono"
+                    color={latency < 100 ? "success" : latency < 200 ? "warning" : "danger"}
+                    size="sm"
+                    variant="flat"
+                  >
+                    {latency}ms
+                  </Chip>
+                )}
+              </>
             )}
           </div>
         </header>

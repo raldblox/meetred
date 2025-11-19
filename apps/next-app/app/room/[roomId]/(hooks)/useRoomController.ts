@@ -63,6 +63,7 @@ export function useRoomController(roomId: string) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [latency, setLatency] = useState<number | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -440,6 +441,43 @@ export function useRoomController(roomId: string) {
 
     return () => window.clearInterval(id);
   }, [callStartTime]);
+
+  // Measure latency using WebRTC stats
+  useEffect(() => {
+    if (!isCalling || !pcRef.current) {
+      setLatency(null);
+      return;
+    }
+
+    const measureLatency = async () => {
+      const pc = pcRef.current;
+      if (!pc) return;
+
+      try {
+        // Check if getStats exists (may not in test environment)
+        if (typeof pc.getStats !== 'function') return;
+        
+        const stats = await pc.getStats();
+        if (!stats) return;
+        
+        stats.forEach((report: any) => {
+          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+            const rtt = report.currentRoundTripTime;
+            if (typeof rtt === 'number' && rtt > 0) {
+              setLatency(Math.round(rtt * 1000)); // Convert to ms
+            }
+          }
+        });
+      } catch (err) {
+        // Ignore stats errors (common in test environments)
+      }
+    };
+
+    measureLatency(); // Initial measurement
+    const interval = setInterval(measureLatency, 1000); // Update every second
+
+    return () => clearInterval(interval);
+  }, [isCalling]);
 
   useEffect(() => {
     const audio = ringtoneRef.current;
@@ -1584,5 +1622,6 @@ export function useRoomController(roomId: string) {
     ensureRoomLinkAvailable,
     needsResume,
     audioLevel,
+    latency,
   };
 }
