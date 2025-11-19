@@ -574,6 +574,15 @@ export function useRoomController(roomId: string) {
         return;
       }
       if (event.track.kind === "audio") {
+        // CRITICAL: Attach audio stream to remote video element for playback
+        if (stream) {
+          remoteStreamRef.current = stream;
+          if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
+            remoteVideoRef.current.srcObject = stream;
+            setHasRemoteStream(true);
+          }
+        }
+
         setIsRemoteAudioEnabled(!event.track.muted);
         event.track.onmute = () => setIsRemoteAudioEnabled(false);
         event.track.onunmute = () => setIsRemoteAudioEnabled(true);
