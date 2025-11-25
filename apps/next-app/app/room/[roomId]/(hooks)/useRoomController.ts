@@ -1458,7 +1458,7 @@ export function useRoomController(roomId: string) {
 
           const updateAudioLevel = () => {
             if (analyserRef.current && dataArrayRef.current) {
-              analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+              analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
               const average =
                 dataArrayRef.current.reduce((a, b) => a + b, 0) /
                 dataArrayRef.current.length;
