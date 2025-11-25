@@ -453,30 +453,21 @@ export function useRoomController(roomId: string) {
       const pc = pcRef.current;
 
       if (!pc) return;
+      if (typeof pc.getStats !== "function") return;
 
-      try {
-        // Check if getStats exists (may not in test environment)
-        if (typeof pc.getStats !== "function") return;
+      const stats = await pc.getStats();
 
-        const stats = await pc.getStats();
+      if (!stats) return;
 
-        if (!stats) return;
+      stats.forEach((report: any) => {
+        if (report.type === "candidate-pair" && report.state === "succeeded") {
+          const rtt = report.currentRoundTripTime;
 
-        stats.forEach((report: any) => {
-          if (
-            report.type === "candidate-pair" &&
-            report.state === "succeeded"
-          ) {
-            const rtt = report.currentRoundTripTime;
-
-            if (typeof rtt === "number" && rtt > 0) {
-              setLatency(Math.round(rtt * 1000)); // Convert to ms
-            }
+          if (typeof rtt === "number" && rtt > 0) {
+            setLatency(Math.round(rtt * 1000)); // Convert to ms
           }
-        });
-      } catch (err) {
-        // Ignore stats errors (common in test environments)
-      }
+        }
+      });
     };
 
     measureLatency(); // Initial measurement
@@ -1217,19 +1208,15 @@ export function useRoomController(roomId: string) {
     )
       return;
 
-    try {
-      const url = new URL(window.location.href);
-      const shouldAutoJoin = url.searchParams.get("autoJoin") === "true";
+    const url = new URL(window.location.href);
+    const shouldAutoJoin = url.searchParams.get("autoJoin") === "true";
 
-      if (shouldAutoJoin) {
-        autoJoinAttemptedRef.current = true;
-        // Small delay to ensure component is fully mounted
-        setTimeout(() => {
-          void joinRoom();
-        }, 500);
-      }
-    } catch (err) {
-      // Ignore URL parsing errors
+    if (shouldAutoJoin) {
+      autoJoinAttemptedRef.current = true;
+      // Small delay to ensure component is fully mounted
+      setTimeout(() => {
+        void joinRoom();
+      }, 500);
     }
   }, [isJoined, joinRoom]);
 
@@ -1484,14 +1471,10 @@ export function useRoomController(roomId: string) {
 
         // Close AudioContext to prevent memory leak and crashes
         if (analyserRef.current) {
-          try {
-            const audioContext = analyserRef.current.context as AudioContext;
+          const audioContext = analyserRef.current.context as AudioContext;
 
-            if (audioContext && audioContext.state !== "closed") {
-              audioContext.close();
-            }
-          } catch (err) {
-            // Ignore cleanup errors
+          if (audioContext && audioContext.state !== "closed") {
+            audioContext.close();
           }
         }
 
