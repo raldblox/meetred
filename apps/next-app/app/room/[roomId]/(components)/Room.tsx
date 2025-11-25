@@ -30,11 +30,11 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
+import { useMemo } from "react";
 
 import { useRoomController } from "../(hooks)/useRoomController";
 
 import { ThemeSwitch } from "@/components/theme-switch";
-import { useMemo } from "react";
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const {
@@ -101,9 +101,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     if (!roomLink) return "";
     try {
       const url = new URL(roomLink);
-      if (!url.searchParams.has('autoJoin')) {
-        url.searchParams.set('autoJoin', 'true');
+
+      if (!url.searchParams.has("autoJoin")) {
+        url.searchParams.set("autoJoin", "true");
       }
+
       return url.toString();
     } catch {
       return roomLink;
@@ -280,7 +282,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   };
 
   const remoteTile = renderRemoteTile(
-    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full"
+    showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full",
   );
   const hasRemoteTile = Boolean(remoteTile);
   const localTileVariant = showScreenPanel ? "flex-1 h-auto min-h-0" : "h-full";
@@ -365,7 +367,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
             {renderLocalTile(
               "border border-default-200 shadow-2xl bg-background/80",
-              true
+              true,
             )}
           </div>
         </>
@@ -375,7 +377,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
             {renderLocalTile(
               "border border-default-200 shadow-2xl bg-background/80",
-              true
+              true,
             )}
           </div>
         </>
@@ -422,7 +424,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 {latency !== null && (
                   <Chip
                     className="font-mono"
-                    color={latency < 100 ? "success" : latency < 200 ? "warning" : "danger"}
+                    color={
+                      latency < 100
+                        ? "success"
+                        : latency < 200
+                          ? "warning"
+                          : "danger"
+                    }
                     size="sm"
                     variant="flat"
                   >
@@ -672,7 +680,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
                 <div className="flex flex-col items-center gap-3">
                   {shareableLink ? (
                     <div className="rounded-xl border border-default-200 p-3">
-                      <ReactQRCode className="h-full w-full" value={shareableLink} />
+                      <ReactQRCode
+                        className="h-full w-full"
+                        value={shareableLink}
+                      />
                     </div>
                   ) : (
                     <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-200 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">

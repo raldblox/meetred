@@ -446,24 +446,31 @@ export function useRoomController(roomId: string) {
   useEffect(() => {
     if (!isCalling || !pcRef.current) {
       setLatency(null);
+
       return;
     }
 
     const measureLatency = async () => {
       const pc = pcRef.current;
+
       if (!pc) return;
 
       try {
         // Check if getStats exists (may not in test environment)
-        if (typeof pc.getStats !== 'function') return;
-        
+        if (typeof pc.getStats !== "function") return;
+
         const stats = await pc.getStats();
+
         if (!stats) return;
-        
+
         stats.forEach((report: any) => {
-          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          if (
+            report.type === "candidate-pair" &&
+            report.state === "succeeded"
+          ) {
             const rtt = report.currentRoundTripTime;
-            if (typeof rtt === 'number' && rtt > 0) {
+
+            if (typeof rtt === "number" && rtt > 0) {
               setLatency(Math.round(rtt * 1000)); // Convert to ms
             }
           }
@@ -577,7 +584,10 @@ export function useRoomController(roomId: string) {
         // CRITICAL: Attach audio stream to remote video element for playback
         if (stream) {
           remoteStreamRef.current = stream;
-          if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
+          if (
+            remoteVideoRef.current &&
+            remoteVideoRef.current.srcObject !== stream
+          ) {
             remoteVideoRef.current.srcObject = stream;
             setHasRemoteStream(true);
           }
@@ -1201,12 +1211,17 @@ export function useRoomController(roomId: string) {
 
   // Auto-join when URL has autoJoin parameter
   useEffect(() => {
-    if (typeof window === "undefined" || autoJoinAttemptedRef.current || isJoined) return;
-    
+    if (
+      typeof window === "undefined" ||
+      autoJoinAttemptedRef.current ||
+      isJoined
+    )
+      return;
+
     try {
       const url = new URL(window.location.href);
-      const shouldAutoJoin = url.searchParams.get('autoJoin') === 'true';
-      
+      const shouldAutoJoin = url.searchParams.get("autoJoin") === "true";
+
       if (shouldAutoJoin) {
         autoJoinAttemptedRef.current = true;
         // Small delay to ensure component is fully mounted
@@ -1465,19 +1480,20 @@ export function useRoomController(roomId: string) {
           cancelAnimationFrame(animationFrameIdRef.current);
           animationFrameIdRef.current = null;
         }
-        
+
         // Close AudioContext to prevent memory leak and crashes
         if (analyserRef.current) {
           try {
             const audioContext = analyserRef.current.context as AudioContext;
-            if (audioContext && audioContext.state !== 'closed') {
+
+            if (audioContext && audioContext.state !== "closed") {
               audioContext.close();
             }
           } catch (err) {
             // Ignore cleanup errors
           }
         }
-        
+
         analyserRef.current = null;
         dataArrayRef.current = null;
         setAudioLevel(0);
@@ -1533,9 +1549,11 @@ export function useRoomController(roomId: string) {
     // Add autoJoin parameter for shared links
     try {
       const url = new URL(baseLink);
-      if (!url.searchParams.has('autoJoin')) {
-        url.searchParams.set('autoJoin', 'true');
+
+      if (!url.searchParams.has("autoJoin")) {
+        url.searchParams.set("autoJoin", "true");
       }
+
       return url.toString();
     } catch {
       return baseLink;
