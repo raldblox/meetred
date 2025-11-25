@@ -1,1124 +1,1087 @@
-"use client";
+'use client'
 
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { createRoomSupabaseClient } from "../(libs)/supabaseClient";
-import {
-  ICE_SERVER_CONFIG,
-  ROOM_CHANNEL_PREFIX,
-  type RoomEvent,
-  type SignalMessage,
-} from "../(libs)/roomTypes";
-import { clearVideoElement, formatCallDuration } from "../(utils)/media";
+import { createRoomSupabaseClient } from '../(libs)/supabaseClient'
+import { ICE_SERVER_CONFIG, ROOM_CHANNEL_PREFIX, type RoomEvent, type SignalMessage } from '../(libs)/roomTypes'
+import { clearVideoElement, formatCallDuration } from '../(utils)/media'
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = process.env.NODE_ENV === 'production'
 const logError = (...args: unknown[]) => {
   if (!isProduction) {
     // eslint-disable-next-line no-console
-    console.error(...args);
+    console.error(...args)
   }
-};
+}
 
 const isLikelyScreenShareTrack = (track: MediaStreamTrack) => {
-  if (typeof track.getSettings === "function") {
-    const settings = track.getSettings();
+  if (typeof track.getSettings === 'function') {
+    const settings = track.getSettings()
 
-    if (settings && "displaySurface" in settings) {
-      return true;
+    if (settings && 'displaySurface' in settings) {
+      return true
     }
   }
-  const label = track.label?.toLowerCase() ?? "";
+  const label = track.label?.toLowerCase() ?? ''
 
-  return label.includes("screen") || label.includes("display");
-};
+  return label.includes('screen') || label.includes('display')
+}
 
 export function useRoomController(roomId: string) {
-  const [status, setStatus] = useState<string>("Not joined");
-  const [isJoined, setIsJoined] = useState(false);
-  const [isCalling, setIsCalling] = useState(false);
-  const [peerPresent, setPeerPresent] = useState(false);
-  const [isRinging, setIsRinging] = useState(false);
-  const [incomingOffer, setIncomingOffer] =
-    useState<RTCSessionDescriptionInit | null>(null);
-  const [incomingCaller, setIncomingCaller] = useState<string | null>(null);
-  const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
-  const [roomLink, setRoomLink] = useState("");
-  const [isCameraEnabled, setIsCameraEnabled] = useState(false);
-  const [isMicEnabled, setIsMicEnabled] = useState(false);
-  const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState<
-    boolean | null
-  >(null);
-  const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState<
-    boolean | null
-  >(null);
-  const [hasRemoteStream, setHasRemoteStream] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
-  const [callStartTime, setCallStartTime] = useState<number | null>(null);
-  const [callDuration, setCallDuration] = useState(0);
-  const [needsResume, setNeedsResume] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [latency, setLatency] = useState<number | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteScreenVideoRef = useRef<HTMLVideoElement | null>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const screenShareStreamRef = useRef<MediaStream | null>(null);
-  const screenShareSenderRef = useRef<RTCRtpSender | null>(null);
-  const localVideoSenderRef = useRef<RTCRtpSender | null>(null);
-  const localAudioSenderRef = useRef<RTCRtpSender | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
-  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
-  const myIdRef = useRef<string>("");
-  const handleSignalRef = useRef<(msg: SignalMessage) => void>(() => {});
-  const handleRoomEventRef = useRef<(event: RoomEvent) => void>(() => {});
-  const isJoiningRef = useRef(false);
-  const autoJoinAttemptedRef = useRef(false);
-  const callAreaRef = useRef<HTMLDivElement | null>(null);
-  const participantsRef = useRef<Set<string>>(new Set());
-  const hostIdRef = useRef<string | null>(null);
-  const remoteScreenStreamRef = useRef<MediaStream | null>(null);
-  const remoteScreenStreamIdRef = useRef<string | null>(null);
-  const remoteStreamRef = useRef<MediaStream | null>(null);
-  const remoteScreenExpectedRef = useRef(false);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
-  const animationFrameIdRef = useRef<number | null>(null);
-  const [isHost, setIsHost] = useState(false);
-  const [peerRole, setPeerRole] = useState<"host" | "guest" | null>(null);
+  const [status, setStatus] = useState<string>('Not joined')
+  const [isJoined, setIsJoined] = useState(false)
+  const [isCalling, setIsCalling] = useState(false)
+  const [peerPresent, setPeerPresent] = useState(false)
+  const [isRinging, setIsRinging] = useState(false)
+  const [incomingOffer, setIncomingOffer] = useState<RTCSessionDescriptionInit | null>(null)
+  const [incomingCaller, setIncomingCaller] = useState<string | null>(null)
+  const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false)
+  const [roomLink, setRoomLink] = useState('')
+  const [isCameraEnabled, setIsCameraEnabled] = useState(false)
+  const [isMicEnabled, setIsMicEnabled] = useState(false)
+  const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState<boolean | null>(null)
+  const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState<boolean | null>(null)
+  const [hasRemoteStream, setHasRemoteStream] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null)
+  const [callStartTime, setCallStartTime] = useState<number | null>(null)
+  const [callDuration, setCallDuration] = useState(0)
+  const [needsResume, setNeedsResume] = useState(false)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const [latency, setLatency] = useState<number | null>(null)
+  const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+  const screenShareVideoRef = useRef<HTMLVideoElement | null>(null)
+  const remoteScreenVideoRef = useRef<HTMLVideoElement | null>(null)
+  const pcRef = useRef<RTCPeerConnection | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const screenShareStreamRef = useRef<MediaStream | null>(null)
+  const screenShareSenderRef = useRef<RTCRtpSender | null>(null)
+  const localVideoSenderRef = useRef<RTCRtpSender | null>(null)
+  const localAudioSenderRef = useRef<RTCRtpSender | null>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([])
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null)
+  const myIdRef = useRef<string>('')
+  const handleSignalRef = useRef<(msg: SignalMessage) => void>(() => {})
+  const handleRoomEventRef = useRef<(event: RoomEvent) => void>(() => {})
+  const isJoiningRef = useRef(false)
+  const autoJoinAttemptedRef = useRef(false)
+  const callAreaRef = useRef<HTMLDivElement | null>(null)
+  const participantsRef = useRef<Set<string>>(new Set())
+  const hostIdRef = useRef<string | null>(null)
+  const remoteScreenStreamRef = useRef<MediaStream | null>(null)
+  const remoteScreenStreamIdRef = useRef<string | null>(null)
+  const remoteStreamRef = useRef<MediaStream | null>(null)
+  const remoteScreenExpectedRef = useRef(false)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const dataArrayRef = useRef<Uint8Array | null>(null)
+  const animationFrameIdRef = useRef<number | null>(null)
+  const [isHost, setIsHost] = useState(false)
+  const [peerRole, setPeerRole] = useState<'host' | 'guest' | null>(null)
   const resetRemoteScreenShare = useCallback(() => {
-    remoteScreenExpectedRef.current = false;
-    remoteScreenStreamIdRef.current = null;
+    remoteScreenExpectedRef.current = false
+    remoteScreenStreamIdRef.current = null
     if (remoteScreenStreamRef.current) {
-      remoteScreenStreamRef.current
-        .getTracks()
-        .forEach((track) => track.stop());
-      remoteScreenStreamRef.current = null;
+      remoteScreenStreamRef.current.getTracks().forEach((track) => track.stop())
+      remoteScreenStreamRef.current = null
     }
-    clearVideoElement(remoteScreenVideoRef);
-    setIsRemoteScreenSharing(false);
-  }, []);
+    clearVideoElement(remoteScreenVideoRef)
+    setIsRemoteScreenSharing(false)
+  }, [])
 
   const resetRemoteVideo = useCallback(() => {
-    clearVideoElement(remoteVideoRef);
-    remoteStreamRef.current = null;
-    setHasRemoteStream(false);
-    setIsRemoteVideoEnabled(null);
-    setIsRemoteAudioEnabled(null);
-    resetRemoteScreenShare();
-  }, [resetRemoteScreenShare]);
+    clearVideoElement(remoteVideoRef)
+    remoteStreamRef.current = null
+    setHasRemoteStream(false)
+    setIsRemoteVideoEnabled(null)
+    setIsRemoteAudioEnabled(null)
+    resetRemoteScreenShare()
+  }, [resetRemoteScreenShare])
 
   const refreshParticipantState = useCallback(() => {
-    const participants = participantsRef.current;
+    const participants = participantsRef.current
 
     if (participants.size === 0) {
-      hostIdRef.current = null;
-      setIsHost(false);
-      setPeerRole(null);
-      setPeerPresent(false);
+      hostIdRef.current = null
+      setIsHost(false)
+      setPeerRole(null)
+      setPeerPresent(false)
 
-      return;
+      return
     }
     if (!hostIdRef.current || !participants.has(hostIdRef.current)) {
-      const firstEntry = participants.values().next().value ?? null;
+      const firstEntry = participants.values().next().value ?? null
 
-      hostIdRef.current = firstEntry ?? null;
+      hostIdRef.current = firstEntry ?? null
     }
-    const currentHost = hostIdRef.current;
+    const currentHost = hostIdRef.current
 
-    setIsHost(currentHost === myIdRef.current);
-    const peerId =
-      Array.from(participants).find((id) => id !== myIdRef.current) ?? null;
+    setIsHost(currentHost === myIdRef.current)
+    const peerId = Array.from(participants).find((id) => id !== myIdRef.current) ?? null
 
-    setPeerPresent(Boolean(peerId));
+    setPeerPresent(Boolean(peerId))
     if (peerId && currentHost) {
-      setPeerRole(peerId === currentHost ? "host" : "guest");
+      setPeerRole(peerId === currentHost ? 'host' : 'guest')
     } else {
-      setPeerRole(null);
+      setPeerRole(null)
     }
-  }, []);
+  }, [])
 
   const addParticipant = useCallback(
     (id: string) => {
-      if (!id) return participantsRef.current.size;
-      const participants = participantsRef.current;
+      if (!id) return participantsRef.current.size
+      const participants = participantsRef.current
 
       if (!participants.has(id)) {
-        participants.add(id);
-        refreshParticipantState();
+        participants.add(id)
+        refreshParticipantState()
       }
 
-      return participants.size;
+      return participants.size
     },
     [refreshParticipantState],
-  );
+  )
 
   const removeParticipant = useCallback(
     (id: string) => {
-      if (!id) return participantsRef.current.size;
-      const participants = participantsRef.current;
+      if (!id) return participantsRef.current.size
+      const participants = participantsRef.current
 
       if (participants.delete(id)) {
-        refreshParticipantState();
+        refreshParticipantState()
       }
 
-      return participants.size;
+      return participants.size
     },
     [refreshParticipantState],
-  );
+  )
 
   const sendSignal = async (msg: SignalMessage) => {
-    if (!channelRef.current) return;
+    if (!channelRef.current) return
     await channelRef.current.send({
-      type: "broadcast",
-      event: "signal",
+      type: 'broadcast',
+      event: 'signal',
       payload: msg,
-    });
-  };
+    })
+  }
 
   // Helper to renegotiate peer connection when tracks change
   const renegotiateConnection = useCallback(async () => {
-    const pc = pcRef.current;
+    const pc = pcRef.current
 
-    if (!pc || pc.signalingState === "closed") return;
+    if (!pc || pc.signalingState === 'closed') return
     // Only renegotiate when connection is stable (call is established)
-    if (pc.signalingState === "stable") {
+    if (pc.signalingState === 'stable') {
       try {
         // Only renegotiate if we have a remote description (call is established)
         if (pc.remoteDescription && pc.remoteDescription.type) {
-          const offer = await pc.createOffer();
+          const offer = await pc.createOffer()
 
-          await pc.setLocalDescription(offer);
+          await pc.setLocalDescription(offer)
           await sendSignal({
-            type: "offer",
+            type: 'offer',
             sdp: offer,
             sender: myIdRef.current,
-          });
+          })
         }
       } catch (err) {
-        logError("Error renegotiating connection:", err);
+        logError('Error renegotiating connection:', err)
       }
     }
-  }, []);
+  }, [])
 
   // Helper to update peer connection with current tracks
   const updatePeerConnectionTracks = useCallback(async () => {
-    const pc = pcRef.current;
-    const stream = localStreamRef.current;
+    const pc = pcRef.current
+    const stream = localStreamRef.current
 
-    if (!pc) return;
+    if (!pc) return
 
-    const videoTrack = stream?.getVideoTracks()[0] ?? null;
-    const audioTrack = stream?.getAudioTracks()[0] ?? null;
-    let needsRenegotiation = false;
+    const videoTrack = stream?.getVideoTracks()[0] ?? null
+    const audioTrack = stream?.getAudioTracks()[0] ?? null
+    let needsRenegotiation = false
 
-    const videoSender = localVideoSenderRef.current;
+    const videoSender = localVideoSenderRef.current
 
     if (videoTrack) {
       if (videoSender) {
         if (videoSender.track !== videoTrack) {
           try {
-            await videoSender.replaceTrack(videoTrack);
+            await videoSender.replaceTrack(videoTrack)
           } catch (err) {
-            logError("Error replacing video track:", err);
+            logError('Error replacing video track:', err)
           }
         }
       } else if (stream) {
         try {
-          localVideoSenderRef.current = pc.addTrack(videoTrack, stream);
-          needsRenegotiation = true;
+          localVideoSenderRef.current = pc.addTrack(videoTrack, stream)
+          needsRenegotiation = true
         } catch (err) {
-          logError("Error adding video track:", err);
+          logError('Error adding video track:', err)
         }
       }
     } else if (videoSender) {
       try {
-        pc.removeTrack(videoSender);
-        localVideoSenderRef.current = null;
-        needsRenegotiation = true;
+        pc.removeTrack(videoSender)
+        localVideoSenderRef.current = null
+        needsRenegotiation = true
       } catch (err) {
-        logError("Error removing video track:", err);
+        logError('Error removing video track:', err)
       }
     }
 
-    const audioSender = localAudioSenderRef.current;
+    const audioSender = localAudioSenderRef.current
 
     if (audioTrack) {
       if (audioSender) {
         if (audioSender.track !== audioTrack) {
           try {
-            await audioSender.replaceTrack(audioTrack);
+            await audioSender.replaceTrack(audioTrack)
           } catch (err) {
-            logError("Error replacing audio track:", err);
+            logError('Error replacing audio track:', err)
           }
         }
       } else if (stream) {
         try {
-          localAudioSenderRef.current = pc.addTrack(audioTrack, stream);
-          needsRenegotiation = true;
+          localAudioSenderRef.current = pc.addTrack(audioTrack, stream)
+          needsRenegotiation = true
         } catch (err) {
-          logError("Error adding audio track:", err);
+          logError('Error adding audio track:', err)
         }
       }
     } else if (audioSender) {
       try {
-        pc.removeTrack(audioSender);
-        localAudioSenderRef.current = null;
-        needsRenegotiation = true;
+        pc.removeTrack(audioSender)
+        localAudioSenderRef.current = null
+        needsRenegotiation = true
       } catch (err) {
-        logError("Error removing audio track:", err);
+        logError('Error removing audio track:', err)
       }
     }
 
     if (needsRenegotiation && isCalling && !isAwaitingAnswer) {
-      await renegotiateConnection();
+      await renegotiateConnection()
     }
-  }, [isCalling, isAwaitingAnswer, renegotiateConnection]);
+  }, [isCalling, isAwaitingAnswer, renegotiateConnection])
 
   const ensureLocalStream = useCallback(async () => {
     // If stream exists and has the tracks we need, return it
     if (localStreamRef.current) {
-      const stream = localStreamRef.current;
-      const hasVideo = stream.getVideoTracks().length > 0;
-      const hasAudio = stream.getAudioTracks().length > 0;
+      const stream = localStreamRef.current
+      const hasVideo = stream.getVideoTracks().length > 0
+      const hasAudio = stream.getAudioTracks().length > 0
 
       // If we need video but don't have it, or need audio but don't have it
       if ((isCameraEnabled && !hasVideo) || (isMicEnabled && !hasAudio)) {
         // Request missing tracks
-        const constraints: MediaStreamConstraints = {};
+        const constraints: MediaStreamConstraints = {}
 
         if (isCameraEnabled && !hasVideo) {
-          constraints.video = true;
+          constraints.video = true
         }
         if (isMicEnabled && !hasAudio) {
-          constraints.audio = true;
+          constraints.audio = true
         }
 
         try {
-          const newStream =
-            await navigator.mediaDevices.getUserMedia(constraints);
+          const newStream = await navigator.mediaDevices.getUserMedia(constraints)
 
           newStream.getVideoTracks().forEach((track) => {
-            stream.addTrack(track);
-          });
+            stream.addTrack(track)
+          })
           newStream.getAudioTracks().forEach((track) => {
-            stream.addTrack(track);
-          });
+            stream.addTrack(track)
+          })
           // Update peer connection if in call
           if (pcRef.current) {
-            updatePeerConnectionTracks();
+            updatePeerConnectionTracks()
           }
         } catch (err) {
-          logError("Error adding tracks:", err);
-          throw err;
+          logError('Error adding tracks:', err)
+          throw err
         }
       }
 
-      return stream;
+      return stream
     }
 
     // Create new stream only with requested devices
-    setStatus("Requesting access");
+    setStatus('Requesting access')
     const constraints: MediaStreamConstraints = {
       video: isCameraEnabled,
       audio: isMicEnabled,
-    };
+    }
 
     // If both are false, we still need to create an empty stream for consistency
     if (!isCameraEnabled && !isMicEnabled) {
-      localStreamRef.current = new MediaStream();
+      localStreamRef.current = new MediaStream()
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStreamRef.current;
+        localVideoRef.current.srcObject = localStreamRef.current
       }
 
-      return localStreamRef.current;
+      return localStreamRef.current
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
 
-    localStreamRef.current = stream;
+    localStreamRef.current = stream
     if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+      localVideoRef.current.srcObject = stream
     }
 
-    return stream;
-  }, [isCameraEnabled, isMicEnabled, updatePeerConnectionTracks]);
+    return stream
+  }, [isCameraEnabled, isMicEnabled, updatePeerConnectionTracks])
 
   // Create Supabase client (works both server/client, but we only use it in effects)
-  const supabase = useMemo(() => createRoomSupabaseClient(), []);
+  const supabase = useMemo(() => createRoomSupabaseClient(), [])
 
   // Initialize myId once on client
   useEffect(() => {
-    myIdRef.current = crypto.randomUUID();
-  }, []);
+    myIdRef.current = crypto.randomUUID()
+  }, [])
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setRoomLink(window.location.href);
-  }, [roomId]);
+    if (typeof window === 'undefined') return
+    setRoomLink(window.location.href)
+  }, [roomId])
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return
 
     const applyViewportHeight = () => {
-      const height = window.visualViewport?.height ?? window.innerHeight ?? 0;
+      const height = window.visualViewport?.height ?? window.innerHeight ?? 0
 
-      setViewportHeight(Math.round(height));
-    };
+      setViewportHeight(Math.round(height))
+    }
 
-    applyViewportHeight();
+    applyViewportHeight()
 
-    const handleResize = () => applyViewportHeight();
-    const handleOrientation = () => applyViewportHeight();
-    const visualViewport = window.visualViewport;
+    const handleResize = () => applyViewportHeight()
+    const handleOrientation = () => applyViewportHeight()
+    const visualViewport = window.visualViewport
 
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("orientationchange", handleOrientation);
-    visualViewport?.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleOrientation);
-      visualViewport?.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined" || !isFullscreen) return;
-
-    const { style } = document.body;
-    const originalOverflow = style.overflow;
-    const originalHeight = style.height;
-
-    style.overflow = "hidden";
-    style.height = "100%";
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleOrientation)
+    visualViewport?.addEventListener('resize', handleResize)
 
     return () => {
-      style.overflow = originalOverflow;
-      style.height = originalHeight;
-    };
-  }, [isFullscreen]);
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('orientationchange', handleOrientation)
+      visualViewport?.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   useEffect(() => {
-    if (typeof window === "undefined" || !isFullscreen) return;
+    if (typeof document === 'undefined' || !isFullscreen) return
+
+    const { style } = document.body
+    const originalOverflow = style.overflow
+    const originalHeight = style.height
+
+    style.overflow = 'hidden'
+    style.height = '100%'
+
+    return () => {
+      style.overflow = originalOverflow
+      style.height = originalHeight
+    }
+  }, [isFullscreen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isFullscreen) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsFullscreen(false);
-        setStatus("Immersive view disabled");
+      if (event.key === 'Escape') {
+        setIsFullscreen(false)
+        setStatus('Immersive view disabled')
       }
-    };
+    }
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isFullscreen]);
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isFullscreen])
 
   useEffect(() => {
     if (isCalling && !isAwaitingAnswer) {
-      setCallStartTime((prev) => prev ?? Date.now());
+      setCallStartTime((prev) => prev ?? Date.now())
     } else if (!isCalling) {
-      setCallStartTime(null);
-      setCallDuration(0);
+      setCallStartTime(null)
+      setCallDuration(0)
     }
-  }, [isAwaitingAnswer, isCalling]);
+  }, [isAwaitingAnswer, isCalling])
 
   useEffect(() => {
-    if (callStartTime === null) return;
+    if (callStartTime === null) return
     const id = window.setInterval(() => {
-      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
-    }, 1000);
+      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000))
+    }, 1000)
 
-    return () => window.clearInterval(id);
-  }, [callStartTime]);
+    return () => window.clearInterval(id)
+  }, [callStartTime])
 
   // Measure latency using WebRTC stats
   useEffect(() => {
     if (!isCalling || !pcRef.current) {
-      setLatency(null);
+      setLatency(null)
 
-      return;
+      return
     }
 
     const measureLatency = async () => {
-      const pc = pcRef.current;
+      const pc = pcRef.current
 
-      if (!pc) return;
-      if (typeof pc.getStats !== "function") return;
+      if (!pc) return
+      if (typeof pc.getStats !== 'function') return
 
-      const stats = await pc.getStats();
+      const stats = await pc.getStats()
 
-      if (!stats) return;
+      if (!stats) return
 
       stats.forEach((report: any) => {
-        if (report.type === "candidate-pair" && report.state === "succeeded") {
-          const rtt = report.currentRoundTripTime;
+        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          const rtt = report.currentRoundTripTime
 
-          if (typeof rtt === "number" && rtt > 0) {
-            setLatency(Math.round(rtt * 1000)); // Convert to ms
+          if (typeof rtt === 'number' && rtt > 0) {
+            setLatency(Math.round(rtt * 1000)) // Convert to ms
           }
         }
-      });
-    };
+      })
+    }
 
-    measureLatency(); // Initial measurement
-    const interval = setInterval(measureLatency, 1000); // Update every second
+    measureLatency() // Initial measurement
+    const interval = setInterval(measureLatency, 1000) // Update every second
 
-    return () => clearInterval(interval);
-  }, [isCalling]);
+    return () => clearInterval(interval)
+  }, [isCalling])
 
   useEffect(() => {
-    const audio = ringtoneRef.current;
+    const audio = ringtoneRef.current
 
-    if (!audio) return;
+    if (!audio) return
 
     if (isRinging) {
-      audio.currentTime = 0;
-      const playPromise = audio.play();
+      audio.currentTime = 0
+      const playPromise = audio.play()
 
       if (playPromise) {
         playPromise.catch(() => {
           // ignore autoplay rejections
-        });
+        })
       }
     } else {
-      audio.pause();
-      audio.currentTime = 0;
+      audio.pause()
+      audio.currentTime = 0
     }
 
     return () => {
-      audio.pause();
-      audio.currentTime = 0;
-    };
-  }, [isRinging]);
+      audio.pause()
+      audio.currentTime = 0
+    }
+  }, [isRinging])
 
-  const attachLocalTracks = useCallback(
-    (pc: RTCPeerConnection, stream: MediaStream) => {
-      stream.getTracks().forEach((track) => {
-        if (track.kind === "video" && !localVideoSenderRef.current) {
-          localVideoSenderRef.current = pc.addTrack(track, stream);
-        }
-        if (track.kind === "audio" && !localAudioSenderRef.current) {
-          localAudioSenderRef.current = pc.addTrack(track, stream);
-        }
-      });
-    },
-    [],
-  );
+  const attachLocalTracks = useCallback((pc: RTCPeerConnection, stream: MediaStream) => {
+    stream.getTracks().forEach((track) => {
+      if (track.kind === 'video' && !localVideoSenderRef.current) {
+        localVideoSenderRef.current = pc.addTrack(track, stream)
+      }
+      if (track.kind === 'audio' && !localAudioSenderRef.current) {
+        localAudioSenderRef.current = pc.addTrack(track, stream)
+      }
+    })
+  }, [])
 
   const createPeerConnection = () => {
-    if (pcRef.current) return pcRef.current;
+    if (pcRef.current) return pcRef.current
 
-    const pc = new RTCPeerConnection(ICE_SERVER_CONFIG);
+    const pc = new RTCPeerConnection(ICE_SERVER_CONFIG)
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         sendSignal({
-          type: "candidate",
+          type: 'candidate',
           candidate: event.candidate.toJSON(),
           sender: myIdRef.current,
-        });
+        })
       }
-    };
+    }
 
     pc.ontrack = (event) => {
-      const [stream] = event.streams;
+      const [stream] = event.streams
 
-      if (event.track.kind === "video") {
-        const streamId = stream?.id ?? null;
-        const expectedStreamId = remoteScreenStreamIdRef.current;
-        const hasExplicitStreamId = Boolean(expectedStreamId);
-        const matchesExpectedStream =
-          Boolean(streamId) && streamId === expectedStreamId;
-        const looksLikeScreen = isLikelyScreenShareTrack(event.track);
+      if (event.track.kind === 'video') {
+        const streamId = stream?.id ?? null
+        const expectedStreamId = remoteScreenStreamIdRef.current
+        const hasExplicitStreamId = Boolean(expectedStreamId)
+        const matchesExpectedStream = Boolean(streamId) && streamId === expectedStreamId
+        const looksLikeScreen = isLikelyScreenShareTrack(event.track)
         const shouldUseScreen =
-          matchesExpectedStream ||
-          (!hasExplicitStreamId &&
-            (remoteScreenExpectedRef.current || looksLikeScreen));
+          matchesExpectedStream || (!hasExplicitStreamId && (remoteScreenExpectedRef.current || looksLikeScreen))
 
         if (shouldUseScreen) {
-          remoteScreenExpectedRef.current = false;
+          remoteScreenExpectedRef.current = false
           if (streamId) {
-            remoteScreenStreamIdRef.current = streamId;
+            remoteScreenStreamIdRef.current = streamId
           }
-          remoteScreenStreamRef.current = stream;
+          remoteScreenStreamRef.current = stream
           if (remoteScreenVideoRef.current) {
-            remoteScreenVideoRef.current.srcObject = stream;
+            remoteScreenVideoRef.current.srcObject = stream
           }
-          setIsRemoteScreenSharing(true);
-          event.track.onended = () => resetRemoteScreenShare();
+          setIsRemoteScreenSharing(true)
+          event.track.onended = () => resetRemoteScreenShare()
 
-          return;
+          return
         }
-        remoteStreamRef.current = stream;
-        if (!remoteVideoRef.current) return;
-        remoteVideoRef.current.srcObject = stream;
-        setHasRemoteStream(true);
-        setIsRemoteVideoEnabled(!event.track.muted);
-        event.track.onmute = () => setIsRemoteVideoEnabled(false);
-        event.track.onunmute = () => setIsRemoteVideoEnabled(true);
-        event.track.onended = () => setIsRemoteVideoEnabled(false);
+        remoteStreamRef.current = stream
+        if (!remoteVideoRef.current) return
+        remoteVideoRef.current.srcObject = stream
+        setHasRemoteStream(true)
+        setIsRemoteVideoEnabled(!event.track.muted)
+        event.track.onmute = () => setIsRemoteVideoEnabled(false)
+        event.track.onunmute = () => setIsRemoteVideoEnabled(true)
+        event.track.onended = () => setIsRemoteVideoEnabled(false)
 
-        return;
+        return
       }
-      if (event.track.kind === "audio") {
+      if (event.track.kind === 'audio') {
         // CRITICAL: Attach audio stream to remote video element for playback
         if (stream) {
-          remoteStreamRef.current = stream;
-          if (
-            remoteVideoRef.current &&
-            remoteVideoRef.current.srcObject !== stream
-          ) {
-            remoteVideoRef.current.srcObject = stream;
-            setHasRemoteStream(true);
+          remoteStreamRef.current = stream
+          if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
+            remoteVideoRef.current.srcObject = stream
+            setHasRemoteStream(true)
           }
         }
 
-        setIsRemoteAudioEnabled(!event.track.muted);
-        event.track.onmute = () => setIsRemoteAudioEnabled(false);
-        event.track.onunmute = () => setIsRemoteAudioEnabled(true);
-        event.track.onended = () => setIsRemoteAudioEnabled(false);
+        setIsRemoteAudioEnabled(!event.track.muted)
+        event.track.onmute = () => setIsRemoteAudioEnabled(false)
+        event.track.onunmute = () => setIsRemoteAudioEnabled(true)
+        event.track.onended = () => setIsRemoteAudioEnabled(false)
       }
-    };
+    }
 
     // Attach local tracks if we already have stream
     if (localStreamRef.current) {
-      attachLocalTracks(pc, localStreamRef.current);
+      attachLocalTracks(pc, localStreamRef.current)
     }
 
-    pcRef.current = pc;
+    pcRef.current = pc
 
-    return pc;
-  };
+    return pc
+  }
 
   const handleSignal = async (msg: SignalMessage) => {
     // Ignore our own messages
-    if (msg.sender === myIdRef.current) return;
+    if (msg.sender === myIdRef.current) return
 
-    const pc = createPeerConnection();
+    const pc = createPeerConnection()
 
-    if (msg.type === "offer") {
+    if (msg.type === 'offer') {
       // If we're already in a call with an established connection, this is a renegotiation offer
       if (
         isCalling &&
         !isAwaitingAnswer &&
         pc.remoteDescription &&
-        (pc.signalingState === "stable" ||
-          pc.signalingState === "have-remote-offer")
+        (pc.signalingState === 'stable' || pc.signalingState === 'have-remote-offer')
       ) {
         try {
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-          await flushPendingCandidates();
-          const answer = await pc.createAnswer();
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+          await flushPendingCandidates()
+          const answer = await pc.createAnswer()
 
-          await pc.setLocalDescription(answer);
+          await pc.setLocalDescription(answer)
           await sendSignal({
-            type: "answer",
+            type: 'answer',
             sdp: answer,
             sender: myIdRef.current,
-          });
+          })
         } catch (err) {
-          logError("Error handling renegotiation offer:", err);
+          logError('Error handling renegotiation offer:', err)
         }
 
-        return;
+        return
       }
       // Otherwise, it's a new incoming call
-      setIncomingOffer(msg.sdp);
-      setIncomingCaller(msg.sender);
-      setIsRinging(true);
-      setStatus("Incoming call");
+      setIncomingOffer(msg.sdp)
+      setIncomingCaller(msg.sender)
+      setIsRinging(true)
+      setStatus('Incoming call')
 
-      return;
+      return
     }
 
-    if (msg.type === "answer") {
-      setStatus("Received answer, connecting...");
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-      await flushPendingCandidates();
-      setIsCalling(true);
-      setIsAwaitingAnswer(false);
-      setIsRinging(false);
-      setStatus("In call");
-    } else if (msg.type === "candidate") {
-      await queueIceCandidate(msg.candidate);
+    if (msg.type === 'answer') {
+      setStatus('Received answer, connecting...')
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+      await flushPendingCandidates()
+      setIsCalling(true)
+      setIsAwaitingAnswer(false)
+      setIsRinging(false)
+      setStatus('In call')
+    } else if (msg.type === 'candidate') {
+      await queueIceCandidate(msg.candidate)
     }
-  };
+  }
 
-  handleSignalRef.current = handleSignal;
+  handleSignalRef.current = handleSignal
 
   const flushPendingCandidates = async () => {
-    const pc = pcRef.current;
+    const pc = pcRef.current
 
-    if (!pc) return;
-    const remoteDesc = pc.remoteDescription;
+    if (!pc) return
+    const remoteDesc = pc.remoteDescription
 
-    if (!remoteDesc || !remoteDesc.type) return;
-    const queued = pendingCandidatesRef.current.splice(0);
+    if (!remoteDesc || !remoteDesc.type) return
+    const queued = pendingCandidatesRef.current.splice(0)
 
     for (const candidate of queued) {
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        await pc.addIceCandidate(new RTCIceCandidate(candidate))
       } catch (err) {
-        logError("Error adding queued candidate", err);
+        logError('Error adding queued candidate', err)
       }
     }
-  };
+  }
 
   const queueIceCandidate = async (candidate: RTCIceCandidateInit) => {
-    const pc = pcRef.current;
+    const pc = pcRef.current
 
-    if (!pc) return;
+    if (!pc) return
     if (!pc.remoteDescription || !pc.remoteDescription.type) {
-      pendingCandidatesRef.current.push(candidate);
+      pendingCandidatesRef.current.push(candidate)
 
-      return;
+      return
     }
     try {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      await pc.addIceCandidate(new RTCIceCandidate(candidate))
     } catch (err) {
-      logError("Error adding ice candidate", err);
+      logError('Error adding ice candidate', err)
     }
-  };
+  }
 
   const sendRoomEvent = useCallback(async (event: RoomEvent) => {
-    if (!channelRef.current) return;
+    if (!channelRef.current) return
     await channelRef.current.send({
-      type: "broadcast",
-      event: "room-event",
+      type: 'broadcast',
+      event: 'room-event',
       payload: event,
-    });
-  }, []);
+    })
+  }, [])
 
   const broadcastMediaState = useCallback(
     (cameraEnabled: boolean, micEnabled: boolean) => {
       void sendRoomEvent({
-        type: "media-state",
+        type: 'media-state',
         sender: myIdRef.current,
         cameraEnabled,
         micEnabled,
-      });
+      })
     },
     [sendRoomEvent],
-  );
+  )
 
   const broadcastScreenShareState = useCallback(
     (isSharing: boolean, streamId?: string | null) => {
       void sendRoomEvent({
-        type: "screen-share-state",
+        type: 'screen-share-state',
         sender: myIdRef.current,
         isSharing,
         screenStreamId: streamId,
-      });
+      })
     },
     [sendRoomEvent],
-  );
+  )
 
   const stopScreenShare = useCallback(
     async (shouldBroadcast = true) => {
-      const pc = pcRef.current;
-      const sender = screenShareSenderRef.current;
+      const pc = pcRef.current
+      const sender = screenShareSenderRef.current
 
       if (sender && pc) {
         try {
-          pc.removeTrack(sender);
-          await renegotiateConnection();
+          pc.removeTrack(sender)
+          await renegotiateConnection()
         } catch (err) {
-          logError("Error removing screen share track:", err);
+          logError('Error removing screen share track:', err)
         }
       }
-      screenShareSenderRef.current = null;
+      screenShareSenderRef.current = null
 
-      const stream = screenShareStreamRef.current;
+      const stream = screenShareStreamRef.current
 
       if (stream) {
         stream.getTracks().forEach((track) => {
-          track.stop();
-        });
-        screenShareStreamRef.current = null;
+          track.stop()
+        })
+        screenShareStreamRef.current = null
       }
-      clearVideoElement(screenShareVideoRef);
-      setIsScreenSharing(false);
+      clearVideoElement(screenShareVideoRef)
+      setIsScreenSharing(false)
       if (shouldBroadcast) {
-        broadcastScreenShareState(false, null);
+        broadcastScreenShareState(false, null)
       }
     },
     [broadcastScreenShareState, renegotiateConnection],
-  );
+  )
 
   const startScreenShare = useCallback(async () => {
     try {
       if (!navigator.mediaDevices?.getDisplayMedia) {
-        setStatus("Screen share unsupported");
+        setStatus('Screen share unsupported')
 
-        return;
+        return
       }
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          displaySurface: "monitor",
+          displaySurface: 'monitor',
           frameRate: { ideal: 30, max: 30 },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
         },
         audio: false,
-      });
+      })
 
-      screenShareStreamRef.current = stream;
+      screenShareStreamRef.current = stream
       if (screenShareVideoRef.current) {
-        screenShareVideoRef.current.srcObject = stream;
+        screenShareVideoRef.current.srcObject = stream
       }
-      const [track] = stream.getVideoTracks();
+      const [track] = stream.getVideoTracks()
 
       if (!track) {
-        setStatus("No screen track available");
+        setStatus('No screen track available')
 
-        return;
+        return
       }
-      const pc = createPeerConnection();
+      const pc = createPeerConnection()
 
-      screenShareSenderRef.current = pc.addTrack(track, stream);
+      screenShareSenderRef.current = pc.addTrack(track, stream)
       track.onended = () => {
-        void stopScreenShare();
-      };
-      setIsScreenSharing(true);
-      broadcastScreenShareState(true, stream.id);
-      await renegotiateConnection();
-      setStatus("Sharing screen");
+        void stopScreenShare()
+      }
+      setIsScreenSharing(true)
+      broadcastScreenShareState(true, stream.id)
+      await renegotiateConnection()
+      setStatus('Sharing screen')
     } catch (err) {
-      logError("Error starting screen share", err);
-      setStatus("Cannot start screen share");
+      logError('Error starting screen share', err)
+      setStatus('Cannot start screen share')
     }
-  }, [
-    broadcastScreenShareState,
-    createPeerConnection,
-    renegotiateConnection,
-    stopScreenShare,
-  ]);
+  }, [broadcastScreenShareState, createPeerConnection, renegotiateConnection, stopScreenShare])
 
   // Sync button state with actual track state to reflect hardware connection
   useEffect(() => {
-    const stream = localStreamRef.current;
+    const stream = localStreamRef.current
 
     if (!stream) {
       // If no stream, ensure state reflects no devices
-      if (isCameraEnabled) setIsCameraEnabled(false);
-      if (isMicEnabled) setIsMicEnabled(false);
+      if (isCameraEnabled) setIsCameraEnabled(false)
+      if (isMicEnabled) setIsMicEnabled(false)
 
-      return;
+      return
     }
 
-    const videoTracks = stream.getVideoTracks();
-    const audioTracks = stream.getAudioTracks();
-    const hasActiveVideo =
-      videoTracks.length > 0 && videoTracks[0].readyState === "live";
-    const hasActiveAudio =
-      audioTracks.length > 0 && audioTracks[0].readyState === "live";
+    const videoTracks = stream.getVideoTracks()
+    const audioTracks = stream.getAudioTracks()
+    const hasActiveVideo = videoTracks.length > 0 && videoTracks[0].readyState === 'live'
+    const hasActiveAudio = audioTracks.length > 0 && audioTracks[0].readyState === 'live'
 
     // Sync state with actual track state
     if (hasActiveVideo !== isCameraEnabled) {
-      setIsCameraEnabled(hasActiveVideo);
+      setIsCameraEnabled(hasActiveVideo)
     }
     if (hasActiveAudio !== isMicEnabled) {
-      setIsMicEnabled(hasActiveAudio);
+      setIsMicEnabled(hasActiveAudio)
     }
 
     // Listen for track ended events to update state
     const handleVideoTrackEnd = () => {
-      setIsCameraEnabled(false);
-      broadcastMediaState(false, isMicEnabled);
-    };
+      setIsCameraEnabled(false)
+      broadcastMediaState(false, isMicEnabled)
+    }
     const handleAudioTrackEnd = () => {
-      setIsMicEnabled(false);
-      broadcastMediaState(isCameraEnabled, false);
-    };
+      setIsMicEnabled(false)
+      broadcastMediaState(isCameraEnabled, false)
+    }
 
     videoTracks.forEach((track) => {
-      track.addEventListener("ended", handleVideoTrackEnd);
-    });
+      track.addEventListener('ended', handleVideoTrackEnd)
+    })
     audioTracks.forEach((track) => {
-      track.addEventListener("ended", handleAudioTrackEnd);
-    });
+      track.addEventListener('ended', handleAudioTrackEnd)
+    })
 
     return () => {
       videoTracks.forEach((track) => {
-        track.removeEventListener("ended", handleVideoTrackEnd);
-      });
+        track.removeEventListener('ended', handleVideoTrackEnd)
+      })
       audioTracks.forEach((track) => {
-        track.removeEventListener("ended", handleAudioTrackEnd);
-      });
-    };
-  }, [isCameraEnabled, isMicEnabled, broadcastMediaState]);
+        track.removeEventListener('ended', handleAudioTrackEnd)
+      })
+    }
+  }, [isCameraEnabled, isMicEnabled, broadcastMediaState])
 
   const resetLocalMediaState = useCallback(() => {
-    setIsScreenSharing(false);
-    void stopScreenShare();
-    const stream = localStreamRef.current;
+    setIsScreenSharing(false)
+    void stopScreenShare()
+    const stream = localStreamRef.current
 
     if (stream) {
       // Stop all tracks completely
       stream.getTracks().forEach((track) => {
-        track.stop();
-        stream.removeTrack(track);
-      });
+        track.stop()
+        stream.removeTrack(track)
+      })
     }
-    setIsCameraEnabled(false);
-    setIsMicEnabled(false);
-    broadcastMediaState(false, false);
-  }, [broadcastMediaState, stopScreenShare]);
+    setIsCameraEnabled(false)
+    setIsMicEnabled(false)
+    broadcastMediaState(false, false)
+  }, [broadcastMediaState, stopScreenShare])
 
   const handleRoomCapacityExceeded = useCallback(() => {
-    setStatus("Room full");
-    void stopScreenShare();
+    setStatus('Room full')
+    void stopScreenShare()
     if (channelRef.current) {
-      void sendRoomEvent({ type: "left", sender: myIdRef.current });
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
+      void sendRoomEvent({ type: 'left', sender: myIdRef.current })
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
     }
     if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
+      pcRef.current.close()
+      pcRef.current = null
     }
-    localVideoSenderRef.current = null;
-    localAudioSenderRef.current = null;
-    participantsRef.current.delete(myIdRef.current);
-    refreshParticipantState();
-    setIsJoined(false);
-    setIsCalling(false);
-    setIsAwaitingAnswer(false);
-    setNeedsResume(false);
-    resetRemoteVideo();
-  }, [
-    refreshParticipantState,
-    resetRemoteVideo,
-    sendRoomEvent,
-    stopScreenShare,
-    supabase,
-  ]);
+    localVideoSenderRef.current = null
+    localAudioSenderRef.current = null
+    participantsRef.current.delete(myIdRef.current)
+    refreshParticipantState()
+    setIsJoined(false)
+    setIsCalling(false)
+    setIsAwaitingAnswer(false)
+    setNeedsResume(false)
+    resetRemoteVideo()
+  }, [refreshParticipantState, resetRemoteVideo, sendRoomEvent, stopScreenShare, supabase])
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return
 
     const notifyDeparture = () => {
-      if (!channelRef.current) return;
-      void sendRoomEvent({ type: "left", sender: myIdRef.current });
-    };
+      if (!channelRef.current) return
+      void sendRoomEvent({ type: 'left', sender: myIdRef.current })
+    }
 
-    window.addEventListener("beforeunload", notifyDeparture);
+    window.addEventListener('beforeunload', notifyDeparture)
 
     return () => {
-      window.removeEventListener("beforeunload", notifyDeparture);
-      notifyDeparture();
-      void stopScreenShare();
+      window.removeEventListener('beforeunload', notifyDeparture)
+      notifyDeparture()
+      void stopScreenShare()
       if (pcRef.current) {
         // Stop all tracks from senders
         pcRef.current.getSenders().forEach((s) => {
           if (s.track) {
-            s.track.stop();
+            s.track.stop()
           }
-        });
-        pcRef.current.close();
-        pcRef.current = null;
+        })
+        pcRef.current.close()
+        pcRef.current = null
       }
-      localVideoSenderRef.current = null;
-      localAudioSenderRef.current = null;
+      localVideoSenderRef.current = null
+      localAudioSenderRef.current = null
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
       }
       // Fully disconnect all local devices
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((t) => {
-          t.stop(); // Fully stop (disconnects hardware)
-        });
-        localStreamRef.current = null;
+          t.stop() // Fully stop (disconnects hardware)
+        })
+        localStreamRef.current = null
       }
       // Clear video elements
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
+        localVideoRef.current.srcObject = null
       }
       if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
+        remoteVideoRef.current.srcObject = null
       }
-      participantsRef.current.clear();
-    };
-  }, [sendRoomEvent, stopScreenShare, supabase]);
+      participantsRef.current.clear()
+    }
+  }, [sendRoomEvent, stopScreenShare, supabase])
 
   const handleRoomEvent = (event: RoomEvent) => {
-    if (event.sender === myIdRef.current) return;
+    if (event.sender === myIdRef.current) return
 
-    if (event.type === "joined") {
+    if (event.type === 'joined') {
       if (participantsRef.current.size >= 2) {
         void sendRoomEvent({
-          type: "room-full",
+          type: 'room-full',
           sender: myIdRef.current,
           target: event.sender,
           hostId: hostIdRef.current ?? myIdRef.current,
-        });
+        })
 
-        return;
+        return
       }
-      addParticipant(event.sender);
-      setStatus("Guest already joined");
+      addParticipant(event.sender)
+      setStatus('Guest already joined')
       void sendRoomEvent({
-        type: "joined-ack",
+        type: 'joined-ack',
         sender: myIdRef.current,
         hostId: hostIdRef.current ?? myIdRef.current,
-      });
-      broadcastMediaState(isCameraEnabled, isMicEnabled);
+      })
+      broadcastMediaState(isCameraEnabled, isMicEnabled)
       if (needsResume) {
-        setStatus("Peer rejoined, resuming call");
-        void resumeCall();
+        setStatus('Peer rejoined, resuming call')
+        void resumeCall()
       }
 
-      return;
+      return
     }
 
-    if (event.type === "joined-ack") {
-      hostIdRef.current = event.hostId;
-      addParticipant(event.sender);
-      refreshParticipantState();
+    if (event.type === 'joined-ack') {
+      hostIdRef.current = event.hostId
+      addParticipant(event.sender)
+      refreshParticipantState()
       if (needsResume) {
-        setStatus("Host rejoined, resuming call");
-        void resumeCall();
+        setStatus('Host rejoined, resuming call')
+        void resumeCall()
       }
 
-      return;
+      return
     }
 
-    if (event.type === "left") {
-      removeParticipant(event.sender);
-      resetRemoteScreenShare();
+    if (event.type === 'left') {
+      removeParticipant(event.sender)
+      resetRemoteScreenShare()
       if (event.sender !== myIdRef.current && isCalling) {
-        setNeedsResume(true);
-        setStatus("Peer disconnected");
-        resetRemoteVideo();
+        setNeedsResume(true)
+        setStatus('Peer disconnected')
+        resetRemoteVideo()
       }
 
-      return;
+      return
     }
 
-    if (event.type === "room-full") {
+    if (event.type === 'room-full') {
       if (event.target === myIdRef.current) {
-        hostIdRef.current = event.hostId;
-        handleRoomCapacityExceeded();
+        hostIdRef.current = event.hostId
+        handleRoomCapacityExceeded()
       }
 
-      return;
+      return
     }
 
-    if (event.type === "call-start") {
-      setIsRinging(true);
-      setStatus("Incoming call");
+    if (event.type === 'call-start') {
+      setIsRinging(true)
+      setStatus('Incoming call')
 
-      return;
+      return
     }
 
-    if (event.type === "media-state") {
-      setIsRemoteVideoEnabled(event.cameraEnabled);
-      setIsRemoteAudioEnabled(event.micEnabled);
+    if (event.type === 'media-state') {
+      setIsRemoteVideoEnabled(event.cameraEnabled)
+      setIsRemoteAudioEnabled(event.micEnabled)
 
-      return;
+      return
     }
 
-    if (event.type === "screen-share-state") {
-      if (event.sender === myIdRef.current) return;
+    if (event.type === 'screen-share-state') {
+      if (event.sender === myIdRef.current) return
       if (event.isSharing) {
-        remoteScreenExpectedRef.current = true;
-        remoteScreenStreamIdRef.current = event.screenStreamId ?? null;
-        setIsRemoteScreenSharing(true);
-        setStatus("Peer started screen share");
+        remoteScreenExpectedRef.current = true
+        remoteScreenStreamIdRef.current = event.screenStreamId ?? null
+        setIsRemoteScreenSharing(true)
+        setStatus('Peer started screen share')
       } else {
-        resetRemoteScreenShare();
-        setStatus("Peer stopped screen share");
+        resetRemoteScreenShare()
+        setStatus('Peer stopped screen share')
       }
 
-      return;
+      return
     }
 
-    if (event.type === "call-end") {
-      setIsCalling(false);
-      setIsRinging(false);
-      resetRemoteVideo();
-      resetRemoteScreenShare();
-      resetLocalMediaState();
-      setIncomingOffer(null);
-      setIncomingCaller(null);
-      setIsAwaitingAnswer(false);
-      pendingCandidatesRef.current.length = 0;
-      setNeedsResume(false);
-      setStatus("Ended the call");
+    if (event.type === 'call-end') {
+      setIsCalling(false)
+      setIsRinging(false)
+      resetRemoteVideo()
+      resetRemoteScreenShare()
+      resetLocalMediaState()
+      setIncomingOffer(null)
+      setIncomingCaller(null)
+      setIsAwaitingAnswer(false)
+      pendingCandidatesRef.current.length = 0
+      setNeedsResume(false)
+      setStatus('Ended the call')
       if (pcRef.current) {
-        pcRef.current.close();
-        pcRef.current = null;
+        pcRef.current.close()
+        pcRef.current = null
       }
 
-      return;
+      return
     }
 
-    if (event.type === "call-declined") {
-      setIsAwaitingAnswer(false);
-      setIsCalling(false);
-      setStatus("Guest declined the call");
-      setNeedsResume(false);
+    if (event.type === 'call-declined') {
+      setIsAwaitingAnswer(false)
+      setIsCalling(false)
+      setStatus('Guest declined the call')
+      setNeedsResume(false)
 
-      return;
+      return
     }
-  };
+  }
 
-  handleRoomEventRef.current = handleRoomEvent;
+  handleRoomEventRef.current = handleRoomEvent
 
   const acceptIncomingCall = async () => {
-    if (!incomingOffer) return;
+    if (!incomingOffer) return
 
-    const pc = createPeerConnection();
+    const pc = createPeerConnection()
 
-    setStatus("Answering call\u2026");
-    await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer));
-    await flushPendingCandidates();
+    setStatus('Answering call\u2026')
+    await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer))
+    await flushPendingCandidates()
 
-    const answer = await pc.createAnswer();
+    const answer = await pc.createAnswer()
 
-    await pc.setLocalDescription(answer);
+    await pc.setLocalDescription(answer)
 
     await sendSignal({
-      type: "answer",
+      type: 'answer',
       sdp: answer,
       sender: myIdRef.current,
-    });
+    })
 
-    setIsCalling(true);
-    setIsRinging(false);
-    setIncomingOffer(null);
-    setIncomingCaller(null);
-    setIsAwaitingAnswer(false);
-    setNeedsResume(false);
-    setStatus("In call");
-  };
+    setIsCalling(true)
+    setIsRinging(false)
+    setIncomingOffer(null)
+    setIncomingCaller(null)
+    setIsAwaitingAnswer(false)
+    setNeedsResume(false)
+    setStatus('In call')
+  }
 
   const declineIncomingCall = async () => {
-    setIsRinging(false);
-    setIncomingOffer(null);
-    setIncomingCaller(null);
-    setStatus("Call declined");
-    await sendRoomEvent({ type: "call-declined", sender: myIdRef.current });
-  };
+    setIsRinging(false)
+    setIncomingOffer(null)
+    setIncomingCaller(null)
+    setStatus('Call declined')
+    await sendRoomEvent({ type: 'call-declined', sender: myIdRef.current })
+  }
 
   const joinRoom = useCallback(async () => {
-    if (isJoined || isJoiningRef.current) return;
+    if (isJoined || isJoiningRef.current) return
 
-    isJoiningRef.current = true;
+    isJoiningRef.current = true
     try {
-      await ensureLocalStream();
-      setStatus("Joining signaling channel…");
+      await ensureLocalStream()
+      setStatus('Joining signaling channel…')
       const channel = supabase
         .channel(`${ROOM_CHANNEL_PREFIX}${roomId}`, {
           config: {
@@ -1127,41 +1090,41 @@ export function useRoomController(roomId: string) {
             },
           },
         })
-        .on("broadcast", { event: "signal" }, (event) => {
-          const payload = event.payload as SignalMessage;
+        .on('broadcast', { event: 'signal' }, (event) => {
+          const payload = event.payload as SignalMessage
 
-          handleSignalRef.current?.(payload);
+          handleSignalRef.current?.(payload)
         })
-        .on("broadcast", { event: "room-event" }, (event) => {
-          const payload = event.payload as RoomEvent;
+        .on('broadcast', { event: 'room-event' }, (event) => {
+          const payload = event.payload as RoomEvent
 
-          handleRoomEventRef.current?.(payload);
-        });
+          handleRoomEventRef.current?.(payload)
+        })
 
-      channelRef.current = channel;
-      participantsRef.current.clear();
-      refreshParticipantState();
+      channelRef.current = channel
+      participantsRef.current.clear()
+      refreshParticipantState()
 
       channel.subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          setStatus("Joined room");
-          setIsJoined(true);
-          addParticipant(myIdRef.current);
-          void sendRoomEvent({ type: "joined", sender: myIdRef.current });
-          broadcastMediaState(isCameraEnabled, isMicEnabled);
-        } else if (status === "CHANNEL_ERROR") {
-          setStatus("Channel error");
-        } else if (status === "TIMED_OUT") {
-          setStatus("Channel timed out");
-        } else if (status === "CLOSED") {
-          setStatus("Channel closed");
+        if (status === 'SUBSCRIBED') {
+          setStatus('Joined room')
+          setIsJoined(true)
+          addParticipant(myIdRef.current)
+          void sendRoomEvent({ type: 'joined', sender: myIdRef.current })
+          broadcastMediaState(isCameraEnabled, isMicEnabled)
+        } else if (status === 'CHANNEL_ERROR') {
+          setStatus('Channel error')
+        } else if (status === 'TIMED_OUT') {
+          setStatus('Channel timed out')
+        } else if (status === 'CLOSED') {
+          setStatus('Channel closed')
         }
-      });
+      })
     } catch (err) {
-      logError(err);
-      setStatus("Cannot access camera/mic");
+      logError(err)
+      setStatus('Cannot access camera/mic')
     } finally {
-      isJoiningRef.current = false;
+      isJoiningRef.current = false
     }
   }, [
     addParticipant,
@@ -1173,463 +1136,414 @@ export function useRoomController(roomId: string) {
     roomId,
     supabase,
     refreshParticipantState,
-  ]);
+  ])
 
   useEffect(() => {
-    autoJoinAttemptedRef.current = false;
-    isJoiningRef.current = false;
-    setIsJoined(false);
-    setIsCalling(false);
-    setIsRinging(false);
-    setIncomingOffer(null);
-    setIncomingCaller(null);
-    setIsAwaitingAnswer(false);
-    pendingCandidatesRef.current.length = 0;
-    setStatus("Not joined");
-    participantsRef.current.clear();
-    refreshParticipantState();
+    autoJoinAttemptedRef.current = false
+    isJoiningRef.current = false
+    setIsJoined(false)
+    setIsCalling(false)
+    setIsRinging(false)
+    setIncomingOffer(null)
+    setIncomingCaller(null)
+    setIsAwaitingAnswer(false)
+    pendingCandidatesRef.current.length = 0
+    setStatus('Not joined')
+    participantsRef.current.clear()
+    refreshParticipantState()
     if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
     }
     if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
+      pcRef.current.close()
+      pcRef.current = null
     }
-    resetRemoteVideo();
-  }, [refreshParticipantState, resetRemoteVideo, roomId, supabase]);
+    resetRemoteVideo()
+  }, [refreshParticipantState, resetRemoteVideo, roomId, supabase])
 
   // Auto-join when URL has autoJoin parameter
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      autoJoinAttemptedRef.current ||
-      isJoined
-    )
-      return;
+    if (typeof window === 'undefined' || autoJoinAttemptedRef.current || isJoined) return
 
-    const url = new URL(window.location.href);
-    const shouldAutoJoin = url.searchParams.get("autoJoin") === "true";
+    const url = new URL(window.location.href)
+    const shouldAutoJoin = url.searchParams.get('autoJoin') === 'true'
 
     if (shouldAutoJoin) {
-      autoJoinAttemptedRef.current = true;
+      autoJoinAttemptedRef.current = true
       // Small delay to ensure component is fully mounted
       setTimeout(() => {
-        void joinRoom();
-      }, 500);
+        void joinRoom()
+      }, 500)
     }
-  }, [isJoined, joinRoom]);
+  }, [isJoined, joinRoom])
 
   const startCall = async () => {
     if (!isJoined) {
-      setStatus("Join the room first");
+      setStatus('Join the room first')
 
-      return;
+      return
     }
 
-    await ensureLocalStream();
-    const pc = createPeerConnection();
+    await ensureLocalStream()
+    const pc = createPeerConnection()
 
-    setStatus("Creating the call");
+    setStatus('Creating the call')
 
-    const offer = await pc.createOffer();
+    const offer = await pc.createOffer()
 
-    await pc.setLocalDescription(offer);
+    await pc.setLocalDescription(offer)
 
     await sendSignal({
-      type: "offer",
+      type: 'offer',
       sdp: offer,
       sender: myIdRef.current,
-    });
+    })
 
-    void sendRoomEvent({ type: "call-start", sender: myIdRef.current });
+    void sendRoomEvent({ type: 'call-start', sender: myIdRef.current })
 
-    setIsCalling(true);
-    setIsAwaitingAnswer(true);
-    setNeedsResume(false);
-    setStatus("Waiting for answer");
-  };
+    setIsCalling(true)
+    setIsAwaitingAnswer(true)
+    setNeedsResume(false)
+    setStatus('Waiting for answer')
+  }
 
   const resumeCall = async () => {
-    if (!isCalling) return;
+    if (!isCalling) return
     try {
-      await ensureLocalStream();
-      const pc = createPeerConnection();
+      await ensureLocalStream()
+      const pc = createPeerConnection()
 
-      setStatus("Resuming call");
+      setStatus('Resuming call')
 
-      const offer = await pc.createOffer();
+      const offer = await pc.createOffer()
 
-      await pc.setLocalDescription(offer);
+      await pc.setLocalDescription(offer)
 
       await sendSignal({
-        type: "offer",
+        type: 'offer',
         sdp: offer,
         sender: myIdRef.current,
-      });
+      })
 
-      void sendRoomEvent({ type: "call-start", sender: myIdRef.current });
+      void sendRoomEvent({ type: 'call-start', sender: myIdRef.current })
 
-      setIsAwaitingAnswer(true);
-      setNeedsResume(false);
+      setIsAwaitingAnswer(true)
+      setNeedsResume(false)
     } catch (err) {
-      logError("Error resuming call", err);
-      setStatus("Cannot resume call");
+      logError('Error resuming call', err)
+      setStatus('Cannot resume call')
     }
-  };
+  }
 
   const hangUp = () => {
-    resetLocalMediaState();
+    resetLocalMediaState()
     // Close peer connection
     if (pcRef.current) {
       // Stop all tracks from senders before closing
       pcRef.current.getSenders().forEach((sender) => {
         if (sender.track) {
-          sender.track.stop();
+          sender.track.stop()
         }
-      });
-      pcRef.current.close();
-      pcRef.current = null;
+      })
+      pcRef.current.close()
+      pcRef.current = null
     }
-    localVideoSenderRef.current = null;
-    localAudioSenderRef.current = null;
+    localVideoSenderRef.current = null
+    localAudioSenderRef.current = null
 
     // Clear remote video
-    resetRemoteVideo();
-    clearVideoElement(localVideoRef);
-    localStreamRef.current = null;
+    resetRemoteVideo()
+    clearVideoElement(localVideoRef)
+    localStreamRef.current = null
 
     // Reset state
-    setIsCameraEnabled(false);
-    setIsMicEnabled(false);
-    setIncomingOffer(null);
-    setIncomingCaller(null);
-    setIsAwaitingAnswer(false);
-    pendingCandidatesRef.current.length = 0;
-    setIsCalling(false);
-    setIsRinging(false);
-    setNeedsResume(false);
-    setStatus("Call ended");
-    broadcastMediaState(false, false);
-    void sendRoomEvent({ type: "call-end", sender: myIdRef.current });
-  };
+    setIsCameraEnabled(false)
+    setIsMicEnabled(false)
+    setIncomingOffer(null)
+    setIncomingCaller(null)
+    setIsAwaitingAnswer(false)
+    pendingCandidatesRef.current.length = 0
+    setIsCalling(false)
+    setIsRinging(false)
+    setNeedsResume(false)
+    setStatus('Call ended')
+    broadcastMediaState(false, false)
+    void sendRoomEvent({ type: 'call-end', sender: myIdRef.current })
+  }
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
-      await stopScreenShare();
-      setStatus("Stopped screen share");
+      await stopScreenShare()
+      setStatus('Stopped screen share')
 
-      return;
+      return
     }
-    await startScreenShare();
-  }, [isScreenSharing, startScreenShare, stopScreenShare]);
+    await startScreenShare()
+  }, [isScreenSharing, startScreenShare, stopScreenShare])
 
   const toggleCamera = useCallback(async () => {
     try {
-      const nextEnabled = !isCameraEnabled;
-      let stream = localStreamRef.current;
-      const pc = pcRef.current;
+      const nextEnabled = !isCameraEnabled
+      let stream = localStreamRef.current
+      const pc = pcRef.current
 
       if (nextEnabled) {
         // Enable camera: request new video track
         if (!stream) {
-          await ensureLocalStream();
-          stream = localStreamRef.current;
+          await ensureLocalStream()
+          stream = localStreamRef.current
         } else {
-          const hasVideo = stream.getVideoTracks().length > 0;
+          const hasVideo = stream.getVideoTracks().length > 0
 
           if (!hasVideo) {
-            setStatus("Requesting camera access");
+            setStatus('Requesting camera access')
             const newStream = await navigator.mediaDevices.getUserMedia({
               video: true,
-            });
+            })
 
             newStream.getVideoTracks().forEach((track) => {
               if (stream) {
-                stream.addTrack(track);
+                stream.addTrack(track)
               }
-            });
+            })
             // Update peer connection if in call
             if (pc) {
-              await updatePeerConnectionTracks();
+              await updatePeerConnectionTracks()
             }
           }
         }
-        setIsCameraEnabled(true);
-        broadcastMediaState(true, isMicEnabled);
-        setStatus("Camera on");
+        setIsCameraEnabled(true)
+        broadcastMediaState(true, isMicEnabled)
+        setStatus('Camera on')
       } else {
         // Disable camera: stop and remove all video tracks
         if (stream) {
-          const videoTracks = stream.getVideoTracks();
+          const videoTracks = stream.getVideoTracks()
 
           videoTracks.forEach((track) => {
-            track.stop(); // Fully stop the track (disconnects hardware)
+            track.stop() // Fully stop the track (disconnects hardware)
             if (stream) {
-              stream.removeTrack(track);
+              stream.removeTrack(track)
             }
-          });
+          })
           // Remove from peer connection if in call
           if (pc) {
-            const senders = pc.getSenders();
-            const videoSender = senders.find(
-              (s) => s.track && s.track.kind === "video",
-            );
+            const senders = pc.getSenders()
+            const videoSender = senders.find((s) => s.track && s.track.kind === 'video')
 
             if (videoSender) {
-              await pc.removeTrack(videoSender);
+              await pc.removeTrack(videoSender)
             }
           }
         }
-        setIsCameraEnabled(false);
-        broadcastMediaState(false, isMicEnabled);
-        setStatus("Camera off");
+        setIsCameraEnabled(false)
+        broadcastMediaState(false, isMicEnabled)
+        setStatus('Camera off')
       }
     } catch (err) {
-      logError("Error toggling camera", err);
-      setStatus("Cannot toggle camera");
+      logError('Error toggling camera', err)
+      setStatus('Cannot toggle camera')
       // Revert state on error
-      setIsCameraEnabled(isCameraEnabled);
+      setIsCameraEnabled(isCameraEnabled)
     }
-  }, [
-    broadcastMediaState,
-    ensureLocalStream,
-    isCameraEnabled,
-    isMicEnabled,
-    updatePeerConnectionTracks,
-  ]);
+  }, [broadcastMediaState, ensureLocalStream, isCameraEnabled, isMicEnabled, updatePeerConnectionTracks])
 
   const toggleMicrophone = useCallback(async () => {
     try {
-      const nextEnabled = !isMicEnabled;
-      let stream = localStreamRef.current;
-      const pc = pcRef.current;
+      const nextEnabled = !isMicEnabled
+      let stream = localStreamRef.current
+      const pc = pcRef.current
 
       if (nextEnabled) {
         // Enable microphone: request new audio track
         if (!stream) {
-          await ensureLocalStream();
-          stream = localStreamRef.current;
+          await ensureLocalStream()
+          stream = localStreamRef.current
         } else {
-          const hasAudio = stream.getAudioTracks().length > 0;
+          const hasAudio = stream.getAudioTracks().length > 0
 
           if (!hasAudio) {
-            setStatus("Requesting microphone access");
+            setStatus('Requesting microphone access')
             const newStream = await navigator.mediaDevices.getUserMedia({
               audio: true,
-            });
+            })
 
             newStream.getAudioTracks().forEach((track) => {
               if (stream) {
-                stream.addTrack(track);
+                stream.addTrack(track)
               }
-            });
+            })
             // Update peer connection if in call
             if (pc) {
-              await updatePeerConnectionTracks();
+              await updatePeerConnectionTracks()
             }
           }
         }
         if (stream) {
-          const audioContext = new (window.AudioContext ||
-            (window as any).webkitAudioContext)();
-          const analyser = audioContext.createAnalyser();
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+          const analyser = audioContext.createAnalyser()
 
-          analyser.fftSize = 256;
-          const source = audioContext.createMediaStreamSource(stream);
+          analyser.fftSize = 256
+          const source = audioContext.createMediaStreamSource(stream)
 
-          source.connect(analyser);
-          analyserRef.current = analyser;
-          dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+          source.connect(analyser)
+          analyserRef.current = analyser
+          dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount)
 
           const updateAudioLevel = () => {
             if (analyserRef.current && dataArrayRef.current) {
-              analyserRef.current.getByteFrequencyData(
-                dataArrayRef.current as any,
-              );
-              const average =
-                dataArrayRef.current.reduce((a, b) => a + b, 0) /
-                dataArrayRef.current.length;
+              analyserRef.current.getByteFrequencyData(dataArrayRef.current as any)
+              const average = dataArrayRef.current.reduce((a, b) => a + b, 0) / dataArrayRef.current.length
 
-              setAudioLevel(average / 128); // Normalize to 0-1 range
-              animationFrameIdRef.current =
-                requestAnimationFrame(updateAudioLevel);
+              setAudioLevel(average / 128) // Normalize to 0-1 range
+              animationFrameIdRef.current = requestAnimationFrame(updateAudioLevel)
             }
-          };
+          }
 
-          animationFrameIdRef.current = requestAnimationFrame(updateAudioLevel);
+          animationFrameIdRef.current = requestAnimationFrame(updateAudioLevel)
         }
-        setIsMicEnabled(true);
-        broadcastMediaState(isCameraEnabled, true);
-        setStatus("Microphone on");
+        setIsMicEnabled(true)
+        broadcastMediaState(isCameraEnabled, true)
+        setStatus('Microphone on')
       } else {
         // Disable microphone: stop and remove all audio tracks
         if (animationFrameIdRef.current) {
-          cancelAnimationFrame(animationFrameIdRef.current);
-          animationFrameIdRef.current = null;
+          cancelAnimationFrame(animationFrameIdRef.current)
+          animationFrameIdRef.current = null
         }
 
         // Close AudioContext to prevent memory leak and crashes
         if (analyserRef.current) {
-          const audioContext = analyserRef.current.context as AudioContext;
+          const audioContext = analyserRef.current.context as AudioContext
 
-          if (audioContext && audioContext.state !== "closed") {
-            audioContext.close();
+          if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close()
           }
         }
 
-        analyserRef.current = null;
-        dataArrayRef.current = null;
-        setAudioLevel(0);
+        analyserRef.current = null
+        dataArrayRef.current = null
+        setAudioLevel(0)
         if (stream) {
-          const audioTracks = stream.getAudioTracks();
+          const audioTracks = stream.getAudioTracks()
 
           audioTracks.forEach((track) => {
-            track.stop(); // Fully stop the track (disconnects hardware)
+            track.stop() // Fully stop the track (disconnects hardware)
             if (stream) {
-              stream.removeTrack(track);
+              stream.removeTrack(track)
             }
-          });
+          })
           // Remove from peer connection if in call
           if (pc) {
-            const senders = pc.getSenders();
-            const audioSender = senders.find(
-              (s) => s.track && s.track.kind === "audio",
-            );
+            const senders = pc.getSenders()
+            const audioSender = senders.find((s) => s.track && s.track.kind === 'audio')
 
             if (audioSender) {
-              await pc.removeTrack(audioSender);
+              await pc.removeTrack(audioSender)
             }
           }
         }
-        setIsMicEnabled(false);
-        broadcastMediaState(isCameraEnabled, false);
-        setStatus("Microphone off");
+        setIsMicEnabled(false)
+        broadcastMediaState(isCameraEnabled, false)
+        setStatus('Microphone off')
       }
     } catch (err) {
-      logError("Error toggling microphone", err);
-      setStatus("Cannot toggle microphone");
+      logError('Error toggling microphone', err)
+      setStatus('Cannot toggle microphone')
       // Revert state on error
-      setIsMicEnabled(isMicEnabled);
+      setIsMicEnabled(isMicEnabled)
     }
-  }, [
-    broadcastMediaState,
-    ensureLocalStream,
-    isCameraEnabled,
-    isMicEnabled,
-    updatePeerConnectionTracks,
-  ]);
+  }, [broadcastMediaState, ensureLocalStream, isCameraEnabled, isMicEnabled, updatePeerConnectionTracks])
 
   const ensureRoomLinkAvailable = useCallback(() => {
-    const baseLink =
-      roomLink || (typeof window !== "undefined" ? window.location.href : "");
+    const baseLink = roomLink || (typeof window !== 'undefined' ? window.location.href : '')
 
     if (!baseLink) {
-      setStatus("Room link unavailable");
+      setStatus('Room link unavailable')
 
-      return null;
+      return null
     }
 
     // Add autoJoin parameter for shared links
     try {
-      const url = new URL(baseLink);
+      const url = new URL(baseLink)
 
-      if (!url.searchParams.has("autoJoin")) {
-        url.searchParams.set("autoJoin", "true");
+      if (!url.searchParams.has('autoJoin')) {
+        url.searchParams.set('autoJoin', 'true')
       }
 
-      return url.toString();
+      return url.toString()
     } catch {
-      return baseLink;
+      return baseLink
     }
-  }, [roomLink]);
+  }, [roomLink])
 
-  const remoteVideoActive =
-    isRemoteVideoEnabled === null ? hasRemoteStream : isRemoteVideoEnabled;
-  const remoteAudioActive =
-    isRemoteAudioEnabled === null ? hasRemoteStream : isRemoteAudioEnabled;
-  const showRemoteStatus = hasRemoteStream || peerPresent;
-  const remoteVideoLabel = remoteVideoActive
-    ? "Guest video on"
-    : "Guest video off";
-  const remoteAudioLabel = remoteAudioActive
-    ? "Guest audio on"
-    : "Guest audio muted";
-  const formattedDuration = formatCallDuration(callDuration);
-  const immersiveViewportHeight = viewportHeight
-    ? `${viewportHeight}px`
-    : "100vh";
+  const remoteVideoActive = isRemoteVideoEnabled === null ? hasRemoteStream : isRemoteVideoEnabled
+  const remoteAudioActive = isRemoteAudioEnabled === null ? hasRemoteStream : isRemoteAudioEnabled
+  const showRemoteStatus = hasRemoteStream || peerPresent
+  const remoteVideoLabel = remoteVideoActive ? 'Guest video on' : 'Guest video off'
+  const remoteAudioLabel = remoteAudioActive ? 'Guest audio on' : 'Guest audio muted'
+  const formattedDuration = formatCallDuration(callDuration)
+  const immersiveViewportHeight = viewportHeight ? `${viewportHeight}px` : '100vh'
   const immersiveInsets = isFullscreen
     ? {
-        top: "calc(env(safe-area-inset-top, 0px) + 8px)",
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
-        left: "calc(env(safe-area-inset-left, 0px) + 8px)",
-        right: "calc(env(safe-area-inset-right, 0px) + 8px)",
+        top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+        left: 'calc(env(safe-area-inset-left, 0px) + 8px)',
+        right: 'calc(env(safe-area-inset-right, 0px) + 8px)',
       }
-    : null;
+    : null
   const immersivePadding = immersiveInsets ?? {
-    top: "24px",
-    bottom: "24px",
-    left: "16px",
-    right: "16px",
-  };
+    top: '24px',
+    bottom: '24px',
+    left: '16px',
+    right: '16px',
+  }
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => {
-      const next = !prev;
+      const next = !prev
 
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    const video = localVideoRef.current;
-    const stream = localStreamRef.current;
-
-    if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
-    }
-  }, [
-    isFullscreen,
-    isScreenSharing,
-    isRemoteScreenSharing,
-    showRemoteStatus,
-    peerPresent,
-    hasRemoteStream,
-  ]);
+      return next
+    })
+  }
 
   useEffect(() => {
-    const video = remoteVideoRef.current;
-    const stream = remoteStreamRef.current;
+    const video = localVideoRef.current
+    const stream = localStreamRef.current
 
     if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
+      video.srcObject = stream
     }
-  }, [
-    isFullscreen,
-    showRemoteStatus,
-    peerPresent,
-    isScreenSharing,
-    isRemoteScreenSharing,
-  ]);
+  }, [isFullscreen, isScreenSharing, isRemoteScreenSharing, showRemoteStatus, peerPresent, hasRemoteStream])
 
   useEffect(() => {
-    const video = remoteScreenVideoRef.current;
-    const stream = remoteScreenStreamRef.current;
+    const video = remoteVideoRef.current
+    const stream = remoteStreamRef.current
 
     if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
+      video.srcObject = stream
     }
-  }, [isFullscreen, isRemoteScreenSharing]);
+  }, [isFullscreen, showRemoteStatus, peerPresent, isScreenSharing, isRemoteScreenSharing])
 
   useEffect(() => {
-    const video = screenShareVideoRef.current;
-    const stream = screenShareStreamRef.current;
+    const video = remoteScreenVideoRef.current
+    const stream = remoteScreenStreamRef.current
 
     if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
+      video.srcObject = stream
     }
-  }, [isFullscreen, isScreenSharing]);
+  }, [isFullscreen, isRemoteScreenSharing])
+
+  useEffect(() => {
+    const video = screenShareVideoRef.current
+    const stream = screenShareStreamRef.current
+
+    if (video && stream && video.srcObject !== stream) {
+      video.srcObject = stream
+    }
+  }, [isFullscreen, isScreenSharing])
 
   return {
     ringtoneRef,
@@ -1676,5 +1590,5 @@ export function useRoomController(roomId: string) {
     needsResume,
     audioLevel,
     latency,
-  };
+  }
 }

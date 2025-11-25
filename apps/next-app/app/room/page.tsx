@@ -1,9 +1,13 @@
-import { title } from "@/components/primitives";
+'use client'
+
+import { useState } from 'react'
 
 export default function PricingPage() {
-  return (
-    <div>
-      <h1 className={title()}>Pricing</h1>
-    </div>
-  );
+  const [isConnectionPanelOpen, setIsConnectionPanelOpen] = useState(false)
+
+  const handleOpenConnectionPanel = () => {
+    setIsConnectionPanelOpen(true)
+  }
+
+  return <div />
 }
