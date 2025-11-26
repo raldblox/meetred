@@ -284,19 +284,32 @@ export default function ChatContainer() {
         )}
 
         <div className="flex flex-col min-h-0 flex-1">
-          <ul className="space-y-2 p-3 overflow-y-auto flex-1 min-h-0">
-            {messages.map(({ msgId, msg, fileObjectUrl, peerId, read, receivedAt }: ChatMessage) => (
-              <Message
-                key={msgId}
-                dm={roomId !== ''}
-                fileObjectUrl={fileObjectUrl}
-                msg={msg}
-                msgId={msgId}
-                peerId={peerId}
-                read={read}
-                receivedAt={receivedAt}
-              />
-            ))}
+          <ul className="p-3 space-y-2 overflow-y-auto flex-1 min-h-0">
+            {messages.map((message: ChatMessage, index: number) => {
+              const previousMessage = index > 0 ? messages[index - 1] : undefined
+              const sameSender = previousMessage ? previousMessage.peerId === message.peerId : false
+              const withinTwoMinutes = previousMessage
+                ? message.receivedAt - previousMessage.receivedAt <= 2 * 60 * 1000
+                : false
+              const showTimestamp = !previousMessage || !sameSender || !withinTwoMinutes
+
+              const showAvatar = !previousMessage || !sameSender
+
+              return (
+                <Message
+                  key={message.msgId}
+                  dm={roomId !== ''}
+                  fileObjectUrl={message.fileObjectUrl}
+                  msg={message.msg}
+                  msgId={message.msgId}
+                  peerId={message.peerId}
+                  read={message.read}
+                  receivedAt={message.receivedAt}
+                  showAvatar={showAvatar}
+                  showTimestamp={showTimestamp}
+                />
+              )
+            })}
           </ul>
           <div className="flex p-2 py-3 gap-2 items-start justify-between w-full border-t border-default-100">
             <Input
@@ -320,7 +333,6 @@ export default function ChatContainer() {
             </Button>
 
             <Textarea
-              isRequired
               minRows={3}
               name="message"
               placeholder="Message"
