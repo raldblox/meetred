@@ -9,7 +9,9 @@ interface ConnectionInfoButtonProps {
 export default function ConnectionInfoButton({ onClick }: ConnectionInfoButtonProps) {
   return (
     <Button
-      className="text-xs"
+      radius="sm"
+      variant="flat"
+      className="text-xs h-7"
       color="default"
       size="sm"
       startContent={<ServerIcon className="h-4 w-4" />}
