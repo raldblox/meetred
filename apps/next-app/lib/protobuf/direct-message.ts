@@ -22,7 +22,7 @@ export namespace dm {
               w.ldelim()
             }
           },
-          (reader, length, opts = {}) => {
+          (reader, length, _opts = {}) => {
             const obj: any = {}
 
             const end = length == null ? reader.len : reader.pos + length
@@ -85,7 +85,7 @@ export namespace dm {
               w.ldelim()
             }
           },
-          (reader, length, opts = {}) => {
+          (reader, length, _opts = {}) => {
             const obj: any = {
               clientVersion: '',
               timestamp: 0n,
@@ -338,7 +338,7 @@ export namespace dm {
             w.ldelim()
           }
         },
-        (reader, length, opts = {}) => {
+        (reader, length, _opts = {}) => {
           const obj: any = {}
 
           const end = length == null ? reader.len : reader.pos + length

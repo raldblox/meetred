@@ -139,7 +139,7 @@ async function dialWebRTCMaddrs(libp2p: Libp2p, multiaddrs: Multiaddr[]): Promis
 
       return // if we succeed dialing the peer, no need to try another address
     } catch (error) {
-      log.error(`failed to dial webrtc multiaddr: %o`, addr)
+      log.error(`failed to dial webrtc multiaddr %o: %o`, addr, error)
     }
   }
 }
@@ -153,7 +153,7 @@ export const connectToMultiaddr = (libp2p: Libp2p) => async (multiaddr: Multiadd
 
     return conn
   } catch (e) {
-    console.error(e)
+    log.error('failed to dial multiaddr %o: %o', multiaddr, e)
     throw e
   }
 }

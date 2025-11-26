@@ -14,6 +14,7 @@ import { startLibp2p } from '../lib/libp2p'
 import { ChatProvider } from './chat-ctx'
 
 import { Booting } from '@/components/booting'
+import { forComponent } from '@/lib/logger'
 export type Libp2pType = Libp2p<{
   pubsub: PubSub<GossipsubEvents>
   identify: Identify
@@ -33,6 +34,7 @@ interface WrapperProps {
 
 // This is needed to prevent libp2p from instantiating more than once
 let loaded = false
+const log = forComponent('libp2p-context')
 
 export function AppWrapper({ children }: WrapperProps) {
   const [libp2p, setLibp2p] = useState<Libp2pType | undefined>(undefined)
@@ -53,7 +55,7 @@ export function AppWrapper({ children }: WrapperProps) {
 
         setLibp2p(libp2p as Libp2pType)
       } catch (e) {
-        console.error('failed to start libp2p', e)
+        log.error('failed to start libp2p %o', e)
         setError(`failed to start libp2p ${e}`)
       }
     }

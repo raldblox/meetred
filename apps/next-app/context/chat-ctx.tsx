@@ -95,7 +95,7 @@ export const ChatProvider = ({ children }: any) => {
         break
       }
       default: {
-        console.error(`Unexpected event %o on gossipsub topic: ${topic}`, evt)
+        log.error(`Unexpected event %o on gossipsub topic: ${topic}`, evt)
       }
     }
   }
@@ -161,7 +161,7 @@ export const ChatProvider = ({ children }: any) => {
         },
       )
     } catch (e) {
-      console.error(e)
+      log.error('Failed to process chat file message %o', e)
     }
   }
 

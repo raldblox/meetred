@@ -43,9 +43,14 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
 
   if (identified && libp2p.services.directMessage.isDMPeer(peer)) {
     return (
-      <div className="relative inline-block text-left cursor-pointer" onClick={() => handleSetRoomId()}>
+      <button
+        className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-default-400"
+        type="button"
+        onClick={handleSetRoomId}
+      >
+        <span className="sr-only">Open direct message</span>
         <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
-      </div>
+      </button>
     )
   }
 

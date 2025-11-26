@@ -19,16 +19,19 @@ export function useMarkAsRead(msgId: string, peerId: string, read: boolean, dm: 
         }
 
         const messageIndex = peerMessages.findIndex((message) => message.msgId === msgId)
+
         if (messageIndex === -1) {
           return prev
         }
 
         const message = peerMessages[messageIndex]
+
         if (message.read) {
           return prev
         }
 
         const updatedPeerMessages = [...peerMessages]
+
         updatedPeerMessages[messageIndex] = { ...message, read: true }
 
         return {
@@ -48,6 +51,7 @@ export function useMarkAsRead(msgId: string, peerId: string, read: boolean, dm: 
       }
 
       const updatedMessages = [...prev]
+
       updatedMessages[messageIndex] = { ...updatedMessages[messageIndex], read: true }
 
       return updatedMessages

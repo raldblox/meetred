@@ -4,8 +4,7 @@ import type React from 'react'
 
 import { clsx } from 'clsx'
 import { createContext, useContext, useState } from 'react'
-
-import { Link } from './link'
+import Link from 'next/link'
 
 const TableContext = createContext<{
   bleed: boolean
@@ -139,7 +138,9 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
           href={href}
           tabIndex={cellRef?.previousElementSibling === null ? 0 : -1}
           target={target}
-        />
+        >
+          <span aria-hidden="true" />
+        </Link>
       )}
       {children}
     </td>

@@ -1,9 +1,8 @@
 import type { PeerId, Connection } from '@libp2p/interface'
 
 import { XCircleIcon } from '@heroicons/react/24/solid'
+import { Chip } from '@heroui/react'
 import { useCallback } from 'react'
-
-import { Badge } from './badge'
 
 import { useLibp2pContext } from '@/context/ctx'
 
@@ -13,7 +12,7 @@ interface PeerListProps {
 
 export default function PeerList({ connections }: PeerListProps) {
   return (
-    <ul className="divide-y divide-gray-100" role="list">
+    <ul className="divide-y divide-gray-100">
       {connections.map((connection) => (
         <Peer key={connection.id} connection={connection} />
       ))}
@@ -40,7 +39,7 @@ function Peer({ connection }: PeerProps) {
     const nodeAddr = connection.remoteAddr?.nodeAddress()
 
     ipAddr = `${nodeAddr.address}:${nodeAddr.port} |`
-  } catch (e) {
+  } catch {
     ipAddr = null
   }
 
@@ -56,7 +55,11 @@ function Peer({ connection }: PeerProps) {
         <div className="min-w-0 flex-auto">
           <p className="text-sm font-semibold leading-6 text-gray-900">
             {connection.remotePeer.toString()}{' '}
-            {connection.remoteAddr.protoNames().includes('webrtc') ? <Badge color="indigo">P2P Browser</Badge> : null}
+            {connection.remoteAddr.protoNames().includes('webrtc') ? (
+              <Chip className="ml-2" size="sm" variant="flat">
+                P2P Browser
+              </Chip>
+            ) : null}
           </p>
           <p className="mt-1 truncate text-xs leading-5 text-gray-500">
             {ipAddr} {connection.remoteAddr.protoNames().join(', ')}

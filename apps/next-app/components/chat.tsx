@@ -6,6 +6,7 @@ import { ChevronLeftIcon } from '@heroicons/react/20/solid'
 import { UsersIcon } from '@heroicons/react/24/outline'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
+import { Input } from '@heroui/react'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
 
@@ -15,7 +16,6 @@ import { Message } from './message'
 import { forComponent } from '@/lib/logger'
 import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/lib/constants'
 import { useLibp2pContext } from '@/context/ctx'
-import { Input } from '@heroui/react'
 
 const log = forComponent('chat')
 
@@ -154,7 +154,7 @@ export default function ChatContainer() {
   )
 
   const handleSend = useCallback(
-    async (e: React.MouseEvent<HTMLButtonElement>) => {
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
       if (roomId === PUBLIC_CHAT_ROOM_ID) {
         sendPublicMessage()
       } else {

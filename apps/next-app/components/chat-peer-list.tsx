@@ -21,10 +21,13 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     const onSubscriptionChange = () => {
       // libp2p currently exports PeerId types from different packages, so narrow via unknown first
       const subscribers = libp2p.services.pubsub.getSubscribers(CHAT_TOPIC) as unknown as PeerId[]
+
       setSubscribers(subscribers)
     }
+
     onSubscriptionChange()
     libp2p.services.pubsub.addEventListener('subscription-change', onSubscriptionChange)
+
     return () => {
       libp2p.services.pubsub.removeEventListener('subscription-change', onSubscriptionChange)
     }
@@ -37,7 +40,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
       )}
       <div className="overflow-auto h-full">
         <div className="py-2 px-3 focus:outline-none">
-          {<PeerWrapper peer={libp2p.peerId} self withName={true} withUnread={false} />}
+          {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
         {subscribers.map((p) => (
           <div key={p.toString()} className="py-2 px-3 focus:outline-none">
