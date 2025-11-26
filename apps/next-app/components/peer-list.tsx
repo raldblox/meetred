@@ -12,7 +12,7 @@ interface PeerListProps {
 
 export default function PeerList({ connections }: PeerListProps) {
   return (
-    <ul className="divide-y divide-gray-100">
+    <ul className="divide-y divide-default-100">
       {connections.map((connection) => (
         <Peer key={connection.id} connection={connection} />
       ))}
@@ -47,13 +47,13 @@ function Peer({ connection }: PeerProps) {
     <li key={connection.id} className="flex justify-between gap-x-6 py-3">
       <div className="flex min-w-0 gap-x-4 flex-grow">
         <div className="mt-1 flex items-center gap-x-1.5">
-          <div className="flex-none rounded-full bg-emerald-500/20 p-1">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <div className="flex-none rounded-full bg-success/20 p-1">
+            <div className="h-1.5 w-1.5 rounded-full bg-success" />
           </div>
         </div>
-        {/* <img className="h-12 w-12 flex-none rounded-full bg-gray-50" src={person.imageUrl} alt="" /> */}
+        {/* <img className="h-12 w-12 flex-none rounded-full bg-default-50" src={person.imageUrl} alt="" /> */}
         <div className="min-w-0 flex-auto">
-          <p className="text-sm font-semibold leading-6 text-gray-900">
+          <p className="text-sm font-semibold leading-6 text-default-900">
             {connection.remotePeer.toString()}{' '}
             {connection.remoteAddr.protoNames().includes('webrtc') ? (
               <Chip className="ml-2" size="sm" variant="flat">
@@ -61,7 +61,7 @@ function Peer({ connection }: PeerProps) {
               </Chip>
             ) : null}
           </p>
-          <p className="mt-1 truncate text-xs leading-5 text-gray-500">
+          <p className="mt-1 truncate text-xs leading-5 text-default-500">
             {ipAddr} {connection.remoteAddr.protoNames().join(', ')}
           </p>
         </div>
@@ -69,7 +69,7 @@ function Peer({ connection }: PeerProps) {
 
       <div className="flex-shrink-0 ml-2">
         <button
-          className="bg-red-500 hover:bg-red-600 text-white rounded-full p-2 flex items-center justify-center"
+          className="bg-danger hover:bg-danger/90 text-white rounded-full p-2 flex items-center justify-center"
           title="Disconnect peer"
           onClick={() => handleDisconnectPeer(connection.remotePeer)}
         >

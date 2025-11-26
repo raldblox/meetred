@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import Link from 'next/link'
 
 const baseButtonClasses =
-  'inline-flex items-center gap-2 rounded-lg border border-default-200 bg-white px-3 py-2 text-sm font-semibold text-default-700 transition hover:bg-default-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-default-400 dark:bg-default-50/60'
+  'inline-flex items-center gap-2 rounded-lg border border-default-200 bg-background px-3 py-2 text-sm font-semibold text-default-700 transition hover:bg-default-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 type PaginationControlProps = {
   href?: string | null
@@ -103,7 +103,7 @@ export function PaginationPage({
       ariaLabel={`Page ${children}`}
       className={clsx(
         'justify-center before:absolute before:-inset-px before:rounded-lg',
-        current && 'before:bg-zinc-950/5 dark:before:bg-white/10',
+        current && 'before:bg-default-200',
       )}
       href={href}
     >
@@ -116,10 +116,7 @@ export function PaginationPage({
 
 export function PaginationGap() {
   return (
-    <div
-      aria-hidden="true"
-      className="w-[2.25rem] select-none text-center text-sm/6 font-semibold text-zinc-950 dark:text-white"
-    >
+    <div aria-hidden="true" className="w-[2.25rem] select-none text-center text-sm/6 font-semibold text-default-900">
       &hellip;
     </div>
   )

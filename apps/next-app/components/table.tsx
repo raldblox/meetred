@@ -46,7 +46,7 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  return <thead className={clsx(className, 'text-zinc-500 dark:text-zinc-400')} {...props} />
+  return <thead className={clsx(className, 'text-default-500')} {...props} />
 }
 
 export function TableBody(props: React.ComponentPropsWithoutRef<'tbody'>) {
@@ -84,10 +84,9 @@ export function TableRow({
         className={clsx(
           className,
           href &&
-            'has-[[data-row-link][data-focus]]:outline has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-blue-500 dark:focus-within:bg-white/[2.5%]',
-          striped && 'even:bg-zinc-950/[2.5%] dark:even:bg-white/[2.5%]',
-          href && striped && 'hover:bg-zinc-950/5 dark:hover:bg-white/5',
-          href && !striped && 'hover:bg-zinc-950/[2.5%] dark:hover:bg-white/[2.5%]',
+            'has-[[data-row-link][data-focus]]:outline has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-primary focus-within:bg-default-50',
+          striped && 'even:bg-default-100',
+          href && 'hover:bg-default-100/80',
         )}
       >
         {children}
@@ -104,8 +103,8 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
       {...props}
       className={clsx(
         className,
-        'border-b border-b-zinc-950/10 px-4 py-2 font-medium first:pl-[var(--gutter,theme(spacing.2))] last:pr-[var(--gutter,theme(spacing.2))] dark:border-b-white/10',
-        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
+        'border-b border-default-200 px-4 py-2 font-medium first:pl-[var(--gutter,theme(spacing.2))] last:pr-[var(--gutter,theme(spacing.2))]',
+        grid && 'border-l border-default-200 first:border-l-0',
         !bleed && 'sm:first:pl-2 sm:last:pr-2',
       )}
     />
@@ -124,8 +123,8 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       className={clsx(
         className,
         'relative px-4 first:pl-[var(--gutter,theme(spacing.2))] last:pr-[var(--gutter,theme(spacing.2))]',
-        !striped && 'border-b border-zinc-950/5 dark:border-white/5',
-        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
+        !striped && 'border-b border-default-200',
+        grid && 'border-l border-default-200 first:border-l-0',
         dense ? 'py-2.5' : 'py-4',
         !bleed && 'sm:first:pl-2 sm:last:pr-2',
       )}

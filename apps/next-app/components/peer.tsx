@@ -58,7 +58,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     return (
       <div className="relative inline-block text-left group">
         <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
-        <div className="absolute top-10 left-5 scale-0 rounded bg-white border text-gray-600 p-2 text-xs group-hover:scale-100 z-10">
+        <div className="absolute top-10 left-5 scale-0 rounded bg-default-50 border border-default-200 text-default-600 p-2 text-xs group-hover:scale-100 z-10">
           Direct{'\u00A0'}message unsupported
         </div>
       </div>
@@ -75,13 +75,13 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
       {withName && (
         <div className="w-full">
           <div className="flex justify-between">
-            <span className={`block ml-2 font-semibold ${self ? 'text-indigo-700-600' : 'text-gray-600'}`}>
+            <span className={`block ml-2 font-semibold ${self ? 'text-primary' : 'text-default-600'}`}>
               {peer.toString().slice(-7)}
               {self && ' (You)'}
             </span>
           </div>
           {withUnread && (
-            <div className="ml-2 text-gray-600">
+            <div className="ml-2 text-default-600">
               {directMessages[peer.toString()]?.filter((m) => !m.read).length
                 ? `(${directMessages[peer.toString()]?.filter((m) => !m.read).length} unread)`
                 : ''}

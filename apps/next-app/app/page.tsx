@@ -22,8 +22,8 @@ export default function Home() {
           <ChatContainer />
         </main>
         <ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />
-        <footer className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between py-3">
-          <div>Metered</div>
+        <footer className="w-full py-1 px-3 flex items-center justify-between">
+          <div className="text-xs">Metered</div>
           <ConnectionInfoButton onClick={handleOpenConnectionPanel} />
         </footer>
       </div>

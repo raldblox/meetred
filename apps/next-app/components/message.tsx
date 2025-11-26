@@ -23,7 +23,7 @@ export const Message = ({ msgId, msg, fileObjectUrl, peerId, read, dm, receivedA
   return (
     <li className={`flex ${isSelf && 'flex-row-reverse'} gap-2`}>
       <PeerWrapper key={peerId} peer={peerIdFromString(peerId)} self={isSelf} withName={false} withUnread={false} />
-      <div className="flex relative max-w-xl px-4 py-2 text-gray-700 rounded shadow bg-white">
+      <div className="flex relative max-w-xl px-4 py-2 text-default-700 rounded shadow bg-background">
         <div className="block">
           {msg}
           <p>
@@ -35,10 +35,10 @@ export const Message = ({ msgId, msg, fileObjectUrl, peerId, read, dm, receivedA
               ''
             )}
           </p>
-          <p className="italic text-gray-400">
+          <p className="italic text-default-400">
             {!dm && peerId !== libp2p.peerId.toString() ? `from: ${peerId.slice(-4)}` : null}{' '}
           </p>
-          <span className="relative pl-1 text-xs text-slate-400">{timestamp}</span>
+          <span className="relative pl-1 text-xs text-default-400">{timestamp}</span>
         </div>
       </div>
     </li>

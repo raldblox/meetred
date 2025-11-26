@@ -422,7 +422,8 @@ export default function RoomPage({ roomId }: { roomId: string }) {
 
         {!isJoined && (
           <Button
-            className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            className="rounded-full text-sm font-semibold transition-colors"
+            color="success"
             size="lg"
             onPress={joinRoom}
           >
