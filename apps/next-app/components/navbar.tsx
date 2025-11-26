@@ -84,10 +84,10 @@ export const Navbar = () => {
           <Button
             isExternal
             as={Link}
-            className="text-sm font-normal text-default-600 bg-default-100"
+            className="text-sm h-7 font-normal text-default-600 bg-default-100"
             href={siteConfig.links.sponsor}
             size="sm"
-            startContent={<HeartFilledIcon className="text-danger" />}
+            startContent={<HeartFilledIcon className="text-danger h-4 w-4" />}
             variant="flat"
           >
             Sponsor
