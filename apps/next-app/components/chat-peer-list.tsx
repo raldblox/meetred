@@ -34,9 +34,11 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   }, [libp2p, setSubscribers])
 
   return (
-    <div className="2xl:border-r bg-default-100 border-default-100 lg:col-span-1 h-full">
+    <div className="border-default-100 lg:col-span-1 h-full">
       {!hideHeader && (
-        <h2 className="text-sm font-semibold py-2 px-3 border-b border-default-300 text-default-800">Peers</h2>
+        <h2 className="text-sm h-10 flex items-center font-semibold py-2 px-3 border-b border-default-100 text-default-800">
+          Peers
+        </h2>
       )}
       <div className="overflow-auto h-full">
         <div className="py-2 px-3 focus:outline-none">

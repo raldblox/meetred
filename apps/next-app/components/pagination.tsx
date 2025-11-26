@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import Link from 'next/link'
 
 const baseButtonClasses =
-  'inline-flex items-center gap-2 rounded-lg border border-default-200 bg-background px-3 py-2 text-sm font-semibold text-default-700 transition hover:bg-default-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+  'inline-flex items-center gap-2 rounded-lg border border-default-100 bg-background px-3 py-2 text-sm font-semibold text-default-700 transition hover:bg-default-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 type PaginationControlProps = {
   href?: string | null

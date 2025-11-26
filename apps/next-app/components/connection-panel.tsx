@@ -7,10 +7,13 @@ import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
 import {
   Accordion,
   AccordionItem,
+  Divider,
+  Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalHeader,
+  ScrollShadow,
   Snippet,
   useDraggable,
 } from '@heroui/react'
@@ -92,7 +95,7 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
     <Modal
       ref={targetRef}
       draggable
-      backdrop="transparent"
+      backdrop="opaque"
       isDismissable={true}
       isOpen={isOpen}
       placement="center"
@@ -107,24 +110,28 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
       <ModalContent className="">
         {() => (
           <>
-            <ModalHeader
-              {...moveProps}
-              className="flex items-center justify-between gap-4 border-b border-default-100 px-4 py-3"
-            >
+            <ModalHeader {...moveProps} className="flex items-center justify-between gap-4 border-b border-default-100">
               <h3 className="text-base font-semibold uppercase tracking-wide text-default-900">
                 Connection Information
               </h3>
             </ModalHeader>
-            <ModalBody className="space-y-6 px-2 pb-6 pt-6 sm:px-4 sm:pb-8">
-              <div className="bg-default-50 p-4 rounded-lg space-y-2">
+            <ModalBody className="space-y-6 py-6">
+              <div className="bg-default-50 rounded-lg space-y-2">
                 <h3 className="text-sm font-medium text-default-900">Your PeerID:</h3>
-                <Snippet hideSymbol className="w-full" codeString={libp2p.peerId.toString()}>
-                  {libp2p.peerId.toString()}
+                <Snippet
+                  hideSymbol
+                  className="w-full"
+                  codeString={libp2p.peerId.toString()}
+                  color="default"
+                  variant="flat"
+                >
+                  <span className="break-all max-w-sm text-left whitespace-pre-wrap">{libp2p.peerId.toString()}</span>
                 </Snippet>
               </div>
               <Accordion
                 className="px-0"
-                defaultExpandedKeys={['addresses', 'connections']}
+                // defaultExpandedKeys={['addresses', 'connections']}
+                itemClasses={{ content: 'pb-4' }}
                 selectionMode="multiple"
                 variant="splitted"
               >
@@ -132,7 +139,7 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
                   {listenAddresses.length === 0 ? (
                     <p className="text-sm text-default-500 italic">No addresses available</p>
                   ) : (
-                    <div className="space-y-3">
+                    <ScrollShadow className="space-y-3 rounded-lg max-h-[30vh] overflow-y-auto">
                       {listenAddresses.map((ma, index) => (
                         <Snippet
                           key={`ma-${index}`}
@@ -140,53 +147,57 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
                           className="w-full"
                           codeString={ma.toString()}
                           color="default"
+                          variant="flat"
                         >
-                          {ma.toString()}
+                          <span className="break-all text-xs max-w-sm text-left whitespace-pre-wrap">
+                            {ma.toString()}
+                          </span>
                         </Snippet>
                       ))}
-                    </div>
+                    </ScrollShadow>
                   )}
                 </AccordionItem>
                 <AccordionItem key="connections" aria-label="connections" title={`Connections (${connections.length})`}>
                   {connections.length === 0 ? (
                     <p className="text-sm text-default-500 italic">No connections yet</p>
                   ) : (
-                    <div className="max-h-60 overflow-y-auto rounded border border-default-200 p-2 bg-background">
+                    <ScrollShadow className="space-y-3 rounded-lg max-h-[30vh] overflow-y-auto">
                       <PeerList connections={connections} />
-                    </div>
+                    </ScrollShadow>
                   )}
                 </AccordionItem>
               </Accordion>
-              <div className="bg-background p-4 rounded-lg border border-default-200">
-                <label className="block text-sm font-medium leading-6 text-default-900" htmlFor="peer-id">
-                  Multiaddr to connect to
-                </label>
-                <div className="mt-2">
-                  <input
-                    aria-describedby="multiaddr-id-description"
-                    className="block w-full rounded-md border-0 py-1.5 px-3 text-default-900 shadow-sm ring-1 ring-inset ring-default-300 placeholder:text-default-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
-                    id="peer-id"
-                    name="peer-id"
-                    placeholder="12D3Koo..."
-                    type="text"
-                    value={maddr}
-                    onChange={handleMultiaddrChange}
-                  />
-                </div>
+              <Divider />
+              <div className="flex w-full flex-col gap-3">
+                <Input
+                  aria-describedby="multiaddr-id-description"
+                  id="peer-id"
+                  label="Connect to multiaddr"
+                  labelPlacement="outside-top"
+                  name="peer-id"
+                  placeholder="12D3Koo..."
+                  type="text"
+                  value={maddr}
+                  onChange={handleMultiaddrChange}
+                />
+
                 <button
                   className={
-                    'rounded-md bg-primary mt-3 py-2 px-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' +
+                    'rounded-md w-fit bg-primary py-2 px-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' +
                     (dialling ? ' cursor-not-allowed' : '')
                   }
                   disabled={dialling}
                   type="button"
                   onClick={handleConnectToMultiaddr}
                 >
-                  {dialling && <Spinner />} Connect{dialling && 'ing'} to multiaddr
+                  {dialling && <Spinner />} Connect{dialling && 'ing'}
                 </button>
                 {err && <p className="mt-2 text-sm text-danger">{err}</p>}
               </div>
             </ModalBody>
+            {/* <ModalFooter className="w-full">
+              
+            </ModalFooter> */}
           </>
         )}
       </ModalContent>

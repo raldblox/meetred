@@ -20,25 +20,29 @@ export const Message = ({ msgId, msg, fileObjectUrl, peerId, read, dm, receivedA
 
   useMarkAsRead(msgId, peerId, read, dm)
 
+  const bubbleClasses = isSelf
+    ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none'
+    : 'bg-default-300 text-default-900 rounded-md rounded-tl-none'
+
   return (
-    <li className={`flex ${isSelf && 'flex-row-reverse'} gap-2`}>
-      <PeerWrapper key={peerId} peer={peerIdFromString(peerId)} self={isSelf} withName={false} withUnread={false} />
-      <div className="flex relative max-w-xl px-4 py-2 text-default-700 rounded shadow bg-background">
-        <div className="block">
-          {msg}
-          <p>
-            {fileObjectUrl ? (
+    <li className={`flex items-start gap-3 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <div className="mt-7">
+        <PeerWrapper key={peerId} peer={peerIdFromString(peerId)} self={isSelf} withName={false} withUnread={false} />
+      </div>
+      <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`flex h-7 items-center gap-2 text-xs text-default-400 ${isSelf ? 'justify-end' : ''}`}>
+          {!isSelf && <span className="font-semibold text-default-500">{peerId.slice(-6)}</span>}
+          <span>{timestamp}</span>
+        </div>
+        <div className={`px-3 py-1 shadow-md relative ${bubbleClasses}`}>
+          <p className="break-words whitespace-pre-wrap">{msg}</p>
+          {fileObjectUrl && (
+            <div className="mt-2 text-sm underline underline-offset-2">
               <a href={fileObjectUrl} rel="noreferrer" target="_blank">
-                <b>Download</b>
+                Download
               </a>
-            ) : (
-              ''
-            )}
-          </p>
-          <p className="italic text-default-400">
-            {!dm && peerId !== libp2p.peerId.toString() ? `from: ${peerId.slice(-4)}` : null}{' '}
-          </p>
-          <span className="relative pl-1 text-xs text-default-400">{timestamp}</span>
+            </div>
+          )}
         </div>
       </div>
     </li>

@@ -312,14 +312,14 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         <>
           {renderScreenSharePanel(true)}
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
-            {renderLocalTile('border border-default-200 shadow-2xl bg-background/80', true)}
+            {renderLocalTile('border border-default-100 shadow-2xl bg-background/80', true)}
           </div>
         </>
       ) : showRemoteStatus ? (
         <>
           {renderRemoteTile('', true)}
           <div className="pointer-events-auto absolute bottom-4 right-4 z-40">
-            {renderLocalTile('border border-default-200 shadow-2xl bg-background/80', true)}
+            {renderLocalTile('border border-default-100 shadow-2xl bg-background/80', true)}
           </div>
         </>
       ) : (
@@ -487,7 +487,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           <Button
             isIconOnly
             aria-pressed={isFullscreen}
-            className="border border-default-200 text-default-700"
+            className="border border-default-100 text-default-700"
             radius="full"
             onPress={toggleFullscreen}
           >
@@ -586,11 +586,11 @@ export default function RoomPage({ roomId }: { roomId: string }) {
               <ModalBody className="pb-6 pt-0">
                 <div className="flex flex-col items-center gap-3">
                   {shareableLink ? (
-                    <div className="rounded-xl border border-default-200 p-3">
+                    <div className="rounded-xl border border-default-100 p-3">
                       <ReactQRCode className="h-full w-full" value={shareableLink} />
                     </div>
                   ) : (
-                    <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-200 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">
+                    <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-100 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">
                       Preparing link
                     </div>
                   )}

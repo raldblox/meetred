@@ -58,7 +58,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     return (
       <div className="relative inline-block text-left group">
         <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
-        <div className="absolute top-10 left-5 scale-0 rounded bg-default-50 border border-default-200 text-default-600 p-2 text-xs group-hover:scale-100 z-10">
+        <div className="absolute top-10 left-5 scale-0 rounded-lg bg-default-50 border border-default-100 text-default-600 p-2 text-xs group-hover:scale-100 z-10">
           Direct{'\u00A0'}message unsupported
         </div>
       </div>
@@ -70,8 +70,8 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
   const { directMessages } = useChatContext()
 
   return (
-    <div className="flex items-stretch text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
-      <Blockies className="rounded max-h-10 max-w-10" scale={3} seed={peer.toString()} size={15} />
+    <div className="flex h-10 items-stretch text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
+      <Blockies className="rounded-lg h-8" scale={3} seed={peer.toString()} size={12} />
       {withName && (
         <div className="w-full">
           <div className="flex justify-between">

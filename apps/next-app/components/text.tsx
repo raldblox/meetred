@@ -24,7 +24,7 @@ export function Code({ className, ...props }: React.ComponentPropsWithoutRef<'co
       {...props}
       className={clsx(
         className,
-        'rounded border border-default-200 bg-default-100 px-0.5 text-sm font-medium text-default-900 sm:text-[0.8125rem]',
+        'rounded border border-default-100 bg-default-100 px-0.5 text-sm font-medium text-default-900 sm:text-[0.8125rem]',
       )}
     />
   )

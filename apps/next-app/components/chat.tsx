@@ -6,7 +6,8 @@ import { ChevronLeftIcon } from '@heroicons/react/20/solid'
 import { UsersIcon } from '@heroicons/react/24/outline'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
-import { Input } from '@heroui/react'
+import { Button, Input, Textarea } from '@heroui/react'
+import { GroupIcon, SendIcon, UploadIcon } from 'lucide-react'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
 
@@ -33,11 +34,13 @@ export default function ChatContainer() {
 
   // Send message to public chat over gossipsub
   const sendPublicMessage = useCallback(async () => {
-    if (input === '') return
+    const trimmedMessage = input.trim()
+
+    if (trimmedMessage === '') return
 
     log(`peers in gossip for topic ${CHAT_TOPIC}:`, libp2p.services.pubsub.getSubscribers(CHAT_TOPIC).toString())
 
-    const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(input))
+    const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(trimmedMessage))
 
     log(
       'sent message to: ',
@@ -50,7 +53,7 @@ export default function ChatContainer() {
       ...messageHistory,
       {
         msgId: crypto.randomUUID(),
-        msg: input,
+        msg: trimmedMessage,
         fileObjectUrl: undefined,
         peerId: myPeerId,
         read: true,
@@ -63,8 +66,11 @@ export default function ChatContainer() {
 
   // Send direct message over custom protocol
   const sendDirectMessage = useCallback(async () => {
+    const trimmedMessage = input.trim()
+
+    if (trimmedMessage === '') return
     try {
-      const res = await libp2p.services.directMessage.send(peerIdFromString(roomId), input)
+      const res = await libp2p.services.directMessage.send(peerIdFromString(roomId), trimmedMessage)
 
       if (!res) {
         log('Failed to send message')
@@ -76,7 +82,7 @@ export default function ChatContainer() {
 
       const newMessage: ChatMessage = {
         msgId: crypto.randomUUID(),
-        msg: input,
+        msg: trimmedMessage,
         fileObjectUrl: undefined,
         peerId: myPeerId,
         read: true,
@@ -211,12 +217,12 @@ export default function ChatContainer() {
   }, [roomId, directMessages, messageHistory])
 
   return (
-    <div className="w-full relative 2xl:border-x border-default-200 mx-auto container h-full min-h-0 grid grid-cols-1 lg:grid-cols-6">
-      <div className="hidden h-full lg:block">
+    <div className="w-full relative border-x border-default-100 mx-auto container h-full min-h-0 grid grid-cols-1 lg:grid-cols-6">
+      <div className="hidden h-full lg:block border-r border-default-100">
         <ChatPeerList />
       </div>
       <div className="col-span-1 lg:col-span-5 flex flex-col min-h-0 h-full overflow-hidden">
-        <div className="relative bg-default-100 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-300 text-default-800">
+        <div className="relative h-10 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800">
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
               <span className="block ml-2 font-bold">{PUBLIC_CHAT_ROOM_NAME}</span>
@@ -225,50 +231,53 @@ export default function ChatContainer() {
                 className="ml-auto lg:hidden flex items-center text-default-500 hover:text-default-700"
                 onClick={toggleMobilePeerList}
               >
-                <UsersIcon className="h-5 w-5" />
+                <UsersIcon className="h-4 w-4" />
                 <span className="ml-1 text-sm">Peers</span>
               </button>
             </>
           )}
           {roomId !== PUBLIC_CHAT_ROOM_ID && (
             <>
-              <Blockies className="rounded mr-2 max-h-10 max-w-10" scale={3} seed={roomId} size={8} />
+              <Blockies className="rounded mr-2 h-8" scale={3} seed={roomId} size={12} />
               <span className="text-default-500 flex">{roomId.toString().slice(-7)}</span>
-              <div className="flex items-center ml-auto">
-                <button
+              <div className="flex items-center ml-auto gap-1">
+                <Button
                   aria-label="Toggle peer list"
-                  className="lg:hidden flex items-center text-default-500 hover:text-default-700 mr-4"
-                  onClick={toggleMobilePeerList}
+                  className="lg:hidden flex items-center"
+                  size="sm"
+                  variant="flat"
+                  onPress={toggleMobilePeerList}
                 >
                   <UsersIcon className="h-5 w-5" />
                   <span className="ml-1 text-sm">Peers</span>
-                </button>
-                <button className="text-default-500 flex" onClick={handleBackToPublic}>
+                </Button>
+                <Button
+                  className="text-default-500 flex items-center"
+                  size="sm"
+                  variant="flat"
+                  onPress={handleBackToPublic}
+                >
                   <ChevronLeftIcon className="w-6 h-6 text-default-500" />
                   <span className="hidden sm:inline">Back to Public Chat</span>
                   <span className="sm:hidden">Back</span>
-                </button>
+                </Button>
               </div>
             </>
           )}
         </div>
         {showMobilePeerList && (
-          <div className="lg:hidden border-b border-default-200">
+          <div className="lg:hidden border-b border-default-100">
             <div className="flex items-center justify-between p-2 bg-default-50">
               <h2 className="text-lg text-default-600">Peers</h2>
-              <button
+              <Button
                 aria-label="Close peer list"
                 className="text-default-500 hover:text-default-700"
-                onClick={toggleMobilePeerList}
+                onPress={() => {
+                  toggleMobilePeerList
+                }}
               >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    clipRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    fillRule="evenodd"
-                  />
-                </svg>
-              </button>
+                <GroupIcon size={16} />
+              </Button>
             </div>
             <ChatPeerList hideHeader={true} />
           </div>
@@ -289,7 +298,7 @@ export default function ChatContainer() {
               />
             ))}
           </ul>
-          <div className="flex p-2 bg-default-100 py-3 gap-2 items-center justify-between w-full border-t border-default-200">
+          <div className="flex p-2 py-3 gap-2 items-start justify-between w-full border-t border-default-100">
             <Input
               ref={fileRef}
               className="hidden"
@@ -297,47 +306,41 @@ export default function ChatContainer() {
               type="file"
               onChange={handleFileInput}
             />
-            <button
-              className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} p-1`}
+            <Button
+              isIconOnly
+              className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} border-1 border-default-100 p-0`}
               disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
               title={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload file' : "Unsupported in DM's"}
-              onClick={handleFileSend}
+              variant="ghost"
+              onPress={() => {
+                handleFileSend
+              }}
             >
-              <svg
-                className="w-5 h-5 text-default-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                />
-              </svg>
-            </button>
+              <UploadIcon size={16} />
+            </Button>
 
-            <Input
-              required
+            <Textarea
+              isRequired
+              minRows={3}
               name="message"
               placeholder="Message"
               type="text"
               value={input}
+              variant="flat"
               onChange={handleInput}
               onKeyUp={handleKeyUp}
             />
-            <button type="submit" onClick={handleSend}>
-              <svg
-                className="w-5 h-5 text-default-500 origin-center transform rotate-90"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-              </svg>
-            </button>
+            <Button
+              isIconOnly
+              className="border-1 border-default-100"
+              type="submit"
+              variant="bordered"
+              onPress={() => {
+                handleSend
+              }}
+            >
+              <SendIcon size={16} />
+            </Button>
           </div>
         </div>
       </div>
