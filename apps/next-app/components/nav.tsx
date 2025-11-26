@@ -18,11 +18,11 @@ export default function Navigation({ connectionInfoButton }: { connectionInfoBut
     <Disclosure as="nav" className="border-b border-gray-200 bg-white">
       {({ open }) => (
         <>
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 justify-between items-center">
               <div className="flex items-center">
                 <div className="flex flex-shrink-0 items-center">
-                  <Image alt="libp2p logo" height="46" src="/libp2p-logo.svg" width="46" />
+                  <Image alt="libp2p logo" height="24" src="/libp2p-logo.svg" width="24" />
                   <div className="ml-3 flex items-center">
                     <h1 className="text-xl font-semibold text-gray-900 hidden sm:block">Universal Connectivity</h1>
                     <Image

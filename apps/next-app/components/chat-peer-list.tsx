@@ -31,14 +31,16 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   }, [libp2p, setSubscribers])
 
   return (
-    <div className="border-l border-gray-300 lg:col-span-1">
-      {!hideHeader && <h2 className="my-2 mb-2 ml-2 text-lg text-gray-600">Peers</h2>}
-      <div className="overflow-auto h-[20rem] lg:h-[32rem]">
-        <div className="px-3 py-2 border-b border-gray-300 focus:outline-none">
+    <div className="2xl:border-r bg-default-100 border-default-100 lg:col-span-1 h-full">
+      {!hideHeader && (
+        <h2 className="text-sm font-semibold py-2 px-3 border-b border-default-300 text-default-800">Peers</h2>
+      )}
+      <div className="overflow-auto h-full">
+        <div className="py-2 px-3 focus:outline-none">
           {<PeerWrapper peer={libp2p.peerId} self withName={true} withUnread={false} />}
         </div>
         {subscribers.map((p) => (
-          <div key={p.toString()} className="px-3 py-2 border-b border-gray-300 focus:outline-none">
+          <div key={p.toString()} className="py-2 px-3 focus:outline-none">
             <PeerWrapper peer={p} self={false} withName={true} withUnread={true} />
           </div>
         ))}

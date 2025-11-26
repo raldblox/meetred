@@ -13,10 +13,18 @@ export default function Home() {
     setIsConnectionPanelOpen(true)
   }
   return (
-    <section className="flex flex-col">
-      <Navigation connectionInfoButton={<ConnectionInfoButton onClick={handleOpenConnectionPanel} />} />
-      <ChatContainer />
-      <ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />
-    </section>
+    <>
+      <div className="relative flex flex-col h-screen">
+        <Navigation />
+        <main className="mx-auto border-y border-default-100 w-full flex flex-col flex-grow min-h-0">
+          <ChatContainer />
+        </main>
+        <ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />
+        <footer className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between py-3">
+          <div>Metered</div>
+          <ConnectionInfoButton onClick={handleOpenConnectionPanel} />
+        </footer>
+      </div>
+    </>
   )
 }
