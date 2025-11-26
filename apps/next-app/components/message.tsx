@@ -39,7 +39,7 @@ export const Message = ({
   return (
     <li className={`flex items-start gap-x-3 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
       {showAvatar ? (
-        <div className="mt-6 w-8 h-8">
+        <div className="mt-5 w-8 h-8">
           <PeerWrapper key={peerId} peer={peerIdFromString(peerId)} self={isSelf} withName={false} withUnread={false} />
         </div>
       ) : (
@@ -50,7 +50,7 @@ export const Message = ({
           <div
             className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
           >
-            {!isSelf && <span className="text-default-500">{peerId.slice(-6)}</span>}
+            {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
             {showTimestamp && <span>{timestamp}</span>}
           </div>
         )}

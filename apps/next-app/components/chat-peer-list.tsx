@@ -8,6 +8,7 @@ import { PeerWrapper } from './peer'
 
 import { useLibp2pContext } from '@/context/ctx'
 import { CHAT_TOPIC } from '@/lib/constants'
+import { Divider } from '@heroui/react'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -40,12 +41,13 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
           Peers
         </h2>
       )}
-      <div className="overflow-auto h-full">
-        <div className="py-2 px-3 focus:outline-none">
+      <div className="overflow-auto h-full mt-3">
+        <div className="hover:bg-default-100 flex items-center py-1 px-3">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
+
         {subscribers.map((p) => (
-          <div key={p.toString()} className="py-2 px-3 focus:outline-none">
+          <div key={p.toString()} className="hover:bg-default-100 flex items-center py-1 px-3">
             <PeerWrapper peer={p} self={false} withName={true} withUnread={true} />
           </div>
         ))}

@@ -70,12 +70,12 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
   const { directMessages } = useChatContext()
 
   return (
-    <div className="flex h-10 items-stretch text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
-      <Blockies className="rounded-lg h-8" scale={3} seed={peer.toString()} size={12} />
+    <div className="flex items-center h-10 text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
+      <Blockies className="rounded h-8" scale={3} seed={peer.toString()} size={12} />
       {withName && (
         <div className="w-full">
-          <div className="flex justify-between">
-            <span className={`block ml-2 font-semibold ${self ? 'text-primary' : 'text-default-600'}`}>
+          <div className="flex">
+            <span className={`block ml-2 uppercase font-semibold ${self ? 'text-primary' : 'text-default-600'}`}>
               {peer.toString().slice(-7)}
               {self && ' (You)'}
             </span>
