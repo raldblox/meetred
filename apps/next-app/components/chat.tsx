@@ -314,28 +314,31 @@ export default function ChatContainer() {
             </>
           )}
         </div>
-        {showMobilePeerList && (
-          <div className="lg:hidden bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg">
-            <div className="flex h-10 bg-default-100 items-center justify-between pl-3 pr-1">
-              <h2 className="text-sm text-default-600 flex items-center gap-1">
-                <UsersIcon className="h-4 w-4" />
-                Peers
-              </h2>
-              <Button
-                isIconOnly
-                aria-label="Close peer list"
-                className="h-7"
-                color="danger"
-                size="sm"
-                variant="light"
-                onPress={toggleMobilePeerList}
-              >
-                <X size={16} />
-              </Button>
-            </div>
-            <ChatPeerList hideHeader={true} />
+        <div
+          className={`lg:hidden bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg transition-opacity ${
+            showMobilePeerList ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
+          }`}
+          aria-hidden={!showMobilePeerList}
+        >
+          <div className="flex h-10 bg-default-100 items-center justify-between pl-3 pr-1">
+            <h2 className="text-sm text-default-600 flex items-center gap-1">
+              <UsersIcon className="h-4 w-4" />
+              Peers
+            </h2>
+            <Button
+              isIconOnly
+              aria-label="Close peer list"
+              className="h-7"
+              color="danger"
+              size="sm"
+              variant="light"
+              onPress={toggleMobilePeerList}
+            >
+              <X size={16} />
+            </Button>
           </div>
-        )}
+          <ChatPeerList hideHeader={true} />
+        </div>
 
         <div className={`flex flex-col min-h-0 flex-1 `}>
           <ul className={`p-3 space-y-1 overflow-y-auto flex-1 min-h-0 `}>
