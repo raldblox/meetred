@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea } from '@heroui/react'
-import { ChevronLeftIcon, LoaderIcon, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
+import { ChevronLeftIcon, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'

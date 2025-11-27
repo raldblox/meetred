@@ -169,7 +169,7 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
                     <p className="text-sm text-default-500 italic">No connections yet</p>
                   ) : (
                     <ScrollShadow className="space-y-3 rounded-lg max-h-[30vh] overflow-y-auto">
-                      <PeerList hideBootstrap connections={connections} />
+                      <PeerList connections={connections} />
                     </ScrollShadow>
                   )}
                 </AccordionItem>

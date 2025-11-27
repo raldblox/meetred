@@ -1,18 +1,8 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import {
-  Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  Snippet,
-  useDisclosure,
-} from '@heroui/react'
-import { Check, Copy, LinkIcon, UserPlus2 } from 'lucide-react'
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Snippet, useDisclosure } from '@heroui/react'
+import { Check, Copy, UserPlus2 } from 'lucide-react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 
@@ -80,6 +70,7 @@ export function InviteButton() {
                 <Snippet hideSymbol className="w-full py-2 px-3" codeString={inviteLink} size="sm" variant="flat">
                   <span className="break-all text-left whitespace-pre-wrap">{inviteLink}</span>
                 </Snippet>
+                {copyError && <p className="text-danger text-xs">{copyError}</p>}
               </ModalBody>
               <ModalFooter>
                 <Button className="text-default-500" size="sm" variant="light" onPress={onClose}>
