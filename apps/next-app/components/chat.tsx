@@ -154,7 +154,7 @@ export default function ChatContainer() {
   }
 
   const handleKeyDown = useCallback(
-    async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    async (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.key !== 'Enter' || e.shiftKey) {
         return
       }
@@ -185,12 +185,9 @@ export default function ChatContainer() {
     }
   }, [roomId, sendDirectMessage, sendPublicMessage, sending])
 
-  const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInput(e.target.value)
-    },
-    [setInput],
-  )
+  const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+  }, [])
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -100,6 +100,10 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
         ...relayListenAddrs,
       ],
     },
+    transportManager: {
+      // tolerate individual listen failures instead of aborting startup
+      faultTolerance: FaultTolerance.NO_FATAL,
+    },
     transports: [
       webTransport(),
       webSockets(),
