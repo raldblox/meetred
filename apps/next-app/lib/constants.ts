@@ -1,6 +1,6 @@
-export const CHAT_TOPIC = 'universal-connectivity'
-export const CHAT_FILE_TOPIC = 'universal-connectivity-file'
-export const PUBSUB_PEER_DISCOVERY = 'universal-connectivity-browser-peer-discovery'
+export const CHAT_TOPIC = 'metered-media'
+export const CHAT_FILE_TOPIC = 'metered-media-files'
+export const PUBSUB_PEER_DISCOVERY = 'metered-media-peer-discovery'
 export const FILE_EXCHANGE_PROTOCOL = '/universal-connectivity-file/1'
 export const DIRECT_MESSAGE_PROTOCOL = '/universal-connectivity/dm/1.0.0'
 
