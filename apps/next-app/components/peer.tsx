@@ -37,33 +37,36 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     init()
   }, [libp2p.peerStore, peer])
 
+  const body = <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
+  const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
+
   if (self || !identified) {
-    return <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
+    return body
   }
 
-  if (identified && libp2p.services.directMessage.isDMPeer(peer)) {
-    return (
-      <button
-        className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-default-400"
-        type="button"
-        onClick={handleSetRoomId}
-      >
-        <span className="sr-only">Open direct message</span>
-        <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
-      </button>
-    )
+  const clickableBody = (
+    <button
+      className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-default-400"
+      type="button"
+      onClick={handleSetRoomId}
+    >
+      <span className="sr-only">Open direct message</span>
+      {body}
+    </button>
+  )
+
+  if (canDirectMessage) {
+    return clickableBody
   }
 
-  if (identified && !libp2p.services.directMessage.isDMPeer(peer)) {
-    return (
-      <div className="relative inline-block text-left group">
-        <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
-        <div className="absolute top-10 left-5 scale-0 rounded-lg bg-default-50 border border-default-100 text-default-600 p-2 text-xs group-hover:scale-100 z-10">
-          Direct{'\u00A0'}message unsupported
-        </div>
+  return (
+    <div className="relative inline-block text-left group">
+      {clickableBody}
+      <div className="absolute top-10 left-5 scale-0 rounded-lg bg-default-50 border border-default-100 text-default-600 p-2 text-xs group-hover:scale-100 z-10">
+        Direct{'\u00A0'}message handshake pending
       </div>
-    )
-  }
+    </div>
+  )
 }
 
 export function Peer({ peer, self, withName, withUnread }: PeerProps) {

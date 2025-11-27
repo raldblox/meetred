@@ -2,12 +2,13 @@
 
 import type { PeerId } from '@libp2p/interface'
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { peerIdFromString } from '@libp2p/peer-id'
 
 import { PeerWrapper } from './peer'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC, BOOTSTRAP_PEER_IDS } from '@/lib/constants'
+import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/lib/constants'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -15,14 +16,14 @@ interface ChatPeerListProps {
 
 export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   const { libp2p } = useLibp2pContext()
-  const [subscribers, setSubscribers] = useState<PeerId[]>([])
+  const [subscribers, setSubscribers] = useState<string[]>([])
+  const [connectedPeers, setConnectedPeers] = useState<string[]>([])
 
   useEffect(() => {
     const onSubscriptionChange = () => {
-      // libp2p currently exports PeerId types from different packages, so narrow via unknown first
       const peers = libp2p.services.pubsub.getSubscribers(CHAT_TOPIC) as unknown as PeerId[]
 
-      setSubscribers(peers)
+      setSubscribers(peers.map((peer) => peer.toString()))
     }
 
     onSubscriptionChange()
@@ -31,7 +32,33 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     return () => {
       libp2p.services.pubsub.removeEventListener('subscription-change', onSubscriptionChange)
     }
-  }, [libp2p, setSubscribers])
+  }, [libp2p])
+
+  const updateConnections = useCallback(() => {
+    const ids = libp2p
+      .getConnections()
+      .map((conn) => conn.remotePeer.toString())
+      .filter((peerId) => peerId !== libp2p.peerId.toString() && !BOOTSTRAP_PEER_IDS.includes(peerId))
+
+    setConnectedPeers(Array.from(new Set(ids)))
+  }, [libp2p])
+
+  useEffect(() => {
+    updateConnections()
+
+    const onOpen = () => updateConnections()
+    const onClose = () => updateConnections()
+
+    libp2p.addEventListener('connection:open', onOpen)
+    libp2p.addEventListener('connection:close', onClose)
+
+    return () => {
+      libp2p.removeEventListener('connection:open', onOpen)
+      libp2p.removeEventListener('connection:close', onClose)
+    }
+  }, [libp2p, updateConnections])
+
+  const peerIds = connectedPeers.length > 0 ? connectedPeers : subscribers.filter((peer) => peer !== '')
 
   return (
     <div className="border-default-100 lg:col-span-1 h-full">
@@ -45,16 +72,23 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
-        {subscribers.map((p) => {
-          if (BOOTSTRAP_PEER_IDS.includes(p.toString())) {
+        {peerIds.length === 0 && <div className="px-3 py-2 text-xs text-default-500">No peers connected yet.</div>}
+        {peerIds.map((p) => {
+          if (BOOTSTRAP_PEER_IDS.includes(p) || p === libp2p.peerId.toString()) {
             return null
           }
 
-          return (
-            <div key={p.toString()} className="hover:bg-default-100 flex items-center py-1 px-3">
-              <PeerWrapper peer={p} self={false} withName={true} withUnread={true} />
-            </div>
-          )
+          try {
+            const id = peerIdFromString(p)
+
+            return (
+              <div key={p} className="hover:bg-default-100 flex items-center py-1 px-3">
+                <PeerWrapper peer={id} self={false} withName={true} withUnread={true} />
+              </div>
+            )
+          } catch {
+            return null
+          }
         })}
       </div>
     </div>

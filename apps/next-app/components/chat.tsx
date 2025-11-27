@@ -4,8 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
-import { Button, Input, Textarea } from '@heroui/react'
-import { ChevronLeftIcon, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
+import { Button, Input, Spinner, Textarea } from '@heroui/react'
+import { ChevronLeftIcon, LoaderIcon, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
 
@@ -28,7 +29,11 @@ export default function ChatContainer() {
   const [input, setInput] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [sending, setSending] = useState(false)
   const [showMobilePeerList, setShowMobilePeerList] = useState(false)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
 
   // Send message to public chat over gossipsub
   const sendPublicMessage = useCallback(async () => {
@@ -157,13 +162,20 @@ export default function ChatContainer() {
     [sendPublicMessage, sendDirectMessage, roomId],
   )
 
-  const handleSend = useCallback(() => {
-    if (roomId === PUBLIC_CHAT_ROOM_ID) {
-      sendPublicMessage()
-    } else {
-      sendDirectMessage()
+  const handleSend = useCallback(async () => {
+    if (sending) return
+
+    setSending(true)
+    try {
+      if (roomId === PUBLIC_CHAT_ROOM_ID) {
+        await sendPublicMessage()
+      } else {
+        await sendDirectMessage()
+      }
+    } finally {
+      setSending(false)
     }
-  }, [sendPublicMessage, sendDirectMessage, roomId])
+  }, [roomId, sendDirectMessage, sendPublicMessage, sending])
 
   const handleInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,6 +219,35 @@ export default function ChatContainer() {
       setMessages(directMessages[roomId] || [])
     }
   }, [roomId, directMessages, messageHistory])
+
+  useEffect(() => {
+    const invitePeer = searchParams?.get('invite')
+
+    if (!invitePeer) {
+      return
+    }
+
+    if (invitePeer === roomId) {
+      router.replace(pathname, { scroll: false })
+
+      return
+    }
+
+    setRoomId(invitePeer)
+    router.replace(pathname, { scroll: false })
+  }, [pathname, router, roomId, searchParams, setRoomId])
+
+  useEffect(() => {
+    if (!roomId || roomId === PUBLIC_CHAT_ROOM_ID) {
+      return
+    }
+
+    try {
+      const peer = peerIdFromString(roomId)
+
+      libp2p.dial(peer).catch(() => {})
+    } catch {}
+  }, [libp2p, roomId])
 
   return (
     <div className="w-full relative border-x border-default-100 mx-auto container h-full min-h-0 grid grid-cols-1 lg:grid-cols-6">
@@ -340,11 +381,12 @@ export default function ChatContainer() {
             <Button
               isIconOnly
               className="border-1 border-default-100"
+              isDisabled={sending}
               type="submit"
               variant="bordered"
               onPress={handleSend}
             >
-              <SendIcon size={16} />
+              {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
             </Button>
           </div>
         </div>
