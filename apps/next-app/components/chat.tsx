@@ -315,7 +315,7 @@ export default function ChatContainer() {
           )}
         </div>
         {showMobilePeerList && (
-          <div className="lg:hidden border border-default-100 m-2">
+          <div className="lg:hidden bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg">
             <div className="flex h-10 bg-default-100 items-center justify-between pl-3 pr-1">
               <h2 className="text-sm text-default-600 flex items-center gap-1">
                 <UsersIcon className="h-4 w-4" />
