@@ -40,8 +40,8 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
           Peers
         </h2>
       )}
-      <div className="overflow-auto h-full mt-3">
-        <div className="hover:bg-default-100 flex items-center py-1 px-3">
+      <div className="overflow-auto h-full">
+        <div className="hover:bg-default-100 flex items-center py-2 px-3">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 

@@ -258,13 +258,19 @@ export default function ChatContainer() {
           )}
         </div>
         {showMobilePeerList && (
-          <div className="lg:hidden border-b border-default-100">
-            <div className="flex items-center justify-between p-3 bg-default-50">
-              <h2 className="text-lg text-default-600">Peers</h2>
+          <div className="lg:hidden border border-default-100 m-2">
+            <div className="flex h-10 bg-default-100 items-center justify-between pl-3 pr-1">
+              <h2 className="text-sm text-default-600 flex items-center gap-1">
+                <UsersIcon className="h-4 w-4" />
+                Peers
+              </h2>
               <Button
+                size="sm"
+                color="danger"
+                variant="light"
                 isIconOnly
                 aria-label="Close peer list"
-                className="text-default-500 hover:text-default-700"
+                className="h-7"
                 onPress={toggleMobilePeerList}
               >
                 <X size={16} />
