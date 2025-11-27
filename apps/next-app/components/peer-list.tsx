@@ -5,15 +5,20 @@ import { Button, Chip } from '@heroui/react'
 import { useCallback } from 'react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { BOOTSTRAP_PEER_IDS } from '@/lib/constants'
 
 interface PeerListProps {
   connections: Connection[]
 }
 
 export default function PeerList({ connections }: PeerListProps) {
+  const filteredConnections = connections.filter(
+    (connection) => !BOOTSTRAP_PEER_IDS.includes(connection.remotePeer.toString()),
+  )
+
   return (
     <ul className="divide-y divide-default-100 space-y-2">
-      {connections.map((connection) => (
+      {filteredConnections.map((connection) => (
         <Peer key={connection.id} connection={connection} />
       ))}
     </ul>

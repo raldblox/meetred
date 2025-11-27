@@ -14,10 +14,11 @@ import NextLink from 'next/link'
 import { Button } from '@heroui/react'
 import Image from 'next/image'
 
+import { NewIdentityButton } from './identity-manager'
+
 import { siteConfig } from '@/config/site'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { TwitterIcon, GithubIcon, DiscordIcon, SearchIcon } from '@/components/icons'
-import { NewIdentityButton } from './identity-manager'
 
 export const Navbar = () => {
   const searchInput = (

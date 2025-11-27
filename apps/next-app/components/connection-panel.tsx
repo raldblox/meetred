@@ -19,10 +19,10 @@ import {
   useDraggable,
 } from '@heroui/react'
 
-import { connectToMultiaddr } from '../lib/libp2p'
-
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import PeerList from '@/components/peer-list'
+import { BOOTSTRAP_PEER_IDS } from '@/lib/constants'
+import { connectToMultiaddr } from '@/lib/libp2p'
 
 export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { libp2p } = useLibp2pContext()
@@ -91,6 +91,10 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
   const targetRef = useRef(null)
   const { moveProps } = useDraggable({ targetRef, isDisabled: !isOpen })
 
+  const filteredConnections = connections.filter(
+    (connection) => !BOOTSTRAP_PEER_IDS.includes(connection.remotePeer.toString()),
+  )
+
   return (
     <Modal
       ref={targetRef}
@@ -111,9 +115,7 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
         {() => (
           <>
             <ModalHeader {...moveProps} className="flex items-center justify-between gap-4 border-b border-default-100">
-              <h3 className="text-base font-semibold uppercase tracking-wide text-default-900">
-                Connection Information
-              </h3>
+              <h3 className="text-base font-semibold uppercase tracking-wide text-default-900">Network Information</h3>
             </ModalHeader>
             <ModalBody className="space-y-6 py-6">
               <div className="bg-default-50 rounded-lg space-y-2">
@@ -131,7 +133,7 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
               <Accordion
                 className="px-0"
                 // defaultExpandedKeys={['addresses', 'connections']}
-                itemClasses={{ content: 'pb-4' }}
+                itemClasses={{ content: 'pb-4', title: 'text-sm' }}
                 selectionMode="multiple"
                 variant="splitted"
               >
@@ -157,16 +159,53 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
                     </ScrollShadow>
                   )}
                 </AccordionItem>
-                <AccordionItem key="connections" aria-label="connections" title={`Connections (${connections.length})`}>
-                  {connections.length === 0 ? (
+                <AccordionItem
+                  key="connections"
+                  aria-label="connections"
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span>Connections</span>
+                      <span>({filteredConnections.length})</span>
+                    </div>
+                  }
+                >
+                  {filteredConnections.length === 0 ? (
                     <p className="text-sm text-default-500 italic">No connections yet</p>
                   ) : (
                     <ScrollShadow className="space-y-3 rounded-lg max-h-[30vh] overflow-y-auto">
-                      <PeerList connections={connections} />
+                      <PeerList connections={filteredConnections} />
                     </ScrollShadow>
                   )}
                 </AccordionItem>
+                <AccordionItem
+                  key="bootstraps"
+                  aria-label="bootstraps"
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span>Bootstrap Peers</span>
+                      <span>({BOOTSTRAP_PEER_IDS.length})</span>
+                    </div>
+                  }
+                >
+                  <ScrollShadow className="space-y-3 rounded-lg max-h-[30vh] overflow-y-auto">
+                    {BOOTSTRAP_PEER_IDS.map((peerId) => (
+                      <Snippet
+                        key={peerId}
+                        hideSymbol
+                        className="w-full"
+                        codeString={peerId}
+                        color="default"
+                        variant="flat"
+                      >
+                        <span className="flex items-center break-all text-xs text-left whitespace-pre-wrap">
+                          {peerId}
+                        </span>
+                      </Snippet>
+                    ))}
+                  </ScrollShadow>
+                </AccordionItem>
               </Accordion>
+
               <Divider />
               <div className="flex w-full flex-col gap-3">
                 <Input

@@ -154,11 +154,11 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                         </ol>
                       </div>
                       <Button
+                        className="text-xs"
+                        isDisabled={hasAcknowledged}
                         size="sm"
                         variant="flat"
-                        className="text-xs"
                         onPress={() => setHasAcknowledged(true)}
-                        isDisabled={hasAcknowledged}
                       >
                         {hasAcknowledged ? 'Ready to reveal' : 'I understand, reveal the key'}
                       </Button>
@@ -231,9 +231,9 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                     <Button
                       isDisabled={rotatingIdentity || importing}
                       size="sm"
+                      startContent={<ImportIcon className="h-3.5 w-3.5" strokeWidth={2} />}
                       variant="flat"
                       onPress={() => setShowImportArea((prev) => !prev)}
-                      startContent={<ImportIcon className="h-3.5 w-3.5" strokeWidth={2} />}
                     >
                       {showImportArea ? 'Hide Import' : 'Import Key'}
                     </Button>

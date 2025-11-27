@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react'
 import { PeerWrapper } from './peer'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC } from '@/lib/constants'
+import { CHAT_TOPIC, BOOTSTRAP_PEER_IDS } from '@/lib/constants'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -20,9 +20,9 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   useEffect(() => {
     const onSubscriptionChange = () => {
       // libp2p currently exports PeerId types from different packages, so narrow via unknown first
-      const subscribers = libp2p.services.pubsub.getSubscribers(CHAT_TOPIC) as unknown as PeerId[]
+      const peers = libp2p.services.pubsub.getSubscribers(CHAT_TOPIC) as unknown as PeerId[]
 
-      setSubscribers(subscribers)
+      setSubscribers(peers.filter((peer) => !BOOTSTRAP_PEER_IDS.includes(peer.toString())))
     }
 
     onSubscriptionChange()
