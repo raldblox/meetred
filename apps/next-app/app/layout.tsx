@@ -19,6 +19,9 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'white' },
     { media: '(prefers-color-scheme: dark)', color: 'black' },
@@ -31,7 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head />
       <body
         className={clsx(
-          'h-screen overflow-hidden text-foreground bg-background font-sans antialiased',
+          'min-h-[100dvh] text-foreground bg-background font-sans antialiased overflow-x-hidden',
+          'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
           fontSans.variable,
         )}
       >
