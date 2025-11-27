@@ -8,7 +8,9 @@ import { peerIdFromString } from '@libp2p/peer-id'
 import { PeerWrapper } from './peer'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { useChatContext } from '@/context/chat-ctx'
 import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/lib/constants'
+import { Divider } from '@heroui/react'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -16,6 +18,7 @@ interface ChatPeerListProps {
 
 export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   const { libp2p } = useLibp2pContext()
+  const { roomId } = useChatContext()
   const [subscribers, setSubscribers] = useState<string[]>([])
   const [connectedPeers, setConnectedPeers] = useState<string[]>([])
   const [seenPeers, setSeenPeers] = useState<string[]>([])
@@ -94,16 +97,17 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   return (
     <div className="border-default-100 lg:col-span-1 h-full">
       {!hideHeader && (
-        <h2 className="text-sm h-10 flex items-center font-semibold py-2 px-3 border-b border-default-100 text-default-800">
+        <h2 className="text-sm h-10 flex items-center font-semibold py-2 border-b border-default-100 px-5 text-default-800">
           Peers
         </h2>
       )}
-      <div className="overflow-auto h-full">
-        <div className="hover:bg-default-100 flex items-center py-2 px-3">
+
+      <div className="overflow-auto space-y-0.5 py-2 px-2 h-full">
+        <div className="hover:bg-default-100/50 rounded-xl flex items-center py-1 px-3 select-none">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
-        {peerIds.length === 0 && <div className="px-3 py-2 text-xs text-default-500">No peers connected yet.</div>}
+        {peerIds.length === 0 && <div className="px-3 py-1 text-xs text-default-500">No peers connected yet.</div>}
         {peerIds.map((p) => {
           if (BOOTSTRAP_PEER_IDS.includes(p) || p === libp2p.peerId.toString()) {
             return null
@@ -111,9 +115,13 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
 
           try {
             const id = peerIdFromString(p)
+            const isSelected = roomId === p
 
             return (
-              <div key={p} className="hover:bg-default-100 flex items-center py-1 px-3">
+              <div
+                key={p}
+                className={`flex items-center rounded-xl py-1 px-3 hover:bg-default-100/50 select-none ${isSelected ? 'bg-default-100' : ''}`}
+              >
                 <PeerWrapper peer={id} self={false} withName={true} withUnread={true} />
               </div>
             )

@@ -261,8 +261,14 @@ export default function ChatContainer() {
       <div className="hidden h-full lg:block border-r border-default-100">
         <ChatPeerList />
       </div>
-      <div className="col-span-1 lg:col-span-5 flex flex-col min-h-0 h-full overflow-hidden">
-        <div className="relative h-10 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800">
+      <div
+        className={`col-span-1 lg:col-span-5 flex flex-col min-h-0 h-full overflow-hidden ${
+          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-100/20' : ''
+        }`}
+      >
+        <div
+          className={`relative h-10 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800`}
+        >
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
               <span className="block font-bold">{PUBLIC_CHAT_ROOM_NAME}</span>
@@ -279,7 +285,7 @@ export default function ChatContainer() {
           {roomId !== PUBLIC_CHAT_ROOM_ID && (
             <>
               <Blockies className="rounded mr-2 h-6" scale={3} seed={roomId} size={12} />
-              <span className="text-default-500 flex">{roomId.toString().slice(-7)}</span>
+              <span className="text-default-500 uppercase flex">{roomId.toString().slice(-7)}</span>
               <div className="flex items-center ml-auto gap-1">
                 <Button
                   aria-label="Toggle peer list"
@@ -328,8 +334,8 @@ export default function ChatContainer() {
           </div>
         )}
 
-        <div className="flex flex-col min-h-0 flex-1">
-          <ul className="p-3 space-y-1 overflow-y-auto flex-1 min-h-0">
+        <div className={`flex flex-col min-h-0 flex-1 `}>
+          <ul className={`p-3 space-y-1 overflow-y-auto flex-1 min-h-0 `}>
             {messages.map((message: ChatMessage, index: number) => {
               const previousMessage = index > 0 ? messages[index - 1] : undefined
               const sameSender = previousMessage ? previousMessage.peerId === message.peerId : false
@@ -356,47 +362,49 @@ export default function ChatContainer() {
               )
             })}
           </ul>
-          <div className="flex p-3 items-end justify-between w-full border-t border-default-100">
-            <Input
-              ref={fileRef}
-              className="hidden"
-              disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
-              type="file"
-              onChange={handleFileInput}
-            />
-            <Button
-              isIconOnly
-              className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} border-1 border-default-100 p-0`}
-              disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
-              title={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload file' : "Unsupported in DM's"}
-              variant="ghost"
-              onPress={handleFileSend}
-            >
-              <UploadIcon size={16} />
-            </Button>
+          <div className="w-full h-fit p-2">
+            <div className="flex rounded-xl bg-default-100 p-2 items-end justify-between w-full">
+              <Input
+                ref={fileRef}
+                className="hidden"
+                disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
+                type="file"
+                onChange={handleFileInput}
+              />
+              <Button
+                isIconOnly
+                className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} border-1 border-default-100 p-0`}
+                disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
+                title={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload file' : "Unsupported in DM's"}
+                variant="ghost"
+                onPress={handleFileSend}
+              >
+                <UploadIcon size={16} />
+              </Button>
 
-            <Textarea
-              classNames={{ inputWrapper: '!bg-transparent' }}
-              minRows={1}
-              name="message"
-              placeholder="Message"
-              type="text"
-              value={input}
-              variant="flat"
-              onChange={handleInput}
-              onKeyUp={handleKeyUp}
-            />
-            <Button
-              isIconOnly
-              className="border-1 border-default-100"
-              isDisabled={sending}
-              type="submit"
-              variant="solid"
-              onPress={handleSend}
-              color={input ? 'primary' : 'default'}
-            >
-              {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
-            </Button>
+              <Textarea
+                classNames={{ inputWrapper: '!bg-transparent' }}
+                minRows={1}
+                name="message"
+                placeholder="Message"
+                type="text"
+                value={input}
+                variant="flat"
+                onChange={handleInput}
+                onKeyUp={handleKeyUp}
+              />
+              <Button
+                isIconOnly
+                className="border-1 border-default-100"
+                isDisabled={sending}
+                type="submit"
+                variant="solid"
+                onPress={handleSend}
+                color={input ? 'primary' : 'default'}
+              >
+                {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

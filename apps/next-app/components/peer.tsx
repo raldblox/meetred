@@ -6,6 +6,7 @@ import Blockies from 'react-18-blockies'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat'
 
 export interface PeerProps {
   peer: PeerId
@@ -20,7 +21,11 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
   const { setRoomId } = useChatContext()
 
   const handleSetRoomId = () => {
-    setRoomId(peer.toString())
+    if (self) {
+      setRoomId(PUBLIC_CHAT_ROOM_ID)
+    } else {
+      setRoomId(peer.toString())
+    }
   }
 
   useEffect(() => {
@@ -40,10 +45,6 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
   const body = <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
   const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
 
-  if (self) {
-    return body
-  }
-
   const clickableBody = (
     <button
       className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-default-400"
@@ -55,7 +56,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     </button>
   )
 
-  if (canDirectMessage) {
+  if (self || canDirectMessage) {
     return clickableBody
   }
 
