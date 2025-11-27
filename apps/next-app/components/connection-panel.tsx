@@ -15,13 +15,13 @@ import {
   ModalHeader,
   ScrollShadow,
   Snippet,
+  Spinner,
   useDraggable,
 } from '@heroui/react'
 
 import { connectToMultiaddr } from '../lib/libp2p'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import Spinner from '@/components/spinner'
 import PeerList from '@/components/peer-list'
 
 export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {

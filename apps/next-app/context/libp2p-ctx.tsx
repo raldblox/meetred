@@ -6,8 +6,8 @@ import type { DirectMessage } from '@/lib/direct-message'
 import type { DelegatedRoutingV1HttpApiClient } from '@helia/delegated-routing-v1-http-api-client'
 import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
-
 import type { PubSub } from '@libp2p/interface/dist/src/pubsub.js'
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 
 import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'

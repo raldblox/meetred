@@ -18,7 +18,11 @@ import { ShieldAlert, Loader2, RefreshCw, UploadCloud } from 'lucide-react'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { exportStoredPrivateKey } from '@/lib/identity'
 
-export function NewIdentityButton() {
+interface NewIdentityButtonProps {
+  variant?: 'full' | 'icon'
+}
+
+export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) {
   const { libp2p, createNewIdentity, importIdentity, rotatingIdentity } = useLibp2pContext()
   const { isOpen, onOpen, onClose, onOpenChange } = useDisclosure()
   const mountedRef = useRef(true)
@@ -79,24 +83,31 @@ export function NewIdentityButton() {
   }, [importIdentity, importValue, refreshStoredKey])
 
   const peerIdString = libp2p.peerId.toString()
+  const buttonIsIconOnly = variant === 'icon'
+  const iconOnlyContent = rotatingIdentity ? (
+    <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin text-default-500" strokeWidth={2} />
+  ) : (
+    <RefreshCw aria-hidden className="h-4 w-4 text-default-600" strokeWidth={2} />
+  )
+  const buttonStartContent = rotatingIdentity ? (
+    <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin text-default-500" strokeWidth={2} />
+  ) : (
+    <RefreshCw aria-hidden className="h-3.5 w-3.5 text-default-500" strokeWidth={2} />
+  )
 
   return (
     <>
       <Button
-        className="text-sm h-7 font-normal text-default-600 bg-default-100"
+        aria-label="Manage identity"
+        className={`h-7 font-normal bg-default-100 ${buttonIsIconOnly ? 'text-default-600' : 'text-sm text-default-600'}`}
         isDisabled={rotatingIdentity}
+        isIconOnly={buttonIsIconOnly}
         size="sm"
-        startContent={
-          rotatingIdentity ? (
-            <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin text-default-500" strokeWidth={2} />
-          ) : (
-            <RefreshCw aria-hidden className="h-3.5 w-3.5 text-default-500" strokeWidth={2} />
-          )
-        }
+        startContent={buttonIsIconOnly ? undefined : buttonStartContent}
         variant="flat"
         onPress={onOpen}
       >
-        Identity
+        {buttonIsIconOnly ? iconOnlyContent : 'Identity'}
       </Button>
 
       <Modal
@@ -128,9 +139,7 @@ export function NewIdentityButton() {
                   <p className="font-semibold text-xs uppercase tracking-wide text-default-500">Private Key (base64)</p>
                   {storedKey ? (
                     <Snippet hideSymbol className="w-full" codeString={storedKey} size="sm" variant="flat">
-                      <span className="break-all text-left whitespace-pre-wrap blur pointer-events-none select-none">
-                        {storedKey.slice(0, 24)}...{storedKey.slice(-24)}
-                      </span>
+                      <span className="break-all text-left whitespace-pre-wrap">{storedKey}</span>
                     </Snippet>
                   ) : (
                     <p className="text-default-500 text-xs">No stored key found yet.</p>

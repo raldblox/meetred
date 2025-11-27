@@ -7,7 +7,7 @@ import { UsersIcon } from '@heroicons/react/24/outline'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Textarea } from '@heroui/react'
-import { GroupIcon, SendIcon, UploadIcon } from 'lucide-react'
+import { SendIcon, UploadIcon, X } from 'lucide-react'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
 
@@ -159,16 +159,13 @@ export default function ChatContainer() {
     [sendPublicMessage, sendDirectMessage, roomId],
   )
 
-  const handleSend = useCallback(
-    async (_e: React.MouseEvent<HTMLButtonElement>) => {
-      if (roomId === PUBLIC_CHAT_ROOM_ID) {
-        sendPublicMessage()
-      } else {
-        sendDirectMessage()
-      }
-    },
-    [sendPublicMessage, sendDirectMessage, roomId],
-  )
+  const handleSend = useCallback(() => {
+    if (roomId === PUBLIC_CHAT_ROOM_ID) {
+      sendPublicMessage()
+    } else {
+      sendDirectMessage()
+    }
+  }, [sendPublicMessage, sendDirectMessage, roomId])
 
   const handleInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,12 +188,9 @@ export default function ChatContainer() {
     [sendFile],
   )
 
-  const handleFileSend = useCallback(
-    async (_e: React.MouseEvent<HTMLButtonElement>) => {
-      fileRef?.current?.click()
-    },
-    [fileRef],
-  )
+  const handleFileSend = useCallback(() => {
+    fileRef?.current?.click()
+  }, [])
 
   const handleBackToPublic = () => {
     setRoomId(PUBLIC_CHAT_ROOM_ID)
@@ -225,14 +219,14 @@ export default function ChatContainer() {
         <div className="relative h-10 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800">
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
-              <span className="block ml-2 font-bold">{PUBLIC_CHAT_ROOM_NAME}</span>
+              <span className="block font-bold">{PUBLIC_CHAT_ROOM_NAME}</span>
               <button
                 aria-label="Toggle peer list"
                 className="ml-auto lg:hidden flex items-center text-default-500 hover:text-default-700"
                 onClick={toggleMobilePeerList}
               >
                 <UsersIcon className="h-4 w-4" />
-                <span className="ml-1 text-sm">Peers</span>
+                <span className="ml-1 text-sm ">Peers</span>
               </button>
             </>
           )}
@@ -267,16 +261,15 @@ export default function ChatContainer() {
         </div>
         {showMobilePeerList && (
           <div className="lg:hidden border-b border-default-100">
-            <div className="flex items-center justify-between p-2 bg-default-50">
+            <div className="flex items-center justify-between p-3 bg-default-50">
               <h2 className="text-lg text-default-600">Peers</h2>
               <Button
+                isIconOnly
                 aria-label="Close peer list"
                 className="text-default-500 hover:text-default-700"
-                onPress={() => {
-                  toggleMobilePeerList
-                }}
+                onPress={toggleMobilePeerList}
               >
-                <GroupIcon size={16} />
+                <X size={16} />
               </Button>
             </div>
             <ChatPeerList hideHeader={true} />
@@ -325,9 +318,7 @@ export default function ChatContainer() {
               disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
               title={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload file' : "Unsupported in DM's"}
               variant="ghost"
-              onPress={() => {
-                handleFileSend
-              }}
+              onPress={handleFileSend}
             >
               <UploadIcon size={16} />
             </Button>
@@ -347,9 +338,7 @@ export default function ChatContainer() {
               className="border-1 border-default-100"
               type="submit"
               variant="bordered"
-              onPress={() => {
-                handleSend
-              }}
+              onPress={handleSend}
             >
               <SendIcon size={16} />
             </Button>

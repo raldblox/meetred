@@ -5,7 +5,7 @@ export const siteConfig = {
   description: 'Make beautiful websites regardless of your design experience.',
   navItems: [
     {
-      label: 'Home',
+      label: 'Public Chat',
       href: '/',
     },
     {

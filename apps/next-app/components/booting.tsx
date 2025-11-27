@@ -1,7 +1,6 @@
-import React from 'react'
+import { Spinner } from '@heroui/react'
 import Image from 'next/image'
-
-import Spinner from './spinner'
+import React from 'react'
 
 interface Props {
   error?: string
@@ -10,17 +9,17 @@ interface Props {
 export function Booting({ error }: Props) {
   return (
     <div className="grid h-screen place-items-center">
-      <div className="text-center">
-        <Image alt="libp2p logo" className="text-white mx-auto mb-5" height="156" src="/libp2p-logo.svg" width="156" />
-        <h2 className="text-3xl font-bold text-default-900 mb-2">Initializing libp2p peer</h2>
-        {!error && (
-          <>
-            <p className="text-lg text-default-900 mb-2">Connecting to bootstrap nodes...</p>
-            <Spinner />
-          </>
-        )}
-        {error && error !== '' && <p className="text-lg text-default-900">{error}</p>}
-        {error && error === '' && <p className="text-lg text-default-900">Unknown error</p>}
+      <div className="text-center flex-col flex items-center justify-center">
+        <Image
+          alt="metered logo"
+          className={`text-foreground mx-auto mb-3 ${!error ? 'animate-pulse' : ''}`}
+          height="64"
+          src="/metered.svg"
+          width="64"
+        />
+
+        {error && error !== '' && <p className="text-xs text-center max-w-lg text-default-900">{error}</p>}
+        {error && error === '' && <p className="text-xs text-default-900">Unknown error</p>}
       </div>
     </div>
   )

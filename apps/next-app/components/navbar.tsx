@@ -10,14 +10,14 @@ import {
 import { Kbd } from '@heroui/kbd'
 import { Link } from '@heroui/link'
 import { Input } from '@heroui/input'
-import { link as linkStyles } from '@heroui/theme'
 import NextLink from 'next/link'
-import clsx from 'clsx'
+import { Button } from '@heroui/react'
 
 import { siteConfig } from '@/config/site'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { TwitterIcon, GithubIcon, DiscordIcon, SearchIcon, Logo } from '@/components/icons'
+import { TwitterIcon, GithubIcon, DiscordIcon, SearchIcon } from '@/components/icons'
 import { NewIdentityButton } from '@/components/new-identity-button'
+import Image from 'next/image'
 
 export const Navbar = () => {
   const searchInput = (
@@ -44,23 +44,22 @@ export const Navbar = () => {
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-1" href="/">
-            <Logo />
-            <p className="font-bold text-inherit">ACME</p>
+            <Image alt="metered logo" className={`text-foreground`} height="16" src="/metered.svg" width="16" />
+            <p className="font-bold text-inherit">METERED</p>
           </NextLink>
         </NavbarBrand>
-        <ul className="hidden lg:flex gap-4 justify-start ml-2">
+        <ul className="hidden lg:flex gap-1 justify-start ml-2">
           {siteConfig.navItems.map((item) => (
             <NavbarItem key={item.href}>
-              <NextLink
-                className={clsx(
-                  linkStyles({ color: 'foreground' }),
-                  'data-[active=true]:text-primary data-[active=true]:font-medium',
-                )}
-                color="foreground"
+              <Button
+                as={NextLink}
+                className="h-7 data-[active=true]:text-primary data-[active=true]:font-medium"
                 href={item.href}
+                size="sm"
+                variant="flat"
               >
                 {item.label}
-              </NextLink>
+              </Button>
             </NavbarItem>
           ))}
         </ul>
@@ -85,7 +84,8 @@ export const Navbar = () => {
         </NavbarItem>
       </NavbarContent>
 
-      <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
+      <NavbarContent className="sm:hidden basis-1 pl-4 gap-2" justify="end">
+        <NewIdentityButton variant="icon" />
         <Link isExternal aria-label="Github" href={siteConfig.links.github}>
           <GithubIcon className="text-default-500" />
         </Link>
