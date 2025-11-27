@@ -6,7 +6,6 @@ import type { DirectMessage } from '@/lib/direct-message'
 import type { DelegatedRoutingV1HttpApiClient } from '@helia/delegated-routing-v1-http-api-client'
 import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
-import type { PubSub } from '@libp2p/interface/dist/src/pubsub.js'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 
@@ -15,6 +14,8 @@ import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 import { Booting } from '@/components/booting'
 import { forComponent } from '@/lib/logger'
 import { importPrivateKey } from '@/lib/identity'
+import { ChatProvider } from './chat-ctx'
+import { PubSub } from '@libp2p/interface-pubsub'
 
 export type Libp2pType = Libp2p<{
   pubsub: PubSub<GossipsubEvents>
@@ -142,7 +143,7 @@ export function Libp2pProvider({ children }: WrapperProps) {
 
   return (
     <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity }}>
-      {children}
+      <ChatProvider>{children}</ChatProvider>
     </Libp2pContext.Provider>
   )
 }
