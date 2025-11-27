@@ -106,7 +106,7 @@ export default function ChatContainer() {
   }, [libp2p, setDirectMessages, directMessages, roomId, input])
 
   const sendFile = useCallback(
-    async (readerEvent: ProgressEvent<FileReader>) => {
+    async (readerEvent: ProgressEvent<FileReader>, fileName?: string, fileType?: string) => {
       const fileBody = readerEvent.target?.result as ArrayBuffer
 
       const myPeerId = libp2p.peerId.toString()
@@ -114,6 +114,8 @@ export default function ChatContainer() {
         id: uuidv4(),
         body: new Uint8Array(fileBody),
         sender: myPeerId,
+        name: fileName,
+        type: fileType,
       }
 
       setFiles(files.set(file.id, file))
@@ -123,7 +125,8 @@ export default function ChatContainer() {
         libp2p.services.pubsub.getSubscribers(CHAT_FILE_TOPIC).toString(),
       )
 
-      const res = await libp2p.services.pubsub.publish(CHAT_FILE_TOPIC, new TextEncoder().encode(file.id))
+      const payload = JSON.stringify({ id: file.id, name: file.name, type: file.type })
+      const res = await libp2p.services.pubsub.publish(CHAT_FILE_TOPIC, new TextEncoder().encode(payload))
 
       log(
         'sent file to: ',
@@ -132,8 +135,10 @@ export default function ChatContainer() {
 
       const msg: ChatMessage = {
         msgId: crypto.randomUUID(),
-        msg: newChatFileMessage(file.id, file.body),
-        fileObjectUrl: window.URL.createObjectURL(new Blob([file.body as any])),
+        msg: newChatFileMessage(file.id, file.body, file.name),
+        fileName: file.name ?? `file-${file.id}`,
+        fileType: file.type,
+        fileObjectUrl: window.URL.createObjectURL(new Blob([file.body as any], { type: file.type || undefined })),
         peerId: myPeerId,
         read: true,
         receivedAt: Date.now(),
@@ -144,8 +149,8 @@ export default function ChatContainer() {
     [messageHistory, libp2p, setMessageHistory, files, setFiles],
   )
 
-  const newChatFileMessage = (id: string, body: Uint8Array) => {
-    return `File: ${id} (${body.length} bytes)`
+  const newChatFileMessage = (id: string, body: Uint8Array, name?: string) => {
+    return `File: ${name ?? id} (${body.length} bytes)`
   }
 
   const handleKeyUp = useCallback(
@@ -189,9 +194,11 @@ export default function ChatContainer() {
       if (e.target.files) {
         const reader = new FileReader()
 
-        reader.readAsArrayBuffer(e.target.files[0])
+        const selected = e.target.files[0]
+
+        reader.readAsArrayBuffer(selected)
         reader.onload = (readerEvent) => {
-          sendFile(readerEvent)
+          sendFile(readerEvent, selected.name, selected.type)
         }
       }
     },

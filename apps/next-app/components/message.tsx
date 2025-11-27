@@ -17,6 +17,7 @@ export const Message = ({
   msgId,
   msg,
   fileObjectUrl,
+  fileName,
   peerId,
   read,
   dm,
@@ -26,7 +27,15 @@ export const Message = ({
 }: Props) => {
   const { libp2p } = useLibp2pContext()
 
-  const isSelf: boolean = libp2p.peerId.equals(peerId)
+  const peerIdStr = peerId?.toString?.() ?? peerId
+  let peerIdObj
+
+  try {
+    peerIdObj = peerIdFromString(peerIdStr)
+  } catch {
+    peerIdObj = libp2p.peerId
+  }
+  const isSelf: boolean = libp2p.peerId.toString() === peerIdStr
 
   const timestamp = new Date(receivedAt).toLocaleString()
 
@@ -40,7 +49,7 @@ export const Message = ({
     <li className={`flex items-start gap-x-3 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
       {showAvatar ? (
         <div className="mt-5 w-8 h-8">
-          <PeerWrapper key={peerId} peer={peerIdFromString(peerId)} self={isSelf} withName={false} withUnread={false} />
+          <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
         </div>
       ) : (
         <div className="w-8" />
@@ -59,7 +68,7 @@ export const Message = ({
           <p className="break-words whitespace-pre-wrap text-sm">{msg}</p>
           {fileObjectUrl && (
             <div className="mt-2 text-sm underline underline-offset-2">
-              <a href={fileObjectUrl} rel="noreferrer" target="_blank">
+              <a download={fileName ?? 'download'} href={fileObjectUrl} rel="noreferrer">
                 Download
               </a>
             </div>

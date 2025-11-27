@@ -27,6 +27,8 @@ export interface ChatMessage {
   msgId: string
   msg: string
   fileObjectUrl: string | undefined
+  fileName?: string
+  fileType?: string
   peerId: string
   read: boolean
   receivedAt: number
@@ -36,6 +38,8 @@ export interface ChatFile {
   id: string
   body: Uint8Array
   sender: string
+  name?: string
+  type?: string
 }
 
 export interface DirectMessages {
@@ -122,10 +126,10 @@ export const ChatProvider = ({ children }: any) => {
   }
 
   const chatFileMessageCB = async (evt: CustomEvent<Message>, topic: string, data: Uint8Array) => {
-    const newChatFileMessage = (id: string, body: Uint8Array) => {
-      return `File: ${id} (${body.length} bytes)`
+    const newChatFileMessage = (id: string, body: Uint8Array, name?: string) => {
+      return `File: ${name ?? id} (${body.length} bytes)`
     }
-    const fileId = new TextDecoder().decode(data)
+    const decoded = new TextDecoder().decode(data)
 
     // if the message isn't signed, discard it.
     if (evt.detail.type !== 'signed') {
@@ -134,10 +138,18 @@ export const ChatProvider = ({ children }: any) => {
     const senderPeerId = evt.detail.from as any as PeerId
 
     try {
+      let meta: { id: string; name?: string; type?: string } = { id: decoded }
+
+      try {
+        meta = JSON.parse(decoded)
+      } catch {
+        // ignore JSON parse errors; fall back to raw id
+      }
+
       const stream = await libp2p.dialProtocol(senderPeerId, FILE_EXCHANGE_PROTOCOL)
 
       await pipe(
-        [uint8ArrayFromString(fileId)],
+        [uint8ArrayFromString(meta.id)],
         (source) => lp.encode(source),
         stream as any,
         (source) => lp.decode(source),
@@ -149,8 +161,12 @@ export const ChatProvider = ({ children }: any) => {
 
             const msg: ChatMessage = {
               msgId: crypto.randomUUID(),
-              msg: newChatFileMessage(fileId, body),
-              fileObjectUrl: window.URL.createObjectURL(new Blob([body as any])),
+              msg: newChatFileMessage(meta.id, body, meta.name),
+              fileName: meta.name ?? `file-${meta.id}`,
+              fileType: meta.type,
+              fileObjectUrl: window.URL.createObjectURL(
+                new Blob([body as any], { type: meta.type || 'application/octet-stream' }),
+              ),
               peerId: senderPeerId.toString(),
               read: false,
               receivedAt: Date.now(),
@@ -207,7 +223,13 @@ export const ChatProvider = ({ children }: any) => {
         (source) =>
           map(source, async (msg) => {
             const fileId = uint8ArrayToString(msg.subarray())
-            const file = files.get(fileId)!
+            const file = files.get(fileId)
+
+            if (!file) {
+              log.error('requested file not found %s', fileId)
+
+              return new Uint8Array(0)
+            }
 
             return file.body
           }),
