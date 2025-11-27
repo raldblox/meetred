@@ -9,14 +9,13 @@ import { BOOTSTRAP_PEER_IDS } from '@/lib/constants'
 
 interface PeerListProps {
   connections: Connection[]
-  hideBootstrap?: boolean
 }
 
-export default function PeerList({ connections, hideBootstrap = false }: PeerListProps) {
+export default function PeerList({ connections }: PeerListProps) {
   return (
     <ul className="divide-y divide-default-100 space-y-2">
       {connections.map((connection) => {
-        if (hideBootstrap && BOOTSTRAP_PEER_IDS.includes(connection.remotePeer.toString())) {
+        if (BOOTSTRAP_PEER_IDS.includes(connection.remotePeer.toString())) {
           return null
         }
 

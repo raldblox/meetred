@@ -18,6 +18,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   const { libp2p } = useLibp2pContext()
   const [subscribers, setSubscribers] = useState<string[]>([])
   const [connectedPeers, setConnectedPeers] = useState<string[]>([])
+  const [seenPeers, setSeenPeers] = useState<string[]>([])
 
   useEffect(() => {
     const onSubscriptionChange = () => {
@@ -33,6 +34,30 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
       libp2p.services.pubsub.removeEventListener('subscription-change', onSubscriptionChange)
     }
   }, [libp2p])
+
+  useEffect(() => {
+    const onMessage = (evt: CustomEvent) => {
+      const from = (evt.detail?.from as PeerId | undefined)?.toString()
+
+      if (!from || from === libp2p.peerId.toString()) {
+        return
+      }
+
+      setSeenPeers((prev) => {
+        if (prev.includes(from)) {
+          return prev
+        }
+
+        return [...prev, from]
+      })
+    }
+
+    libp2p.services.pubsub.addEventListener('message', onMessage)
+
+    return () => {
+      libp2p.services.pubsub.removeEventListener('message', onMessage)
+    }
+  }, [libp2p, setSeenPeers])
 
   const updateConnections = useCallback(() => {
     const ids = libp2p
@@ -58,7 +83,13 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     }
   }, [libp2p, updateConnections])
 
-  const peerIds = connectedPeers.length > 0 ? connectedPeers : subscribers.filter((peer) => peer !== '')
+  const peerIds = Array.from(
+    new Set([
+      ...connectedPeers,
+      ...subscribers.filter((peer) => peer !== ''),
+      ...seenPeers, // peers we have seen publish messages, even if not yet connected
+    ]),
+  )
 
   return (
     <div className="border-default-100 lg:col-span-1 h-full">

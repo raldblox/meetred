@@ -10,7 +10,7 @@ import { identify } from '@libp2p/identify'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { noise } from '@chainsafe/libp2p-noise'
 import { yamux } from '@chainsafe/libp2p-yamux'
-import { Multiaddr } from '@multiformats/multiaddr'
+import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
 import { sha256 } from 'multiformats/hashes/sha2'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
 import { webSockets } from '@libp2p/websockets'
@@ -27,6 +27,50 @@ import { directMessage } from './direct-message'
 import { loadOrCreatePrivateKey } from './identity'
 
 const log = forComponent('libp2p')
+
+const multiaddrDialPriority = (addr: Multiaddr) => {
+  const protos = addr.protoNames()
+
+  if (protos.includes('webrtc')) return 0
+  if (protos.includes('webrtc-direct')) return 1
+  if (protos.includes('webtransport')) return 2
+  if (protos.includes('ws') || protos.includes('wss')) return 3
+
+  return 4
+}
+
+// Try discovered addresses in an order that favours browser-friendly transports first.
+const dialDiscoveredAddrs = async (libp2p: Libp2p, addrs: Multiaddr[]): Promise<void> => {
+  if (addrs.length === 0) {
+    return
+  }
+
+  const sorted = [...addrs].sort((a, b) => multiaddrDialPriority(a) - multiaddrDialPriority(b))
+
+  for (const addr of sorted) {
+    try {
+      log(`attempting to dial discovered multiaddr: %o`, addr)
+      await libp2p.dial(addr)
+
+      return // as soon as we get one connection, stop trying the rest
+    } catch (error) {
+      log.error(`failed to dial discovered multiaddr %o: %o`, addr, error)
+    }
+  }
+}
+
+const ensureRelayReservations = async (libp2p: Libp2p, relayListenAddrs: string[]): Promise<void> => {
+  for (const addr of relayListenAddrs) {
+    try {
+      const ma = multiaddr(addr)
+
+      log(`ensuring relay reservation via %a`, ma)
+      await libp2p.dial(ma)
+    } catch (error) {
+      log.error('failed to create relay reservation on %s: %o', addr, error)
+    }
+  }
+}
 
 export interface StartLibp2pOptions {
   forceNewIdentity?: boolean
@@ -98,6 +142,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
 
   libp2p.services.pubsub.subscribe(CHAT_TOPIC)
   libp2p.services.pubsub.subscribe(CHAT_FILE_TOPIC)
+  libp2p.services.pubsub.subscribe(PUBSUB_PEER_DISCOVERY)
 
   libp2p.addEventListener('self:peer:update', ({ detail: { peer } }) => {
     const multiaddrs = peer.addresses.map(({ multiaddr }) => multiaddr)
@@ -115,8 +160,13 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
       return
     }
 
-    dialWebRTCMaddrs(libp2p, multiaddrs)
+    dialDiscoveredAddrs(libp2p, multiaddrs)
   })
+
+  // Make sure we reserve slots on the relays we resolved above so that other peers can discover/dial us.
+  ensureRelayReservations(libp2p, relayListenAddrs).catch((error) =>
+    log.error('failed to ensure relay reservations %o', error),
+  )
 
   return libp2p
 }
@@ -131,25 +181,6 @@ export async function msgIdFnStrictNoSign(msg: Message): Promise<Uint8Array> {
   const encodedSeqNum = enc.encode(signedMessage.sequenceNumber.toString())
 
   return await sha256.encode(encodedSeqNum)
-}
-
-// Function which dials one maddr at a time to avoid establishing multiple connections to the same peer
-async function dialWebRTCMaddrs(libp2p: Libp2p, multiaddrs: Multiaddr[]): Promise<void> {
-  // Filter webrtc (browser-to-browser) multiaddrs
-  const webRTCMadrs = multiaddrs.filter((maddr) => maddr.protoNames().includes('webrtc'))
-
-  log(`dialling WebRTC multiaddrs: %o`, webRTCMadrs)
-
-  for (const addr of webRTCMadrs) {
-    try {
-      log(`attempting to dial webrtc multiaddr: %o`, addr)
-      await libp2p.dial(addr)
-
-      return // if we succeed dialing the peer, no need to try another address
-    } catch (error) {
-      log.error(`failed to dial webrtc multiaddr %o: %o`, addr, error)
-    }
-  }
 }
 
 export const connectToMultiaddr = (libp2p: Libp2p) => async (multiaddr: Multiaddr) => {

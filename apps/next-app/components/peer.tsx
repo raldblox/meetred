@@ -40,7 +40,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
   const body = <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
   const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
 
-  if (self || !identified) {
+  if (self) {
     return body
   }
 
@@ -59,6 +59,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     return clickableBody
   }
 
+  // Still allow opening the DM view even if the identify/DM handshake is pending.
   return (
     <div className="relative inline-block text-left group">
       {clickableBody}
