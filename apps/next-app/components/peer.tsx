@@ -48,7 +48,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
 
   const clickableBody = (
     <button
-      className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-default-400"
+      className="relative cursor-pointer transition-all hover:saturate-150 inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-default-400"
       type="button"
       onClick={handleSetRoomId}
     >
