@@ -2,12 +2,10 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import { ChevronLeftIcon } from '@heroicons/react/20/solid'
-import { UsersIcon } from '@heroicons/react/24/outline'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Textarea } from '@heroui/react'
-import { SendIcon, UploadIcon, X } from 'lucide-react'
+import { ChevronLeftIcon, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
 

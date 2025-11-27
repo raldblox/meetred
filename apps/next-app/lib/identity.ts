@@ -142,7 +142,7 @@ export async function importPrivateKey(encodedKey: string): Promise<PrivateKey> 
       throw new Error('Private key value cannot be empty')
     }
 
-    const bytes = uint8ArrayFromString(cleaned, 'base64pad')
+    const bytes = parseEncodedKey(cleaned)
     const privateKey = await privateKeyFromProtobuf(bytes)
 
     await persistPrivateKey(privateKey)
@@ -152,6 +152,18 @@ export async function importPrivateKey(encodedKey: string): Promise<PrivateKey> 
     log.error('failed to import identity %o', error)
     throw new Error(error?.message ?? 'Failed to import identity')
   }
+}
+
+function parseEncodedKey(value: string): Uint8Array {
+  const hexPattern = /^(0x)?[0-9a-fA-F]+$/
+
+  if (hexPattern.test(value)) {
+    const normalized = value.startsWith('0x') ? value.slice(2) : value
+
+    return uint8ArrayFromString(normalized, 'hex')
+  }
+
+  return uint8ArrayFromString(value, 'base64pad')
 }
 
 /**

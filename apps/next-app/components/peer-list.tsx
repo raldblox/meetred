@@ -1,6 +1,6 @@
 import type { PeerId, Connection } from '@libp2p/interface'
 
-import { XCircleIcon } from '@heroicons/react/24/solid'
+import { XCircleIcon } from 'lucide-react'
 import { Button, Chip } from '@heroui/react'
 import { useCallback } from 'react'
 
