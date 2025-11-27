@@ -91,10 +91,6 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
   const targetRef = useRef(null)
   const { moveProps } = useDraggable({ targetRef, isDisabled: !isOpen })
 
-  const filteredConnections = connections.filter(
-    (connection) => !BOOTSTRAP_PEER_IDS.includes(connection.remotePeer.toString()),
-  )
-
   return (
     <Modal
       ref={targetRef}
@@ -165,15 +161,15 @@ export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; 
                   title={
                     <div className="flex items-center gap-2">
                       <span>Connections</span>
-                      <span>({filteredConnections.length})</span>
+                      <span>({connections.length})</span>
                     </div>
                   }
                 >
-                  {filteredConnections.length === 0 ? (
+                  {connections.length === 0 ? (
                     <p className="text-sm text-default-500 italic">No connections yet</p>
                   ) : (
                     <ScrollShadow className="space-y-3 rounded-lg max-h-[30vh] overflow-y-auto">
-                      <PeerList connections={filteredConnections} />
+                      <PeerList hideBootstrap connections={connections} />
                     </ScrollShadow>
                   )}
                 </AccordionItem>

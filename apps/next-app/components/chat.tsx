@@ -230,7 +230,7 @@ export default function ChatContainer() {
           )}
           {roomId !== PUBLIC_CHAT_ROOM_ID && (
             <>
-              <Blockies className="rounded mr-2 h-8" scale={3} seed={roomId} size={12} />
+              <Blockies className="rounded mr-2 h-6" scale={3} seed={roomId} size={12} />
               <span className="text-default-500 flex">{roomId.toString().slice(-7)}</span>
               <div className="flex items-center ml-auto gap-1">
                 <Button
@@ -265,12 +265,12 @@ export default function ChatContainer() {
                 Peers
               </h2>
               <Button
-                size="sm"
-                color="danger"
-                variant="light"
                 isIconOnly
                 aria-label="Close peer list"
                 className="h-7"
+                color="danger"
+                size="sm"
+                variant="light"
                 onPress={toggleMobilePeerList}
               >
                 <X size={16} />

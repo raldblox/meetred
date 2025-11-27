@@ -22,7 +22,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
       // libp2p currently exports PeerId types from different packages, so narrow via unknown first
       const peers = libp2p.services.pubsub.getSubscribers(CHAT_TOPIC) as unknown as PeerId[]
 
-      setSubscribers(peers.filter((peer) => !BOOTSTRAP_PEER_IDS.includes(peer.toString())))
+      setSubscribers(peers)
     }
 
     onSubscriptionChange()
@@ -45,11 +45,17 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
-        {subscribers.map((p) => (
-          <div key={p.toString()} className="hover:bg-default-100 flex items-center py-1 px-3">
-            <PeerWrapper peer={p} self={false} withName={true} withUnread={true} />
-          </div>
-        ))}
+        {subscribers.map((p) => {
+          if (BOOTSTRAP_PEER_IDS.includes(p.toString())) {
+            return null
+          }
+
+          return (
+            <div key={p.toString()} className="hover:bg-default-100 flex items-center py-1 px-3">
+              <PeerWrapper peer={p} self={false} withName={true} withUnread={true} />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
