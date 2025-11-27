@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea } from '@heroui/react'
-import { ChevronLeftIcon, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
+import { ChevronLeftIcon, Globe, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
@@ -20,7 +20,7 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 const log = forComponent('chat')
 
 export const PUBLIC_CHAT_ROOM_ID = ''
-const PUBLIC_CHAT_ROOM_NAME = 'Public Chat'
+const PUBLIC_CHAT_ROOM_NAME = 'Public Room'
 
 export default function ChatContainer() {
   const { libp2p } = useLibp2pContext()
@@ -271,7 +271,10 @@ export default function ChatContainer() {
         >
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
-              <span className="block font-bold">{PUBLIC_CHAT_ROOM_NAME}</span>
+              <span className="flex font-bold items-center gap-2">
+                <Globe className="h-7" />
+                {PUBLIC_CHAT_ROOM_NAME}
+              </span>
               <button
                 aria-label="Toggle peer list"
                 className="ml-auto lg:hidden flex items-center text-default-500 hover:text-default-700"
@@ -386,13 +389,13 @@ export default function ChatContainer() {
                 classNames={{ inputWrapper: '!bg-transparent' }}
                 minRows={1}
                 name="message"
-              placeholder="Message"
-              type="text"
-              value={input}
-              variant="flat"
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-            />
+                placeholder="Message"
+                type="text"
+                value={input}
+                variant="flat"
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+              />
               <Button
                 isIconOnly
                 className="border-1 border-default-100"

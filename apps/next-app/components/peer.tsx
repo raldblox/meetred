@@ -7,6 +7,7 @@ import Blockies from 'react-18-blockies'
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat'
+import { Badge } from '@heroui/react'
 
 export interface PeerProps {
   peer: PeerId
@@ -47,7 +48,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
 
   const clickableBody = (
     <button
-      className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-default-400"
+      className="relative inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-default-400"
       type="button"
       onClick={handleSetRoomId}
     >
@@ -69,7 +70,10 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
 
   return (
     <div className="flex items-center h-10 text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
-      <Blockies className="rounded h-8" scale={3} seed={peer.toString()} size={12} />
+      <Badge size="sm" color="success" placement="bottom-right" shape="circle" content="">
+        <Blockies className="rounded h-8" scale={3} seed={peer.toString()} size={12} />
+      </Badge>
+
       {withName && (
         <div className="w-full">
           <div className="flex">
@@ -79,7 +83,7 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
             </span>
           </div>
           {withUnread && (
-            <div className="ml-2 text-default-600">
+            <div className="ml-2 text-xs text-success-600">
               {directMessages[peer.toString()]?.filter((m) => !m.read).length
                 ? `(${directMessages[peer.toString()]?.filter((m) => !m.read).length} unread)`
                 : ''}
