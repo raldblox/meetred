@@ -60,15 +60,8 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     return clickableBody
   }
 
-  // Still allow opening the DM view even if the identify/DM handshake is pending.
-  return (
-    <div className="relative inline-block text-left group">
-      {clickableBody}
-      <div className="absolute top-10 left-5 scale-0 rounded-lg bg-default-50 border border-default-100 text-default-600 p-2 text-xs group-hover:scale-100 z-10">
-        Direct{'\u00A0'}message handshake pending
-      </div>
-    </div>
-  )
+  // Still allow opening the DM view even if the identify/DM handshake is pending, but avoid hover popups.
+  return clickableBody
 }
 
 export function Peer({ peer, self, withName, withUnread }: PeerProps) {

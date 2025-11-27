@@ -7,6 +7,7 @@ import {
 } from '@helia/delegated-routing-v1-http-api-client'
 import { createLibp2p } from 'libp2p'
 import { identify } from '@libp2p/identify'
+import { FaultTolerance } from '@libp2p/interface'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { noise } from '@chainsafe/libp2p-noise'
 import { yamux } from '@chainsafe/libp2p-yamux'

@@ -153,15 +153,18 @@ export default function ChatContainer() {
     return `File: ${name ?? id} (${body.length} bytes)`
   }
 
-  const handleKeyUp = useCallback(
-    async (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key !== 'Enter') {
+  const handleKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key !== 'Enter' || e.shiftKey) {
         return
       }
+
+      e.preventDefault()
+
       if (roomId === PUBLIC_CHAT_ROOM_ID) {
-        sendPublicMessage()
+        await sendPublicMessage()
       } else {
-        sendDirectMessage()
+        await sendDirectMessage()
       }
     },
     [sendPublicMessage, sendDirectMessage, roomId],
@@ -386,13 +389,13 @@ export default function ChatContainer() {
                 classNames={{ inputWrapper: '!bg-transparent' }}
                 minRows={1}
                 name="message"
-                placeholder="Message"
-                type="text"
-                value={input}
-                variant="flat"
-                onChange={handleInput}
-                onKeyUp={handleKeyUp}
-              />
+              placeholder="Message"
+              type="text"
+              value={input}
+              variant="flat"
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+            />
               <Button
                 isIconOnly
                 className="border-1 border-default-100"
