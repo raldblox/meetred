@@ -292,13 +292,13 @@ export default function ChatContainer() {
                   <span className="ml-1 text-sm">Peers</span>
                 </Button>
                 <Button
-                  className="text-default-500 flex items-center"
+                  className="text-default-500 h-7 flex items-center"
                   size="sm"
                   variant="flat"
                   onPress={handleBackToPublic}
                 >
-                  <ChevronLeftIcon className="w-6 h-6 text-default-500" />
-                  <span className="hidden sm:inline">Back to Public Chat</span>
+                  <ChevronLeftIcon className="w-4 h-4 text-default-500" />
+                  <span className="hidden text-sm sm:inline">Back to Public Chat</span>
                   <span className="sm:hidden">Back</span>
                 </Button>
               </div>
@@ -329,7 +329,7 @@ export default function ChatContainer() {
         )}
 
         <div className="flex flex-col min-h-0 flex-1">
-          <ul className="p-3 space-y-2 overflow-y-auto flex-1 min-h-0">
+          <ul className="p-3 space-y-1 overflow-y-auto flex-1 min-h-0">
             {messages.map((message: ChatMessage, index: number) => {
               const previousMessage = index > 0 ? messages[index - 1] : undefined
               const sameSender = previousMessage ? previousMessage.peerId === message.peerId : false
@@ -356,7 +356,7 @@ export default function ChatContainer() {
               )
             })}
           </ul>
-          <div className="flex p-2 py-3 gap-2 items-start justify-between w-full border-t border-default-100">
+          <div className="flex p-3 items-end justify-between w-full border-t border-default-100">
             <Input
               ref={fileRef}
               className="hidden"
@@ -376,7 +376,8 @@ export default function ChatContainer() {
             </Button>
 
             <Textarea
-              minRows={3}
+              classNames={{ inputWrapper: '!bg-transparent' }}
+              minRows={1}
               name="message"
               placeholder="Message"
               type="text"
@@ -390,8 +391,9 @@ export default function ChatContainer() {
               className="border-1 border-default-100"
               isDisabled={sending}
               type="submit"
-              variant="bordered"
+              variant="solid"
               onPress={handleSend}
+              color={input ? 'primary' : 'default'}
             >
               {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
             </Button>

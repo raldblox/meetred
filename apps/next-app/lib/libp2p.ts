@@ -82,7 +82,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
 
   const delegatedClient = createDelegatedRoutingV1HttpApiClient('https://delegated-ipfs.dev')
 
-  const relayListenAddrs = await getRelayListenAddrs(delegatedClient)
+  const relayListenAddrs = await resolveRelayListenAddrs(delegatedClient)
 
   log('starting libp2p with relayListenAddrs: %o', relayListenAddrs)
 
@@ -231,3 +231,28 @@ export const getFormattedConnections = (connections: Connection[]) =>
     peerId: conn.remotePeer,
     protocols: [...new Set(conn.remoteAddr.protoNames())],
   }))
+
+// Resolve relay addresses but never fail libp2p startup on slow/failed delegated routing.
+const resolveRelayListenAddrs = async (client: DelegatedRoutingV1HttpApiClient): Promise<string[]> => {
+  try {
+    return await withTimeout(getRelayListenAddrs(client), 10_000)
+  } catch (error) {
+    log.error('failed to resolve relay listen addrs, continuing without bootstrap relays %o', error)
+
+    return []
+  }
+}
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout>
+
+  const timeoutPromise = new Promise<T>((_resolve, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`timed out after ${timeoutMs}ms`)), timeoutMs)
+  })
+
+  try {
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    clearTimeout(timeoutId!)
+  }
+}

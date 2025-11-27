@@ -46,7 +46,7 @@ export const Message = ({
     : 'bg-default-300 text-default-900 rounded-md rounded-tl-none'
 
   return (
-    <li className={`flex items-start gap-x-3 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+    <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
       {showAvatar ? (
         <div className="mt-5 w-8 h-8">
           <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />

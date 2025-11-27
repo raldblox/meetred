@@ -17,7 +17,7 @@ export function Booting({ error }: Props) {
           width="64"
         />
 
-        {error && error !== '' && <p className="text-xs text-center max-w-lg text-default-900">{error}</p>}
+        {error && error !== '' && <p className="text-xs text-center max-w-lg text-danger break-all whitespace-pre-wrap">{error}</p>}
         {error && error === '' && <p className="text-xs text-default-900">Unknown error</p>}
       </div>
     </div>
