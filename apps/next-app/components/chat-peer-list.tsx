@@ -6,9 +6,8 @@ import React, { useEffect, useState } from 'react'
 
 import { PeerWrapper } from './peer'
 
-import { useLibp2pContext } from '@/context/ctx'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { CHAT_TOPIC } from '@/lib/constants'
-import { Divider } from '@heroui/react'
 
 interface ChatPeerListProps {
   hideHeader?: boolean

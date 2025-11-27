@@ -3,7 +3,7 @@ import { peerIdFromString } from '@libp2p/peer-id'
 
 import { PeerWrapper } from './peer'
 
-import { useLibp2pContext } from '@/context/ctx'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { ChatMessage } from '@/context/chat-ctx'
 import { useMarkAsRead } from '@/hooks/useMarkAsRead'
 

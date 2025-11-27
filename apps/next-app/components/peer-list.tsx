@@ -4,7 +4,7 @@ import { XCircleIcon } from '@heroicons/react/24/solid'
 import { Button, Chip } from '@heroui/react'
 import { useCallback } from 'react'
 
-import { useLibp2pContext } from '@/context/ctx'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 interface PeerListProps {
   connections: Connection[]

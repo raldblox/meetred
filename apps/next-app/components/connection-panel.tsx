@@ -20,7 +20,7 @@ import {
 
 import { connectToMultiaddr } from '../lib/libp2p'
 
-import { useLibp2pContext } from '@/context/ctx'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 import Spinner from '@/components/spinner'
 import PeerList from '@/components/peer-list'
 

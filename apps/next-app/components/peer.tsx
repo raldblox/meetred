@@ -5,7 +5,8 @@ import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
 
 import { useChatContext } from '@/context/chat-ctx'
-import { useLibp2pContext } from '@/context/ctx'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { Button } from '@heroui/react'
 
 export interface PeerProps {
   peer: PeerId

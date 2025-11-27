@@ -1,20 +1,19 @@
 'use client'
 
-import type { Libp2p, PubSub } from '@libp2p/interface'
+import type { Libp2p } from '@libp2p/interface'
 import type { Identify } from '@libp2p/identify'
 import type { DirectMessage } from '@/lib/direct-message'
 import type { DelegatedRoutingV1HttpApiClient } from '@helia/delegated-routing-v1-http-api-client'
 import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
+import { PubSub } from '@libp2p/interface-pubsub'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 import { startLibp2p } from '../lib/libp2p'
-
-import { ChatProvider } from './chat-ctx'
-
 import { Booting } from '@/components/booting'
 import { forComponent } from '@/lib/logger'
+
 export type Libp2pType = Libp2p<{
   pubsub: PubSub<GossipsubEvents>
   identify: Identify
@@ -23,7 +22,7 @@ export type Libp2pType = Libp2p<{
   ping: Ping
 }>
 
-export const libp2pContext = createContext<{ libp2p: Libp2pType }>({
+export const Libp2pContext = createContext<{ libp2p: Libp2pType }>({
   // @ts-ignore to avoid having to check isn't undefined everywhere. Can't be undefined because children are conditionally rendered
   libp2p: undefined,
 })
@@ -36,7 +35,7 @@ interface WrapperProps {
 let loaded = false
 const log = forComponent('libp2p-context')
 
-export function AppWrapper({ children }: WrapperProps) {
+export function Libp2pProvider({ children }: WrapperProps) {
   const [libp2p, setLibp2p] = useState<Libp2pType | undefined>(undefined)
   const [error, setError] = useState('')
 
@@ -67,13 +66,9 @@ export function AppWrapper({ children }: WrapperProps) {
     return <Booting error={error} />
   }
 
-  return (
-    <libp2pContext.Provider value={{ libp2p }}>
-      <ChatProvider>{children}</ChatProvider>
-    </libp2pContext.Provider>
-  )
+  return <Libp2pContext.Provider value={{ libp2p }}>{children}</Libp2pContext.Provider>
 }
 
 export function useLibp2pContext() {
-  return useContext(libp2pContext)
+  return useContext(Libp2pContext)
 }

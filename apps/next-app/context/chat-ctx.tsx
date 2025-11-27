@@ -9,8 +9,6 @@ import { pipe } from 'it-pipe'
 import map from 'it-map'
 import * as lp from 'it-length-prefixed'
 
-import { useLibp2pContext } from './ctx'
-
 import {
   CHAT_FILE_TOPIC,
   CHAT_TOPIC,
@@ -20,6 +18,7 @@ import {
 } from '@/lib/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
+import { useLibp2pContext } from './libp2p-ctx'
 
 const log = forComponent('chat-context')
 
@@ -55,7 +54,7 @@ export interface ChatContextInterface {
   setFiles: (files: Map<string, ChatFile>) => void
 }
 
-export const chatContext = createContext<ChatContextInterface>({
+export const ChatContext = createContext<ChatContextInterface>({
   messageHistory: [],
   setMessageHistory: () => {},
   directMessages: {},
@@ -67,7 +66,7 @@ export const chatContext = createContext<ChatContextInterface>({
 })
 
 export const useChatContext = () => {
-  return useContext(chatContext)
+  return useContext(ChatContext)
 }
 
 export const ChatProvider = ({ children }: any) => {
@@ -226,7 +225,7 @@ export const ChatProvider = ({ children }: any) => {
   })
 
   return (
-    <chatContext.Provider
+    <ChatContext.Provider
       value={{
         roomId,
         setRoomId,
@@ -239,6 +238,6 @@ export const ChatProvider = ({ children }: any) => {
       }}
     >
       {children}
-    </chatContext.Provider>
+    </ChatContext.Provider>
   )
 }

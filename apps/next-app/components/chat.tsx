@@ -16,7 +16,7 @@ import { Message } from './message'
 
 import { forComponent } from '@/lib/logger'
 import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/lib/constants'
-import { useLibp2pContext } from '@/context/ctx'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 const log = forComponent('chat')
 
