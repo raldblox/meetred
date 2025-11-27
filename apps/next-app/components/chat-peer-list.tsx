@@ -10,7 +10,6 @@ import { PeerWrapper } from './peer'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
 import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/lib/constants'
-import { Divider } from '@heroui/react'
 
 interface ChatPeerListProps {
   hideHeader?: boolean

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea } from '@heroui/react'
-import { ChevronLeftIcon, Globe, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
+import { ChevronLeftIcon, Earth, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
@@ -272,7 +272,7 @@ export default function ChatContainer() {
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
               <span className="flex font-bold items-center gap-2">
-                <Globe className="h-7" />
+                <Earth className="h-7" />
                 {PUBLIC_CHAT_ROOM_NAME}
               </span>
               <button
@@ -399,11 +399,11 @@ export default function ChatContainer() {
               <Button
                 isIconOnly
                 className="border-1 border-default-100"
+                color={input ? 'primary' : 'default'}
                 isDisabled={sending}
                 type="submit"
                 variant="solid"
                 onPress={handleSend}
-                color={input ? 'primary' : 'default'}
               >
                 {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
               </Button>

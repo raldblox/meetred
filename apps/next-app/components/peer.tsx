@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
+import { Badge } from '@heroui/react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat'
-import { Badge } from '@heroui/react'
 
 export interface PeerProps {
   peer: PeerId
@@ -70,7 +70,7 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
 
   return (
     <div className="flex items-center h-10 text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
-      <Badge size="sm" color="success" placement="bottom-right" shape="circle" content="">
+      <Badge color="success" content="" placement="bottom-right" shape="circle" size="sm">
         <Blockies className="rounded h-8" scale={3} seed={peer.toString()} size={12} />
       </Badge>
 
