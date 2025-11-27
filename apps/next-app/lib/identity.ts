@@ -114,6 +114,47 @@ async function persistPrivateKey(privateKey: PrivateKey): Promise<void> {
 }
 
 /**
+ * Returns the persisted private key as a base64 protobuf string so it can be backed up or transported.
+ */
+export function exportStoredPrivateKey(): string | undefined {
+  if (!isBrowser) {
+    return undefined
+  }
+
+  const encoded = window.localStorage.getItem(STORAGE_KEY)
+
+  return encoded ?? undefined
+}
+
+/**
+ * Imports a previously exported base64 protobuf private key after validating its contents. The key is persisted
+ * and the parsed PrivateKey is returned so callers can restart libp2p with the imported identity.
+ */
+export async function importPrivateKey(encodedKey: string): Promise<PrivateKey> {
+  if (!isBrowser) {
+    throw new Error('Identity import is only supported in the browser environment')
+  }
+
+  try {
+    const cleaned = encodedKey.trim()
+
+    if (!cleaned) {
+      throw new Error('Private key value cannot be empty')
+    }
+
+    const bytes = uint8ArrayFromString(cleaned, 'base64pad')
+    const privateKey = await privateKeyFromProtobuf(bytes)
+
+    await persistPrivateKey(privateKey)
+
+    return privateKey
+  } catch (error: any) {
+    log.error('failed to import identity %o', error)
+    throw new Error(error?.message ?? 'Failed to import identity')
+  }
+}
+
+/**
  * Browser-friendly SHA-256 helper. We prefer crypto.subtle when available and fall back to a deterministic
  * base64 encoding so the checksum comparison still fails closed if the environment lacks WebCrypto.
  */

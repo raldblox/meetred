@@ -7,13 +7,14 @@ import type { DelegatedRoutingV1HttpApiClient } from '@helia/delegated-routing-v
 import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
 
-import { PubSub } from '@libp2p/interface-pubsub'
+import type { PubSub } from '@libp2p/interface/dist/src/pubsub.js'
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 
 import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 
 import { Booting } from '@/components/booting'
 import { forComponent } from '@/lib/logger'
+import { importPrivateKey } from '@/lib/identity'
 
 export type Libp2pType = Libp2p<{
   pubsub: PubSub<GossipsubEvents>
@@ -27,6 +28,7 @@ interface Libp2pContextValue {
   libp2p: Libp2pType
   createNewIdentity: () => Promise<void>
   rotatingIdentity: boolean
+  importIdentity: (encodedKey: string) => Promise<void>
 }
 
 export const Libp2pContext = createContext<Libp2pContextValue>({
@@ -34,6 +36,7 @@ export const Libp2pContext = createContext<Libp2pContextValue>({
   libp2p: undefined,
   createNewIdentity: async () => {},
   rotatingIdentity: false,
+  importIdentity: async () => {},
 })
 
 interface WrapperProps {
@@ -84,6 +87,15 @@ export function Libp2pProvider({ children }: WrapperProps) {
     })
   }, [init])
 
+  const performRestart = useCallback(
+    async (options?: StartLibp2pOptions) => {
+      await stopCurrentNode()
+      setLibp2p(undefined)
+      await init(options)
+    },
+    [init, stopCurrentNode],
+  )
+
   const createNewIdentity = useCallback(async () => {
     if (rotatingIdentity) {
       return
@@ -91,11 +103,8 @@ export function Libp2pProvider({ children }: WrapperProps) {
 
     setRotatingIdentity(true)
 
-    await stopCurrentNode()
-    setLibp2p(undefined)
-
     try {
-      await init({ forceNewIdentity: true })
+      await performRestart({ forceNewIdentity: true })
     } catch (e: any) {
       log.error('failed to rotate identity %o', e)
       setError(`failed to start libp2p ${e?.message ?? e}`)
@@ -103,14 +112,38 @@ export function Libp2pProvider({ children }: WrapperProps) {
     } finally {
       setRotatingIdentity(false)
     }
-  }, [init, rotatingIdentity, stopCurrentNode])
+  }, [performRestart, rotatingIdentity])
+
+  const importIdentity = useCallback(
+    async (encodedKey: string) => {
+      if (rotatingIdentity) {
+        return
+      }
+
+      setRotatingIdentity(true)
+
+      try {
+        await importPrivateKey(encodedKey)
+        await performRestart()
+      } catch (e: any) {
+        log.error('failed to import identity %o', e)
+        setError(`failed to start libp2p ${e?.message ?? e}`)
+        throw e
+      } finally {
+        setRotatingIdentity(false)
+      }
+    },
+    [performRestart, rotatingIdentity],
+  )
 
   if (!libp2p) {
     return <Booting error={error} />
   }
 
   return (
-    <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity }}>{children}</Libp2pContext.Provider>
+    <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity }}>
+      {children}
+    </Libp2pContext.Provider>
   )
 }
 
