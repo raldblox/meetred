@@ -1,5 +1,5 @@
 import type { Connection, Message, SignedMessage, PeerId, Libp2p } from '@libp2p/interface'
-import type { Libp2pType } from '@/context/ctx'
+import type { Libp2pType } from '@/context/libp2p-ctx'
 
 import {
   createDelegatedRoutingV1HttpApiClient,
@@ -24,10 +24,15 @@ import first from 'it-first'
 import { BOOTSTRAP_PEER_IDS, CHAT_FILE_TOPIC, CHAT_TOPIC, PUBSUB_PEER_DISCOVERY } from './constants'
 import { forComponent, enable } from './logger'
 import { directMessage } from './direct-message'
+import { loadOrCreatePrivateKey } from './identity'
 
 const log = forComponent('libp2p')
 
-export async function startLibp2p(): Promise<Libp2pType> {
+export interface StartLibp2pOptions {
+  forceNewIdentity?: boolean
+}
+
+export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Libp2pType> {
   // enable verbose logging in browser console to view debug logs
   enable('ui*,libp2p*,-libp2p:connection-manager*,-*:trace')
 
@@ -39,7 +44,10 @@ export async function startLibp2p(): Promise<Libp2pType> {
 
   let libp2p: Libp2pType
 
+  const privateKey = await loadOrCreatePrivateKey({ forceNew: options.forceNewIdentity })
+
   libp2p = await createLibp2p({
+    privateKey,
     addresses: {
       listen: [
         // 👇 Listen for webRTC connection

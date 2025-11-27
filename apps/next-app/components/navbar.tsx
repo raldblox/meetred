@@ -7,7 +7,6 @@ import {
   NavbarItem,
   NavbarMenuItem,
 } from '@heroui/navbar'
-import { Button } from '@heroui/button'
 import { Kbd } from '@heroui/kbd'
 import { Link } from '@heroui/link'
 import { Input } from '@heroui/input'
@@ -17,7 +16,8 @@ import clsx from 'clsx'
 
 import { siteConfig } from '@/config/site'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { TwitterIcon, GithubIcon, DiscordIcon, HeartFilledIcon, SearchIcon, Logo } from '@/components/icons'
+import { TwitterIcon, GithubIcon, DiscordIcon, SearchIcon, Logo } from '@/components/icons'
+import { NewIdentityButton } from '@/components/new-identity-button'
 
 export const Navbar = () => {
   const searchInput = (
@@ -81,17 +81,7 @@ export const Navbar = () => {
         </NavbarItem>
         {/* <NavbarItem className="hidden lg:flex">{searchInput}</NavbarItem> */}
         <NavbarItem className="hidden md:flex">
-          <Button
-            isExternal
-            as={Link}
-            className="text-sm h-7 font-normal text-default-600 bg-default-100"
-            href={siteConfig.links.sponsor}
-            size="sm"
-            startContent={<HeartFilledIcon className="text-danger h-4 w-4" />}
-            variant="flat"
-          >
-            Sponsor
-          </Button>
+          <NewIdentityButton />
         </NavbarItem>
       </NavbarContent>
 

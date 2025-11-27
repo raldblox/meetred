@@ -5,9 +5,10 @@ import type { ThemeProviderProps } from 'next-themes'
 import * as React from 'react'
 import { HeroUIProvider } from '@heroui/system'
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
+import { useRouter } from 'next/navigation'
+
 import { ChatProvider } from '@/context/chat-ctx'
 import { Libp2pProvider } from '@/context/libp2p-ctx'
-import { useRouter } from 'next/navigation'
 
 export interface ProvidersProps {
   children: React.ReactNode

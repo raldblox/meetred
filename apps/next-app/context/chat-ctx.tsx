@@ -9,6 +9,8 @@ import { pipe } from 'it-pipe'
 import map from 'it-map'
 import * as lp from 'it-length-prefixed'
 
+import { useLibp2pContext } from './libp2p-ctx'
+
 import {
   CHAT_FILE_TOPIC,
   CHAT_TOPIC,
@@ -18,7 +20,6 @@ import {
 } from '@/lib/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
-import { useLibp2pContext } from './libp2p-ctx'
 
 const log = forComponent('chat-context')
 

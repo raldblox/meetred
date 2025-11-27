@@ -6,11 +6,12 @@ import type { DirectMessage } from '@/lib/direct-message'
 import type { DelegatedRoutingV1HttpApiClient } from '@helia/delegated-routing-v1-http-api-client'
 import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
+
 import { PubSub } from '@libp2p/interface-pubsub'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 
-import { startLibp2p } from '../lib/libp2p'
 import { Booting } from '@/components/booting'
 import { forComponent } from '@/lib/logger'
 
@@ -22,51 +23,95 @@ export type Libp2pType = Libp2p<{
   ping: Ping
 }>
 
-export const Libp2pContext = createContext<{ libp2p: Libp2pType }>({
-  // @ts-ignore to avoid having to check isn't undefined everywhere. Can't be undefined because children are conditionally rendered
+interface Libp2pContextValue {
+  libp2p: Libp2pType
+  createNewIdentity: () => Promise<void>
+  rotatingIdentity: boolean
+}
+
+export const Libp2pContext = createContext<Libp2pContextValue>({
+  // @ts-ignore intentional - components are only rendered after libp2p is ready
   libp2p: undefined,
+  createNewIdentity: async () => {},
+  rotatingIdentity: false,
 })
 
 interface WrapperProps {
   children?: ReactNode
 }
 
-// This is needed to prevent libp2p from instantiating more than once
-let loaded = false
 const log = forComponent('libp2p-context')
 
 export function Libp2pProvider({ children }: WrapperProps) {
   const [libp2p, setLibp2p] = useState<Libp2pType | undefined>(undefined)
   const [error, setError] = useState('')
+  const [rotatingIdentity, setRotatingIdentity] = useState(false)
+  const hasInitialized = useRef(false)
 
-  useEffect(() => {
-    const init = async () => {
-      if (loaded) return
-      try {
-        loaded = true
-        const libp2p = await startLibp2p()
+  const init = useCallback(async (options?: StartLibp2pOptions) => {
+    const node = await startLibp2p(options)
 
-        if (!libp2p) {
-          throw new Error('failed to start libp2p')
-        }
-        // @ts-ignore
-        window.libp2p = libp2p
+    // @ts-ignore helpful for local debugging
+    window.libp2p = node
+    setLibp2p(node as Libp2pType)
+    setError('')
 
-        setLibp2p(libp2p as Libp2pType)
-      } catch (e) {
-        log.error('failed to start libp2p %o', e)
-        setError(`failed to start libp2p ${e}`)
-      }
+    return node
+  }, [])
+
+  const stopCurrentNode = useCallback(async () => {
+    if (!libp2p) {
+      return
     }
 
-    init()
-  }, [])
+    try {
+      await libp2p.stop()
+    } catch (e) {
+      log.error('failed to stop libp2p node %o', e)
+    }
+  }, [libp2p])
+
+  useEffect(() => {
+    if (hasInitialized.current) {
+      return
+    }
+
+    hasInitialized.current = true
+
+    init().catch((e: any) => {
+      log.error('failed to start libp2p %o', e)
+      setError(`failed to start libp2p ${e?.message ?? e}`)
+    })
+  }, [init])
+
+  const createNewIdentity = useCallback(async () => {
+    if (rotatingIdentity) {
+      return
+    }
+
+    setRotatingIdentity(true)
+
+    await stopCurrentNode()
+    setLibp2p(undefined)
+
+    try {
+      await init({ forceNewIdentity: true })
+    } catch (e: any) {
+      log.error('failed to rotate identity %o', e)
+      setError(`failed to start libp2p ${e?.message ?? e}`)
+      throw e
+    } finally {
+      setRotatingIdentity(false)
+    }
+  }, [init, rotatingIdentity, stopCurrentNode])
 
   if (!libp2p) {
     return <Booting error={error} />
   }
 
-  return <Libp2pContext.Provider value={{ libp2p }}>{children}</Libp2pContext.Provider>
+  return (
+    <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity }}>{children}</Libp2pContext.Provider>
+  )
 }
 
 export function useLibp2pContext() {
