@@ -5,7 +5,19 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea } from '@heroui/react'
-import { ChevronLeftIcon, Earth, SendIcon, UploadIcon, UsersIcon, X } from 'lucide-react'
+import {
+  ChevronLeftIcon,
+  Earth,
+  File,
+  PhoneCall,
+  SendIcon,
+  Share,
+  UploadIcon,
+  UsersIcon,
+  Video,
+  VideoIcon,
+  X,
+} from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
@@ -36,74 +48,84 @@ export default function ChatContainer() {
   const pathname = usePathname()
 
   // Send message to public chat over gossipsub
-  const sendPublicMessage = useCallback(async () => {
-    const trimmedMessage = input.trim()
+  const sendPublicMessage = useCallback(
+    async (overrideMessage?: string) => {
+      const trimmedMessage = (overrideMessage ?? input).trim()
 
-    if (trimmedMessage === '') return
+      if (trimmedMessage === '') return
 
-    log(`peers in gossip for topic ${CHAT_TOPIC}:`, libp2p.services.pubsub.getSubscribers(CHAT_TOPIC).toString())
+      log(`peers in gossip for topic ${CHAT_TOPIC}:`, libp2p.services.pubsub.getSubscribers(CHAT_TOPIC).toString())
 
-    const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(trimmedMessage))
+      const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(trimmedMessage))
 
-    log(
-      'sent message to: ',
-      res.recipients.map((peerId) => peerId.toString()),
-    )
-
-    const myPeerId = libp2p.peerId.toString()
-
-    setMessageHistory([
-      ...messageHistory,
-      {
-        msgId: crypto.randomUUID(),
-        msg: trimmedMessage,
-        fileObjectUrl: undefined,
-        peerId: myPeerId,
-        read: true,
-        receivedAt: Date.now(),
-      },
-    ])
-
-    setInput('')
-  }, [input, messageHistory, setInput, libp2p, setMessageHistory])
-
-  // Send direct message over custom protocol
-  const sendDirectMessage = useCallback(async () => {
-    const trimmedMessage = input.trim()
-
-    if (trimmedMessage === '') return
-    try {
-      const res = await libp2p.services.directMessage.send(peerIdFromString(roomId), trimmedMessage)
-
-      if (!res) {
-        log('Failed to send message')
-
-        return
-      }
+      log(
+        'sent message to: ',
+        res.recipients.map((peerId) => peerId.toString()),
+      )
 
       const myPeerId = libp2p.peerId.toString()
 
-      const newMessage: ChatMessage = {
-        msgId: crypto.randomUUID(),
-        msg: trimmedMessage,
-        fileObjectUrl: undefined,
-        peerId: myPeerId,
-        read: true,
-        receivedAt: Date.now(),
+      setMessageHistory([
+        ...messageHistory,
+        {
+          msgId: crypto.randomUUID(),
+          msg: trimmedMessage,
+          fileObjectUrl: undefined,
+          peerId: myPeerId,
+          read: true,
+          receivedAt: Date.now(),
+        },
+      ])
+
+      if (!overrideMessage) {
+        setInput('')
       }
+    },
+    [input, messageHistory, setInput, libp2p, setMessageHistory],
+  )
 
-      const updatedMessages = directMessages[roomId] ? [...directMessages[roomId], newMessage] : [newMessage]
+  // Send direct message over custom protocol
+  const sendDirectMessage = useCallback(
+    async (overrideMessage?: string) => {
+      const trimmedMessage = (overrideMessage ?? input).trim()
 
-      setDirectMessages({
-        ...directMessages,
-        [roomId]: updatedMessages,
-      })
+      if (trimmedMessage === '') return
+      try {
+        const res = await libp2p.services.directMessage.send(peerIdFromString(roomId), trimmedMessage)
 
-      setInput('')
-    } catch (e: any) {
-      log(e)
-    }
-  }, [libp2p, setDirectMessages, directMessages, roomId, input])
+        if (!res) {
+          log('Failed to send message')
+
+          return
+        }
+
+        const myPeerId = libp2p.peerId.toString()
+
+        const newMessage: ChatMessage = {
+          msgId: crypto.randomUUID(),
+          msg: trimmedMessage,
+          fileObjectUrl: undefined,
+          peerId: myPeerId,
+          read: true,
+          receivedAt: Date.now(),
+        }
+
+        const updatedMessages = directMessages[roomId] ? [...directMessages[roomId], newMessage] : [newMessage]
+
+        setDirectMessages({
+          ...directMessages,
+          [roomId]: updatedMessages,
+        })
+
+        if (!overrideMessage) {
+          setInput('')
+        }
+      } catch (e: any) {
+        log(e)
+      }
+    },
+    [libp2p, setDirectMessages, directMessages, roomId, input],
+  )
 
   const sendFile = useCallback(
     async (readerEvent: ProgressEvent<FileReader>, fileName?: string, fileType?: string) => {
@@ -173,17 +195,22 @@ export default function ChatContainer() {
   const handleSend = useCallback(async () => {
     if (sending) return
 
+    const trimmedMessage = input.trim()
+
+    if (!trimmedMessage) return
+
     setSending(true)
     try {
       if (roomId === PUBLIC_CHAT_ROOM_ID) {
-        await sendPublicMessage()
+        await sendPublicMessage(trimmedMessage)
       } else {
-        await sendDirectMessage()
+        await sendDirectMessage(trimmedMessage)
       }
+      setInput('')
     } finally {
       setSending(false)
     }
-  }, [roomId, sendDirectMessage, sendPublicMessage, sending])
+  }, [input, roomId, sendDirectMessage, sendPublicMessage, sending])
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setInput(e.target.value)
@@ -208,6 +235,29 @@ export default function ChatContainer() {
   const handleFileSend = useCallback(() => {
     fileRef?.current?.click()
   }, [])
+
+  const handleSendMeetingInvite = useCallback(async () => {
+    if (sending) return
+
+    const hostPeerId = libp2p.peerId.toString()
+    const meetingInvite = JSON.stringify({
+      type: 'meeting_invite',
+      roomId: hostPeerId,
+      hostPeerId,
+      createdAt: Date.now(),
+    })
+
+    setSending(true)
+    try {
+      if (roomId === PUBLIC_CHAT_ROOM_ID) {
+        await sendPublicMessage(meetingInvite)
+      } else {
+        await sendDirectMessage(meetingInvite)
+      }
+    } finally {
+      setSending(false)
+    }
+  }, [libp2p, roomId, sendDirectMessage, sendPublicMessage, sending])
 
   const handleBackToPublic = () => {
     setRoomId(PUBLIC_CHAT_ROOM_ID)
@@ -385,11 +435,11 @@ export default function ChatContainer() {
                 variant="ghost"
                 onPress={handleFileSend}
               >
-                <UploadIcon size={16} />
+                <Share size={16} />
               </Button>
 
               <Textarea
-                classNames={{ inputWrapper: '!bg-transparent' }}
+                classNames={{ inputWrapper: '!bg-transparent shadow-none' }}
                 minRows={1}
                 name="message"
                 placeholder="Message"
@@ -399,17 +449,35 @@ export default function ChatContainer() {
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
               />
-              <Button
-                isIconOnly
-                className="border-1 border-default-100"
-                color={input ? 'primary' : 'default'}
-                isDisabled={sending}
-                type="submit"
-                variant="solid"
-                onPress={handleSend}
-              >
-                {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
-              </Button>
+              <div className="flex items-center gap-1">
+                {!input && (
+                  <>
+                    <Button
+                      isIconOnly
+                      className="border-1 border-default-100"
+                      color="success"
+                      isDisabled={sending}
+                      variant="ghost"
+                      title="Send meeting invite"
+                      onPress={handleSendMeetingInvite}
+                    >
+                      <Video size={16} />
+                    </Button>
+                  </>
+                )}
+
+                <Button
+                  isIconOnly
+                  className="border-1 border-default-100"
+                  color={input ? 'primary' : 'default'}
+                  isDisabled={sending}
+                  type="submit"
+                  variant="solid"
+                  onPress={handleSend}
+                >
+                  {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

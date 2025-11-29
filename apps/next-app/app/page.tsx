@@ -18,11 +18,11 @@ export default function Home() {
     <>
       <div className="relative flex flex-col h-screen">
         <Navbar />
-        <main className="mx-auto bg-default-50 border-y border-default-100 w-full flex flex-col flex-grow min-h-0">
+        <main className="mx-auto bg-default-50/50 border-y border-default-100 w-full flex flex-col flex-grow min-h-0">
           <ChatContainer />
         </main>
         <ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />
-        <footer className="w-full bg-default-50 h-10 px-3 flex items-center justify-between">
+        <footer className="w-full bg-default-50/50 h-10 px-3 flex items-center justify-between">
           <div className="text-xs">Metered</div>
           <ConnectionInfoButton onClick={handleOpenConnectionPanel} />
         </footer>
