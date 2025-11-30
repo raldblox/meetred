@@ -22,6 +22,17 @@ import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
 
 const log = forComponent('chat-context')
+const STREAM_SIGNAL_WRAPPER = 'stream-signal'
+
+const isStreamSignal = (content: string) => {
+  try {
+    const parsed = JSON.parse(content)
+
+    return parsed?.type === STREAM_SIGNAL_WRAPPER
+  } catch {
+    return false
+  }
+}
 
 export interface ChatMessage {
   msgId: string
@@ -187,6 +198,9 @@ export const ChatProvider = ({ children }: any) => {
 
       if (evt.detail.type !== MIME_TEXT_PLAIN) {
         throw new Error(`unexpected message type: ${evt.detail.type}`)
+      }
+      if (isStreamSignal(evt.detail.content)) {
+        return
       }
 
       const message: ChatMessage = {

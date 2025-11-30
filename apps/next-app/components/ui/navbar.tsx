@@ -1,46 +1,16 @@
-import {
-  Navbar as HeroUINavbar,
-  NavbarContent,
-  NavbarMenu,
-  NavbarMenuToggle,
-  NavbarBrand,
-  NavbarItem,
-  NavbarMenuItem,
-} from '@heroui/navbar'
-import { Kbd } from '@heroui/kbd'
-import { Link } from '@heroui/link'
-import { Input } from '@heroui/input'
+import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
-import { Button } from '@heroui/react'
+import { Button, Link } from '@heroui/react'
 import Image from 'next/image'
 
-import { NewIdentityButton } from './identity-manager'
-import { InviteButton } from './invite-modal'
+import { NewIdentityButton } from '../chat/identity-manager'
+import { InviteButton } from '../chat/invite-modal'
 
 import { siteConfig } from '@/config/site'
-import { ThemeSwitch } from '@/components/theme-switch'
-import { TwitterIcon, GithubIcon, DiscordIcon, SearchIcon } from '@/components/icons'
+import { ThemeSwitch } from '@/components/ui/theme-switch'
+import { GithubIcon } from '@/components/ui/icons'
 
 export const Navbar = () => {
-  const searchInput = (
-    <Input
-      aria-label="Search"
-      classNames={{
-        inputWrapper: 'bg-default-100',
-        input: 'text-sm',
-      }}
-      endContent={
-        <Kbd className="hidden lg:inline-block" keys={['command']}>
-          K
-        </Kbd>
-      }
-      labelPlacement="outside"
-      placeholder="Search..."
-      startContent={<SearchIcon className="text-base text-default-400 pointer-events-none flex-shrink-0" />}
-      type="search"
-    />
-  )
-
   return (
     <HeroUINavbar classNames={{ base: '', wrapper: '!px-3 !py-0 h-10', content: '' }} maxWidth="full" position="static">
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">

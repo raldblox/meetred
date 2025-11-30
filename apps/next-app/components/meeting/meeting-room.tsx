@@ -23,9 +23,9 @@ import {
 } from 'lucide-react'
 import { useMemo } from 'react'
 
-import { useRoomController } from '../(hooks)/useRoomController'
+import { useRoomController } from '../../hooks/useRoomController'
 
-import { ThemeSwitch } from '@/components/theme-switch'
+import { ThemeSwitch } from '@/components/ui/theme-switch'
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const {

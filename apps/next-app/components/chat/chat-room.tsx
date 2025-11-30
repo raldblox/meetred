@@ -5,22 +5,10 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea } from '@heroui/react'
-import {
-  ChevronLeftIcon,
-  Earth,
-  File,
-  PhoneCall,
-  SendIcon,
-  Share,
-  UploadIcon,
-  UsersIcon,
-  Video,
-  VideoIcon,
-  X,
-} from 'lucide-react'
+import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
-import { ChatFile, ChatMessage, useChatContext } from '../context/chat-ctx'
+import { ChatFile, ChatMessage, useChatContext } from '../../context/chat-ctx'
 
 import { ChatPeerList } from './chat-peer-list'
 import { Message } from './message'
@@ -259,6 +247,31 @@ export default function ChatContainer() {
     }
   }, [libp2p, roomId, sendDirectMessage, sendPublicMessage, sending])
 
+  const handleSendStreamInvite = useCallback(async () => {
+    if (sending) return
+
+    const hostPeerId = libp2p.peerId.toString()
+    const hostAddrs = libp2p.getMultiaddrs?.().map((ma) => ma.toString()) ?? []
+    const streamInvite = JSON.stringify({
+      type: 'stream_invite',
+      streamId: hostPeerId,
+      hostPeerId,
+      multiaddrs: hostAddrs,
+      createdAt: Date.now(),
+    })
+
+    setSending(true)
+    try {
+      if (roomId === PUBLIC_CHAT_ROOM_ID) {
+        await sendPublicMessage(streamInvite)
+      } else {
+        await sendDirectMessage(streamInvite)
+      }
+    } finally {
+      setSending(false)
+    }
+  }, [libp2p, roomId, sendDirectMessage, sendPublicMessage, sending])
+
   const handleBackToPublic = () => {
     setRoomId(PUBLIC_CHAT_ROOM_ID)
     setMessages(messageHistory)
@@ -365,10 +378,10 @@ export default function ChatContainer() {
           )}
         </div>
         <div
+          aria-hidden={!showMobilePeerList}
           className={`lg:hidden bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg transition-opacity ${
             showMobilePeerList ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
           }`}
-          aria-hidden={!showMobilePeerList}
         >
           <div className="flex h-10 bg-default-100 items-center justify-between pl-3 pr-1">
             <h2 className="text-sm text-default-600 flex items-center gap-1">
@@ -455,10 +468,21 @@ export default function ChatContainer() {
                     <Button
                       isIconOnly
                       className="border-1 border-default-100"
+                      color="secondary"
+                      isDisabled={sending}
+                      title="Send stream invite"
+                      variant="ghost"
+                      onPress={handleSendStreamInvite}
+                    >
+                      <Cast size={16} />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      className="border-1 border-default-100"
                       color="success"
                       isDisabled={sending}
-                      variant="ghost"
                       title="Send meeting invite"
+                      variant="ghost"
                       onPress={handleSendMeetingInvite}
                     >
                       <Video size={16} />

@@ -1,4 +1,4 @@
-import RoomPage from './(components)/Room'
+import RoomPage from '@/components/meeting/meeting-room'
 
 export default async function Room({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params

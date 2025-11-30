@@ -1,6 +1,6 @@
 'use client'
 
-import type { Libp2p } from '@libp2p/interface'
+import type { Libp2p, PubSub } from '@libp2p/interface'
 import type { Identify } from '@libp2p/identify'
 import type { DirectMessage } from '@/lib/direct-message'
 import type { DelegatedRoutingV1HttpApiClient } from '@helia/delegated-routing-v1-http-api-client'
@@ -8,15 +8,13 @@ import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
-import { PubSub } from '@libp2p/interface'
-
 import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 
 import { ChatProvider } from './chat-ctx'
 
-import { Booting } from '@/components/booting'
 import { forComponent } from '@/lib/logger'
 import { importPrivateKey } from '@/lib/identity'
+import { Booting } from '@/components/ui/booting'
 
 export type Libp2pType = Libp2p<{
   pubsub: PubSub<GossipsubEvents>

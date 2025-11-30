@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 
-import { useRoomController } from './(hooks)/useRoomController'
+import { useRoomController } from '../../../hooks/useRoomController'
 
 type SignalHandler = (event: { payload: any }) => void
 

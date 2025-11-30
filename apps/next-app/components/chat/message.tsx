@@ -17,6 +17,14 @@ type MeetingInvitePayload = {
   createdAt?: number
 }
 
+type StreamInvitePayload = {
+  type: 'stream_invite'
+  streamId: string
+  hostPeerId: string
+  multiaddrs?: string[]
+  createdAt?: number
+}
+
 const parseMeetingInvite = (msg: string): MeetingInvitePayload | null => {
   try {
     const parsed = JSON.parse(msg)
@@ -28,8 +36,26 @@ const parseMeetingInvite = (msg: string): MeetingInvitePayload | null => {
     ) {
       return parsed as MeetingInvitePayload
     }
-  } catch (err) {
+  } catch {
     // Non-JSON messages are ignored
+  }
+
+  return null
+}
+
+const parseStreamInvite = (msg: string): StreamInvitePayload | null => {
+  try {
+    const parsed = JSON.parse(msg)
+
+    if (
+      parsed?.type === 'stream_invite' &&
+      typeof parsed.streamId === 'string' &&
+      typeof parsed.hostPeerId === 'string'
+    ) {
+      return parsed as StreamInvitePayload
+    }
+  } catch {
+    // ignore invalid payloads
   }
 
   return null
@@ -66,31 +92,8 @@ export const Message = ({
   const isSelf: boolean = libp2p.peerId.toString() === peerIdStr
 
   const meetingInvite = useMemo(() => parseMeetingInvite(msg), [msg])
-
-  const meetingStart = useMemo(() => {
-    if (!meetingInvite) return null
-    const createdAt = meetingInvite.createdAt ?? receivedAt
-    const date = new Date(createdAt)
-
-    return Number.isNaN(date.getTime()) ? null : date
-  }, [meetingInvite, receivedAt])
-
-  const meetingEnd = useMemo(() => {
-    if (!meetingStart) return null
-
-    return new Date(meetingStart.getTime() + 45 * 60 * 1000)
-  }, [meetingStart])
-
-  const meetingTimeLabel = useMemo(() => {
-    if (!meetingStart || !meetingEnd) return 'Join anytime'
-
-    const timeFormatter = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' })
-    const tzFormatter = new Intl.DateTimeFormat([], { timeZoneName: 'short' })
-    const timeZoneName =
-      tzFormatter.formatToParts(meetingStart).find((part) => part.type === 'timeZoneName')?.value ?? ''
-
-    return `${timeFormatter.format(meetingStart)} – ${timeFormatter.format(meetingEnd)}${timeZoneName ? ` (${timeZoneName})` : ''}`
-  }, [meetingEnd, meetingStart])
+  const streamInvite = useMemo(() => parseStreamInvite(msg), [msg])
+  const isStreamHost = streamInvite ? libp2p.peerId.toString() === streamInvite.hostPeerId : false
 
   const timestamp = new Date(receivedAt).toLocaleString()
 
@@ -100,9 +103,67 @@ export const Message = ({
     ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none'
     : 'bg-default-300 text-default-900 rounded-md rounded-tl-none'
 
+  if (streamInvite) {
+    const hostShortId = streamInvite.hostPeerId.slice(-7)
+    const query = streamInvite.multiaddrs?.length
+      ? `?maddrs=${encodeURIComponent(JSON.stringify(streamInvite.multiaddrs))}`
+      : ''
+
+    return (
+      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+        {showAvatar ? (
+          <div className="mt-5 w-8 h-8">
+            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+          </div>
+        ) : (
+          <div className="w-8" />
+        )}
+        <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+          {showTimestamp && (
+            <div
+              className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
+            >
+              {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
+              {showTimestamp && <span>{timestamp}</span>}
+            </div>
+          )}
+          <div className="w-full max-w-xl">
+            <div className="relative min-w-xs shadow overflow-hidden rounded-lg bg-default-100 transition">
+              <div className="flex items-start gap-3 p-4">
+                <div className="flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">Stream invite</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
+                    <span className="flex items-center gap-1">
+                      Host
+                      <Blockies className="h-4 w-4 rounded-sm" scale={3} seed={streamInvite.hostPeerId} size={10} />
+                      {hostShortId}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  as={Link}
+                  className="font-semibold !text-sm"
+                  color={isStreamHost ? 'success' : 'primary'}
+                  href={`/stream/${streamInvite.streamId}${query}`}
+                  radius="full"
+                  size="md"
+                  variant="solid"
+                >
+                  {isStreamHost ? 'Start' : 'Watch'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+    )
+  }
+
   if (meetingInvite) {
     const hostShortId = meetingInvite.hostPeerId.slice(-7)
-    const roomShortId = meetingInvite.roomId.slice(-7)
 
     return (
       <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
@@ -146,10 +207,10 @@ export const Message = ({
 
                 <Button
                   as={Link}
-                  href={`/room/${meetingInvite.roomId}`}
-                  radius="full"
                   className="font-semibold !text-sm"
                   color="success"
+                  href={`/room/${meetingInvite.roomId}`}
+                  radius="full"
                   size="md"
                   variant="solid"
                 >

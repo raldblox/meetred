@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 
-import ChatContainer from '@/components/chat'
-import ConnectionInfoButton from '@/components/connection-info-button'
-import ConnectionPanel from '@/components/connection-panel'
-import { Navbar } from '@/components/navbar'
+import ChatContainer from '@/components/chat/chat-room'
+import ConnectionInfoButton from '@/components/chat/connection-info-button'
+import ConnectionPanel from '@/components/chat/connection-panel'
+import { Navbar } from '@/components/ui/navbar'
 
 export default function Home() {
   const [isConnectionPanelOpen, setIsConnectionPanelOpen] = useState(false)

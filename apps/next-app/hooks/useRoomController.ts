@@ -4,9 +4,10 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { createRoomSupabaseClient } from '../(libs)/supabaseClient'
-import { ICE_SERVER_CONFIG, ROOM_CHANNEL_PREFIX, type RoomEvent, type SignalMessage } from '../(libs)/roomTypes'
-import { clearVideoElement, formatCallDuration } from '../(utils)/media'
+import { ICE_SERVER_CONFIG, ROOM_CHANNEL_PREFIX, type RoomEvent, type SignalMessage } from '../types/roomTypes'
+import { clearVideoElement, formatCallDuration } from '../lib/media'
+
+import { createRoomSupabaseClient } from '@/lib/supabaseClient'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const logError = (...args: unknown[]) => {

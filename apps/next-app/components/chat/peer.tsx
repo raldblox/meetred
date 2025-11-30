@@ -7,7 +7,7 @@ import { Badge } from '@heroui/react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat'
+import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat/chat-room'
 
 export interface PeerProps {
   peer: PeerId

@@ -20,7 +20,7 @@ import {
 } from '@heroui/react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import PeerList from '@/components/peer-list'
+import PeerList from '@/components/chat/peer-list'
 import { BOOTSTRAP_PEER_IDS } from '@/lib/constants'
 import { connectToMultiaddr } from '@/lib/libp2p'
 
