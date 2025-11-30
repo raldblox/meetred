@@ -17,12 +17,12 @@ import {
   FILE_EXCHANGE_PROTOCOL,
   MIME_TEXT_PLAIN,
   PUBSUB_PEER_DISCOVERY,
+  STREAM_SIGNAL_WRAPPER,
 } from '@/lib/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
 
 const log = forComponent('chat-context')
-const STREAM_SIGNAL_WRAPPER = 'stream-signal'
 
 const isStreamSignal = (content: string) => {
   try {
@@ -117,6 +117,10 @@ export const ChatProvider = ({ children }: any) => {
 
   const chatMessageCB = (evt: CustomEvent<Message>, topic: string, data: Uint8Array) => {
     const msg = new TextDecoder().decode(data)
+
+    if (isStreamSignal(msg)) {
+      return
+    }
 
     log(`${topic}: ${msg}`)
 

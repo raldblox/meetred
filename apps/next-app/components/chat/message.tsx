@@ -105,9 +105,6 @@ export const Message = ({
 
   if (streamInvite) {
     const hostShortId = streamInvite.hostPeerId.slice(-7)
-    const query = streamInvite.multiaddrs?.length
-      ? `?maddrs=${encodeURIComponent(JSON.stringify(streamInvite.multiaddrs))}`
-      : ''
 
     return (
       <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
@@ -147,7 +144,7 @@ export const Message = ({
                   as={Link}
                   className="font-semibold !text-sm"
                   color={isStreamHost ? 'success' : 'primary'}
-                  href={`/stream/${streamInvite.streamId}${query}`}
+                  href={`/stream/${streamInvite.hostPeerId}`}
                   radius="full"
                   size="md"
                   variant="solid"

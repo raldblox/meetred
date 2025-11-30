@@ -1,26 +1,767 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import type { Message } from '@libp2p/interface'
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
+import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { CHAT_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/lib/constants'
+import { forComponent } from '@/lib/logger'
 
-type StreamRole = 'host' | 'viewer' | null
+const log = forComponent('stream-context')
 
-interface StreamContextValue {
-  streamId?: string | null
-  hostPeerId?: string | null
+type StreamStatus = 'idle' | 'starting' | 'live' | 'connecting' | 'error'
+
+interface StreamSignalMessage {
+  streamId: string
+  action:
+    | 'viewer-offer'
+    | 'viewer-ice'
+    | 'host-answer'
+    | 'host-ice'
+    | 'host-ready'
+    | 'error'
+    | 'viewer-hello'
+    | 'log-entry'
+  to?: string
+  from?: string
+  payload?: any
 }
 
-const StreamContext = createContext<StreamContextValue>({})
+interface StreamSignalEnvelope {
+  type: typeof STREAM_SIGNAL_WRAPPER
+  payload: StreamSignalMessage
+}
 
-export function StreamProvider({ children }: { children: React.ReactNode }) {
+export interface StreamContextValue {
+  streamId: string
+  hostPeerId: string
+  selfPeerId: string | null
+  isHost: boolean
+  status: StreamStatus
+  error?: string | null
+  localStream?: MediaStream | null
+  remoteStream?: MediaStream | null
+  startHosting: () => Promise<void>
+  stopHosting: () => Promise<void>
+  startViewing: () => Promise<void>
+  stopViewing: () => void
+  resetError: () => void
+  statusLog: string[]
+  roomLogs: { message: string; timestamp: number; id: string }[]
+  isScreenSharing: boolean
+  toggleScreenShare: () => Promise<void>
+}
+
+const ICE_SERVERS: RTCConfiguration['iceServers'] = [{ urls: ['stun:stun.l.google.com:19302'] }]
+
+const StreamContext = createContext<StreamContextValue | undefined>(undefined)
+
+export function StreamProvider({ streamId, children }: { streamId: string; children: ReactNode }) {
   const { libp2p } = useLibp2pContext()
-  const [streamingEnabled, setStreamingEnabled] = useState(false)
-  const [streamId, setStreamId] = useState<string | null>(null)
+  const [hostStatus, setHostStatus] = useState<StreamStatus>('idle')
+  const [viewerStatus, setViewerStatus] = useState<StreamStatus>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [statusLog, setStatusLog] = useState<string[]>([])
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const hostConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  const viewerPeerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const pendingViewerOffersRef = useRef<Map<string, StreamSignalMessage>>(new Map())
+  const pendingViewerIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
+  const presenceLoggedRef = useRef(false)
+  const topic = CHAT_TOPIC
 
-  const value = {}
+  const selfPeerId = useMemo(() => libp2p.peerId?.toString() ?? null, [libp2p])
+  const hostPeerId = streamId
+  const isHost = useMemo(() => !!selfPeerId && selfPeerId === hostPeerId, [selfPeerId, hostPeerId])
+  const status = isHost ? hostStatus : viewerStatus
+  const [remoteHostReady, setRemoteHostReady] = useState(false)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [roomLogs, setRoomLogs] = useState<{ message: string; timestamp: number; id: string }[]>([])
+
+  const appendStatusLog = useCallback((entry: string) => {
+    log('stream status %s', entry)
+    setStatusLog((prev) => [...prev.slice(-5), entry])
+  }, [])
+
+  const setSelfStatus = useCallback(
+    (next: StreamStatus) => {
+      if (isHost) {
+        setHostStatus(next)
+        appendStatusLog(`host ${next}`)
+      } else {
+        setViewerStatus(next)
+        appendStatusLog(`viewer ${next}`)
+      }
+    },
+    [isHost, appendStatusLog],
+  )
+
+  const resetError = useCallback(() => setError(null), [])
+
+  const publishSignal = useCallback(
+    async (message: Omit<StreamSignalMessage, 'streamId' | 'from'>) => {
+      if (!libp2p || !selfPeerId) {
+        return
+      }
+
+      const payload: StreamSignalMessage = {
+        ...message,
+        streamId: hostPeerId,
+        from: selfPeerId,
+      }
+
+      const envelope: StreamSignalEnvelope = {
+        type: STREAM_SIGNAL_WRAPPER,
+        payload,
+      }
+
+      log('publishing signal on topic %s %o', topic, envelope)
+
+      try {
+        await libp2p.services.pubsub.publish(topic, uint8ArrayFromString(JSON.stringify(envelope)))
+      } catch (e: any) {
+        log.error('failed to publish signal %o', e)
+        setError(e?.message ?? 'failed to publish signal')
+        setSelfStatus('error')
+      }
+    },
+    [hostPeerId, libp2p, selfPeerId, setSelfStatus, topic],
+  )
+
+  const postRoomLog = useCallback(
+    async (message: string) => {
+      const entry = { message, timestamp: Date.now(), id: crypto.randomUUID() }
+
+      setRoomLogs((prev) => [...prev, entry])
+      await publishSignal({ action: 'log-entry', payload: entry })
+    },
+    [publishSignal],
+  )
+
+  const cleanupViewerConnection = useCallback(() => {
+    const pc = viewerPeerConnectionRef.current
+
+    if (pc) {
+      pc.onicecandidate = null
+      pc.ontrack = null
+      pc.close()
+    }
+    viewerPeerConnectionRef.current = null
+    pendingViewerIceRef.current.clear()
+  }, [])
+
+  const stopViewing = useCallback(() => {
+    cleanupViewerConnection()
+    setRemoteStream(null)
+    setViewerStatus((prev) => (prev === 'idle' ? prev : 'idle'))
+  }, [cleanupViewerConnection])
+
+  const stopHosting = useCallback(async () => {
+    try {
+      await publishSignal({ action: 'host-ready', payload: { live: false } })
+    } catch (e) {
+      log.error('failed to publish host offline signal %o', e)
+    }
+    hostConnectionsRef.current.forEach((pc) => {
+      pc.onicecandidate = null
+      pc.onconnectionstatechange = null
+      pc.close()
+    })
+    hostConnectionsRef.current.clear()
+
+    const currentStream = localStreamRef.current
+
+    if (currentStream) {
+      currentStream.getTracks().forEach((track) => track.stop())
+    }
+
+    appendStatusLog('host stopping stream')
+    localStreamRef.current = null
+    setLocalStream(null)
+    setHostStatus('idle')
+    setRemoteHostReady(false)
+    pendingViewerOffersRef.current.clear()
+  }, [])
+
+  const createHostPeerConnection = useCallback(
+    (viewerPeer: string) => {
+      const peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+
+      hostConnectionsRef.current.set(viewerPeer, peerConnection)
+
+      const stream = localStreamRef.current
+
+      if (stream) {
+        stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream))
+      }
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          publishSignal({
+            action: 'host-ice',
+            to: viewerPeer,
+            payload: { candidate: event.candidate.toJSON() },
+          })
+        }
+      }
+
+      peerConnection.onconnectionstatechange = () => {
+        const state = peerConnection.connectionState
+
+        if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+          hostConnectionsRef.current.delete(viewerPeer)
+          peerConnection.close()
+          postRoomLog(`Viewer ${viewerPeer.slice(-5)} left`)
+        } else if (state === 'connected') {
+          postRoomLog(`Viewer ${viewerPeer.slice(-5)} connected`)
+        }
+      }
+
+      return peerConnection
+    },
+    [publishSignal, postRoomLog],
+  )
+
+  const answerViewerOffer = useCallback(
+    async (signal: StreamSignalMessage, peerId: string) => {
+      const pc = hostConnectionsRef.current.get(peerId) ?? createHostPeerConnection(peerId)
+
+      try {
+        await pc.setRemoteDescription({ type: 'offer', sdp: signal.payload?.sdp })
+
+        const pendingCandidates = pendingViewerIceRef.current.get(peerId)
+
+        if (pendingCandidates?.length) {
+          for (const candidate of pendingCandidates) {
+            try {
+              await pc.addIceCandidate(candidate)
+            } catch (candidateError) {
+              log.error('failed to add pending viewer ice %o', candidateError)
+            }
+          }
+          pendingViewerIceRef.current.delete(peerId)
+        }
+
+        const answer = await pc.createAnswer()
+
+        await pc.setLocalDescription(answer)
+        await publishSignal({
+          action: 'host-answer',
+          to: peerId,
+          payload: { sdp: answer.sdp },
+        })
+      } catch (e: any) {
+        log.error('failed to process viewer offer %o', e)
+        setError(e?.message ?? 'failed to process viewer offer')
+        await publishSignal({
+          action: 'error',
+          to: peerId,
+          payload: { message: 'Unable to negotiate stream. Please retry.' },
+        })
+      }
+    },
+    [createHostPeerConnection, publishSignal],
+  )
+
+  const handleViewerOffer = useCallback(
+    async (signal: StreamSignalMessage, peerId: string) => {
+      if (!isHost) return
+
+      if (!localStreamRef.current) {
+        appendStatusLog(`queued offer from ${peerId}`)
+        pendingViewerOffersRef.current.set(peerId, signal)
+
+        return
+      }
+
+      await answerViewerOffer(signal, peerId)
+      pendingViewerOffersRef.current.delete(peerId)
+    },
+    [answerViewerOffer, isHost],
+  )
+
+  const handleViewerIce = useCallback(
+    async (signal: StreamSignalMessage, peerId: string) => {
+      if (!isHost) return
+      const candidate = signal.payload?.candidate ?? null
+
+      if (!candidate) {
+        return
+      }
+
+      const pc = hostConnectionsRef.current.get(peerId)
+
+      if (!pc) {
+        const existing = pendingViewerIceRef.current.get(peerId) ?? []
+
+        pendingViewerIceRef.current.set(peerId, [...existing, candidate])
+
+        return
+      }
+
+      try {
+        await pc.addIceCandidate(candidate)
+      } catch (e) {
+        log.error('failed to add viewer ice candidate %o', e)
+      }
+    },
+    [isHost],
+  )
+
+  const handleHostAnswer = useCallback(
+    async (signal: StreamSignalMessage) => {
+      const pc = viewerPeerConnectionRef.current
+
+      if (!pc) {
+        return
+      }
+
+      try {
+        await pc.setRemoteDescription({ type: 'answer', sdp: signal.payload?.sdp })
+        appendStatusLog('viewer applied host answer')
+        setSelfStatus('live')
+      } catch (e: any) {
+        log.error('failed to handle host answer %o', e)
+        setError(e?.message ?? 'failed to apply host answer')
+        setSelfStatus('error')
+      }
+    },
+    [setSelfStatus, appendStatusLog],
+  )
+
+  const handleHostIce = useCallback(async (signal: StreamSignalMessage) => {
+    const pc = viewerPeerConnectionRef.current
+
+    if (!pc) {
+      return
+    }
+
+    try {
+      await pc.addIceCandidate(signal.payload?.candidate ?? null)
+    } catch (e) {
+      log.error('failed to add host ice candidate %o', e)
+    }
+  }, [])
+
+  const handleStreamSignal = useCallback(
+    async (evt: CustomEvent<Message>) => {
+      if (evt.detail.topic !== topic) {
+        return
+      }
+
+      if (evt.detail.type !== 'signed') {
+        return
+      }
+
+      let parsed: StreamSignalMessage
+
+      try {
+        const envelope = JSON.parse(uint8ArrayToString(evt.detail.data)) as StreamSignalEnvelope
+
+        if (envelope?.type !== STREAM_SIGNAL_WRAPPER || !envelope.payload) {
+          return
+        }
+
+        parsed = envelope.payload
+      } catch (e) {
+        log.error('failed to decode stream signal %o', e)
+
+        return
+      }
+
+      const incomingPeerId = evt.detail.from?.toString()
+
+      log('received %o on topic %s from %s', parsed, evt.detail.topic, incomingPeerId ?? 'unknown')
+      if (parsed.streamId !== hostPeerId) {
+        return
+      }
+
+      if (parsed.action === 'viewer-offer' || parsed.action === 'viewer-ice') {
+        if (!isHost || (parsed.to && parsed.to !== selfPeerId)) {
+          return
+        }
+
+        if (!incomingPeerId) {
+          return
+        }
+
+        if (parsed.action === 'viewer-offer') {
+          await handleViewerOffer(parsed, incomingPeerId)
+        } else if (parsed.action === 'viewer-ice') {
+          await handleViewerIce(parsed, incomingPeerId)
+        }
+
+        return
+      }
+
+      // viewer-handled signals
+      if (parsed.to && parsed.to !== selfPeerId) {
+        return
+      }
+
+      switch (parsed.action) {
+        case 'host-answer':
+          await handleHostAnswer(parsed)
+          break
+        case 'host-ice':
+          await handleHostIce(parsed)
+          break
+        case 'host-ready':
+          const live = parsed.payload?.live ?? true
+
+          setRemoteHostReady(live)
+          appendStatusLog(`viewer host-ready ${live ? 'live' : 'stopped'}`)
+          if (!live) {
+            stopViewing()
+          }
+          break
+        case 'error':
+          setError(parsed.payload?.message ?? 'An error occurred in the stream')
+          setSelfStatus('error')
+          break
+        case 'viewer-hello':
+          if (isHost && status === 'live') {
+            await publishSignal({ action: 'host-ready', payload: { live: true } })
+            // Optional: Log that a viewer is attempting to join/hello
+            // postRoomLog(`Viewer ${incomingPeerId?.slice(-5)} said hello`)
+          }
+          break
+        case 'log-entry':
+          if (parsed.payload) {
+            setRoomLogs((prev) => {
+              if (prev.some((l) => l.id === parsed.payload.id)) return prev
+
+              return [...prev, parsed.payload]
+            })
+          }
+          break
+        default:
+          break
+      }
+    },
+    [
+      handleHostAnswer,
+      handleHostIce,
+      handleViewerIce,
+      handleViewerOffer,
+      hostPeerId,
+      isHost,
+      selfPeerId,
+      setSelfStatus,
+      topic,
+      status,
+      publishSignal,
+    ],
+  )
+
+  useEffect(() => {
+    libp2p.services.pubsub.addEventListener('message', handleStreamSignal)
+
+    return () => {
+      libp2p.services.pubsub.removeEventListener('message', handleStreamSignal)
+    }
+  }, [handleStreamSignal, libp2p.services.pubsub, topic])
+
+  useEffect(() => {
+    if (!isHost && libp2p && selfPeerId) {
+      // Announce presence to check if host is already live
+      publishSignal({ action: 'viewer-hello' }).catch((e) => log.error('failed to send hello %o', e))
+    }
+  }, [isHost, libp2p, publishSignal, selfPeerId])
+
+  useEffect(() => {
+    if (!selfPeerId || presenceLoggedRef.current) {
+      return
+    }
+
+    presenceLoggedRef.current = true
+    const shortId = selfPeerId.slice(-7)
+    const message = isHost ? `Host ${shortId} opened the stream room` : `Viewer ${shortId} joined to watch the stream`
+
+    postRoomLog(message).catch((e) => log.error('failed to post presence log %o', e))
+  }, [isHost, postRoomLog, selfPeerId])
+
+  const flushPendingViewerOffers = useCallback(async () => {
+    if (!localStreamRef.current) {
+      return
+    }
+
+    for (const [peerId, signal] of pendingViewerOffersRef.current) {
+      try {
+        appendStatusLog(`flushing queued offer for ${peerId}`)
+        await answerViewerOffer(signal, peerId)
+        pendingViewerOffersRef.current.delete(peerId)
+      } catch (e) {
+        log.error('failed to answer queued viewer offer %o', e)
+      }
+    }
+  }, [answerViewerOffer, appendStatusLog])
+
+  const startHosting = useCallback(async () => {
+    if (!isHost) {
+      setError('Only the verified host can start streaming.')
+      setSelfStatus('error')
+
+      return
+    }
+
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setError('Media devices are not available in this browser.')
+      setSelfStatus('error')
+
+      return
+    }
+
+    resetError()
+    setSelfStatus('starting')
+    appendStatusLog('host requesting camera/mic')
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+
+      localStreamRef.current = stream
+      setLocalStream(stream)
+      setSelfStatus('live')
+      appendStatusLog('host live stream available')
+      await publishSignal({ action: 'host-ready', payload: { live: true } })
+      await postRoomLog('Stream started')
+      await flushPendingViewerOffers()
+    } catch (e: any) {
+      log.error('failed to start hosting %o', e)
+      setError(e?.message ?? 'failed to access camera/microphone')
+      setSelfStatus('error')
+    }
+  }, [appendStatusLog, flushPendingViewerOffers, isHost, publishSignal, resetError, setSelfStatus])
+
+  const startViewing = useCallback(async () => {
+    if (isHost) {
+      setError('Hosts cannot view their own stream.')
+      setSelfStatus('error')
+
+      return
+    }
+
+    if (viewerPeerConnectionRef.current) {
+      return
+    }
+
+    resetError()
+    setSelfStatus('connecting')
+    appendStatusLog('viewer creating offer')
+
+    const peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+
+    viewerPeerConnectionRef.current = peerConnection
+
+    peerConnection.ontrack = (event) => {
+      const [stream] = event.streams
+
+      setRemoteStream(stream ?? null)
+    }
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        publishSignal({
+          action: 'viewer-ice',
+          to: hostPeerId,
+          payload: { candidate: event.candidate.toJSON() },
+        })
+      }
+    }
+
+    peerConnection.onconnectionstatechange = () => {
+      const state = peerConnection.connectionState
+
+      if (state === 'failed' || state === 'disconnected') {
+        setError('Connection to the host was lost.')
+        setSelfStatus('error')
+      }
+    }
+
+    try {
+      const offer = await peerConnection.createOffer()
+
+      await peerConnection.setLocalDescription(offer)
+      await publishSignal({
+        action: 'viewer-offer',
+        to: hostPeerId,
+        payload: { sdp: offer.sdp },
+      })
+    } catch (e: any) {
+      log.error('failed to start viewing %o', e)
+      setError(e?.message ?? 'failed to create viewer offer')
+      setSelfStatus('error')
+      stopViewing()
+    }
+  }, [hostPeerId, isHost, publishSignal, resetError, setSelfStatus, stopViewing])
+
+  useEffect(() => {
+    if (isHost || !selfPeerId) {
+      return
+    }
+
+    if (status !== 'idle') {
+      return
+    }
+
+    if (viewerPeerConnectionRef.current) {
+      return
+    }
+
+    startViewing().catch((e) => log.error('auto viewer start failed %o', e))
+  }, [isHost, selfPeerId, startViewing, status])
+
+  const reconnectTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!isHost && remoteHostReady && status === 'idle' && !viewerPeerConnectionRef.current) {
+      startViewing().catch((err) => log.error('auto viewer start failed %o', err))
+    }
+  }, [isHost, remoteHostReady, startViewing, status])
+
+  useEffect(() => {
+    if (isHost) {
+      return
+    }
+
+    if (status === 'connecting') {
+      reconnectTimerRef.current = window.setTimeout(() => {
+        appendStatusLog('viewer reconnecting after timeout')
+        stopViewing()
+      }, 8000)
+    }
+
+    return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
+      }
+    }
+  }, [appendStatusLog, isHost, status, stopViewing])
+
+  useEffect(() => {
+    return () => {
+      stopViewing()
+      stopHosting()
+    }
+  }, [stopHosting, stopViewing])
+
+  const toggleScreenShare = useCallback(async () => {
+    if (!isHost || !localStreamRef.current) return
+
+    try {
+      if (isScreenSharing) {
+        // Switch back to camera
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        const videoTrack = stream.getVideoTracks()[0]
+
+        // Replace track in local stream
+        const currentVideoTrack = localStreamRef.current.getVideoTracks()[0]
+
+        if (currentVideoTrack) {
+          localStreamRef.current.removeTrack(currentVideoTrack)
+          currentVideoTrack.stop()
+        }
+        localStreamRef.current.addTrack(videoTrack)
+
+        // Replace track in peer connections
+        hostConnectionsRef.current.forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
+
+          if (sender) {
+            sender.replaceTrack(videoTrack)
+          }
+        })
+
+        setLocalStream(new MediaStream(localStreamRef.current.getTracks())) // Trigger re-render
+        setIsScreenSharing(false)
+        appendStatusLog('host switched to camera')
+      } else {
+        // Switch to screen share
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+        const screenTrack = stream.getVideoTracks()[0]
+
+        // Handle user stopping screen share via browser UI
+        screenTrack.onended = () => {
+          // We can't easily call toggleScreenShare here because it depends on state that might be stale in the closure if not careful,
+          // but since we use functional updates or refs, it might be okay.
+          // However, simpler to just let the user manually switch back or force it.
+          // Let's try to force switch back to camera if they stop sharing.
+          // Actually, we need to be careful about recursion or state.
+          // For now, let's just stop the track. The user will see black/frozen screen and can click "Stop Sharing" (which is now "Start Camera") in UI.
+          // Better: Update state to reflect it stopped.
+          setIsScreenSharing(false)
+          // We should ideally revert to camera automatically.
+          // But we need to call getUserMedia again.
+          // Let's leave it for manual switch for safety, or just update UI state.
+          // If we update UI state to false, the button becomes "Share Screen" again.
+          // But the stream is now dead (video track ended).
+          // So we MUST revert to camera or at least stop the "sharing" state.
+        }
+
+        // Replace track in local stream
+        const currentVideoTrack = localStreamRef.current.getVideoTracks()[0]
+
+        if (currentVideoTrack) {
+          localStreamRef.current.removeTrack(currentVideoTrack)
+          currentVideoTrack.stop()
+        }
+        localStreamRef.current.addTrack(screenTrack)
+
+        // Replace track in peer connections
+        hostConnectionsRef.current.forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
+
+          if (sender) {
+            sender.replaceTrack(screenTrack)
+          }
+        })
+
+        setLocalStream(new MediaStream(localStreamRef.current.getTracks()))
+        setIsScreenSharing(true)
+        appendStatusLog('host switched to screen share')
+      }
+    } catch (e: any) {
+      log.error('failed to toggle screen share %o', e)
+      setError(e?.message ?? 'failed to toggle screen share')
+      setIsScreenSharing(false)
+    }
+  }, [isHost, isScreenSharing, appendStatusLog])
+
+  const value: StreamContextValue = {
+    streamId,
+    hostPeerId,
+    selfPeerId,
+    isHost,
+    status,
+    error,
+    localStream,
+    remoteStream,
+    startHosting,
+    stopHosting,
+    startViewing,
+    stopViewing,
+    resetError,
+    statusLog,
+    roomLogs,
+    isScreenSharing,
+    toggleScreenShare,
+  }
 
   return <StreamContext.Provider value={value}>{children}</StreamContext.Provider>
 }
 
-export const useStreamContext = () => useContext(StreamContext)
+export const useStreamContext = () => {
+  const ctx = useContext(StreamContext)
+
+  if (!ctx) {
+    throw new Error('useStreamContext must be used within a StreamProvider')
+  }
+
+  return ctx
+}

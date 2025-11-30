@@ -251,12 +251,12 @@ export default function ChatContainer() {
     if (sending) return
 
     const hostPeerId = libp2p.peerId.toString()
-    const hostAddrs = libp2p.getMultiaddrs?.().map((ma) => ma.toString()) ?? []
+    // const hostAddrs = libp2p.getMultiaddrs?.().map((ma) => ma.toString()) ?? []
     const streamInvite = JSON.stringify({
       type: 'stream_invite',
       streamId: hostPeerId,
       hostPeerId,
-      multiaddrs: hostAddrs,
+      // multiaddrs: hostAddrs,
       createdAt: Date.now(),
     })
 
