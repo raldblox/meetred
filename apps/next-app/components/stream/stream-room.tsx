@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Navbar } from '@/components/ui/navbar'
 import { useStreamContext } from '@/context/stream-ctx'
+import { forComponent } from '@/lib/logger'
+
+const log = forComponent('stream-room')
 
 export function StreamRoom({ streamId }: { streamId: string }) {
   const {
@@ -18,6 +21,8 @@ export function StreamRoom({ streamId }: { streamId: string }) {
     stopHosting,
     resetError,
     roomLogs,
+    startViewing,
+    stopViewing,
     isScreenSharing,
     toggleScreenShare,
   } = useStreamContext()
@@ -25,6 +30,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
   const [viewerAudioEnabled, setViewerAudioEnabled] = useState(false)
+  const viewerStartedRef = useRef(false)
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -78,6 +84,29 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const handleEnableAudio = () => {
     setViewerAudioEnabled(true)
   }
+
+  useEffect(() => {
+    if (isHost) {
+      return
+    }
+
+    if (status === 'idle' && !viewerStartedRef.current) {
+      viewerStartedRef.current = true
+      startViewing().catch((error) => {
+        log.error('viewer failed to start room stream %o', error)
+        viewerStartedRef.current = false
+      })
+    }
+  }, [isHost, startViewing, status])
+
+  useEffect(() => {
+    return () => {
+      viewerStartedRef.current = false
+      if (!isHost) {
+        stopViewing()
+      }
+    }
+  }, [isHost, stopViewing])
 
   const viewerWaitingMessage = 'Waiting for the host to go live.'
 
