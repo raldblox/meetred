@@ -12,6 +12,7 @@ import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-context')
 
+// Serialises an arbitrary error so that we can surface it in room logs without crashing.
 const describeError = (error: unknown): string | undefined => {
   if (!error) {
     return undefined
@@ -41,6 +42,7 @@ const describeError = (error: unknown): string | undefined => {
 
 type ReceiverWithPlayoutDelay = RTCRtpReceiver & { playoutDelayHint?: number }
 
+// Applies browser hints that minimise JIT buffering on viewer peer connections.
 const applyLowLatencyReceiverSettings = (receiver?: RTCRtpReceiver | null) => {
   if (!receiver) return
 
@@ -55,6 +57,7 @@ const applyLowLatencyReceiverSettings = (receiver?: RTCRtpReceiver | null) => {
   }
 }
 
+// Normalises sender encoders (used by the host) so every viewer receives a predictable stream.
 const applyLowLatencySenderSettings = (pc?: RTCPeerConnection | null) => {
   if (!pc) return
 
@@ -101,6 +104,7 @@ const applyLowLatencySenderSettings = (pc?: RTCPeerConnection | null) => {
   })
 }
 
+// Ensures the local tracks are tagged/constrainted before sending to peers.
 const prepareLocalMediaForRealtime = async (stream: MediaStream) => {
   const tasks: Promise<unknown>[] = []
 
@@ -184,6 +188,7 @@ export interface StreamContextValue {
   toggleScreenShare: () => Promise<void>
 }
 
+// Shared STUN config keeps signalling minimal while being supported in every major browser.
 const ICE_SERVERS: RTCConfiguration['iceServers'] = [{ urls: ['stun:stun.l.google.com:19302'] }]
 
 const VIDEO_TRACK_CONSTRAINTS: MediaTrackConstraints = {
@@ -245,6 +250,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
   const resetError = useCallback(() => setError(null), [])
 
+  // Broadcasts signalling payloads over libp2p pubsub instead of using a traditional SFU.
   const publishSignal = useCallback(
     async (message: Omit<StreamSignalMessage, 'streamId' | 'from'>) => {
       if (!libp2p || !selfPeerId) {
@@ -275,6 +281,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [hostPeerId, libp2p, selfPeerId, setSelfStatus, topic],
   )
 
+  // Mirrors important lifecycle events to all clients so the UI can show a consistent activity feed.
   const postRoomLog = useCallback(
     async (message: string) => {
       const entry = { message, timestamp: Date.now(), id: crypto.randomUUID() }
@@ -285,6 +292,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [publishSignal],
   )
 
+  // Helper that annotates the activity feed whenever we hit an unexpected error path.
   const recordRoomError = useCallback(
     async (message: string, error?: unknown) => {
       const detail = describeError(error)
@@ -317,6 +325,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     setViewerStatus((prev) => (prev === 'idle' ? prev : 'idle'))
   }, [cleanupViewerConnection])
 
+  // Tears down the broadcast state and lets viewers know the host is offline.
   const stopHosting = useCallback(async () => {
     try {
       await publishSignal({ action: 'host-ready', payload: { live: false } })
@@ -353,6 +362,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [appendStatusLog, isHost, postRoomLog, publishSignal, recordRoomError])
 
+  // Lazily creates or reuses a host->viewer connection whenever we receive an offer.
   const createHostPeerConnection = useCallback(
     (viewerPeer: string) => {
       const peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS })
@@ -393,6 +403,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [publishSignal, postRoomLog],
   )
 
+  // Applies a viewer's SDP offer, flushes pending ICE, and responds with the answer.
   const answerViewerOffer = useCallback(
     async (signal: StreamSignalMessage, peerId: string) => {
       const pc = hostConnectionsRef.current.get(peerId) ?? createHostPeerConnection(peerId)
@@ -435,6 +446,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [createHostPeerConnection, publishSignal, recordRoomError],
   )
 
+  // Viewer offer handler queues requests until the host owns media.
   const handleViewerOffer = useCallback(
     async (signal: StreamSignalMessage, peerId: string) => {
       if (!isHost) return
@@ -452,6 +464,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [answerViewerOffer, isHost],
   )
 
+  // Buffers ICE candidates until a host connection exists.
   const handleViewerIce = useCallback(
     async (signal: StreamSignalMessage, peerId: string) => {
       if (!isHost) return
@@ -480,6 +493,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [isHost],
   )
 
+  // Applies the host SDP answer on the viewer so playback can start.
   const handleHostAnswer = useCallback(
     async (signal: StreamSignalMessage) => {
       const pc = viewerPeerConnectionRef.current
@@ -502,6 +516,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [recordRoomError, setSelfStatus, appendStatusLog],
   )
 
+  // Pushes host ICE into the viewer peer connection.
   const handleHostIce = useCallback(async (signal: StreamSignalMessage) => {
     const pc = viewerPeerConnectionRef.current
 
@@ -516,6 +531,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [])
 
+  // Central switchboard for all pubsub signalling messages routed through libp2p.
   const handleStreamSignal = useCallback(
     async (evt: CustomEvent<Message>) => {
       if (evt.detail.topic !== topic) {
@@ -627,6 +643,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     ],
   )
 
+  // Attach the streaming signal handler to libp2p pubsub lifecycle.
   useEffect(() => {
     libp2p.services.pubsub.addEventListener('message', handleStreamSignal)
 
@@ -635,6 +652,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [handleStreamSignal, libp2p.services.pubsub, topic])
 
+  // As soon as a viewer loads the room, announce their presence to discover if host is live.
   useEffect(() => {
     if (!isHost && libp2p && selfPeerId) {
       // Announce presence to check if host is already live
@@ -642,6 +660,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [isHost, libp2p, publishSignal, selfPeerId])
 
+  // Each peer posts a presence log exactly once, making room activity deterministic.
   useEffect(() => {
     if (!selfPeerId || presenceLoggedRef.current) {
       return
@@ -654,6 +673,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     postRoomLog(message).catch((e) => log.error('failed to post presence log %o', e))
   }, [isHost, postRoomLog, selfPeerId])
 
+  // Replays queued viewer offers whenever the host regains a usable stream.
   const flushPendingViewerOffers = useCallback(async () => {
     if (!localStreamRef.current) {
       return
@@ -670,6 +690,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [answerViewerOffer, appendStatusLog])
 
+  // Host side entrypoint: grabs local media, advertises readiness, logs the event.
   const startHosting = useCallback(async () => {
     if (!isHost) {
       setError('Only the verified host can start streaming.')
@@ -713,6 +734,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [appendStatusLog, flushPendingViewerOffers, isHost, publishSignal, recordRoomError, resetError, setSelfStatus])
 
+  // Viewer entrypoint: creates a recvonly offer and waits for the host to answer.
   const startViewing = useCallback(async () => {
     if (isHost) {
       setError('Hosts cannot view their own stream.')
@@ -782,6 +804,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [hostPeerId, isHost, publishSignal, recordRoomError, resetError, setSelfStatus, stopViewing])
 
+  // If the viewer is idle and the host advertises readiness, attempt to reconnect automatically.
   useEffect(() => {
     if (isHost || !selfPeerId) {
       return
@@ -800,12 +823,14 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
   const reconnectTimerRef = useRef<number | null>(null)
 
+  // When we detect a viewer stuck in connecting state, tear down the connection so it can retry.
   useEffect(() => {
     if (!isHost && remoteHostReady && status === 'idle' && !viewerPeerConnectionRef.current) {
       startViewing().catch((err) => log.error('auto viewer start failed %o', err))
     }
   }, [isHost, remoteHostReady, startViewing, status])
 
+  // When the component unmounts (navigation away), clean up both host and viewer state.
   useEffect(() => {
     if (isHost) {
       return
@@ -833,6 +858,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
   }, [stopHosting, stopViewing])
 
+  // Swaps between camera and display capture mid-stream while keeping viewers connected.
   const toggleScreenShare = useCallback(async () => {
     if (!isHost || !localStreamRef.current) return
 
