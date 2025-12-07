@@ -896,8 +896,18 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
         setLocalStream(new MediaStream(localStreamRef.current.getTracks())) // Trigger re-render
         setIsScreenSharing(false)
+        await postRoomLog('Screen share stopped')
         appendStatusLog('host switched to camera')
       } else {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          setError(
+            'This browser does not support screen sharing. Please update your browser or use a desktop device.',
+          )
+          await recordRoomError('Screen share unsupported on this device')
+
+          return
+        }
+
         // Switch to screen share
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
         const screenTrack = stream.getVideoTracks()[0]
@@ -948,6 +958,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
         setLocalStream(new MediaStream(localStreamRef.current.getTracks()))
         setIsScreenSharing(true)
+        await postRoomLog('Screen share started')
         appendStatusLog('host switched to screen share')
       }
     } catch (e: any) {
