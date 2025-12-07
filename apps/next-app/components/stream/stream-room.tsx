@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Navbar } from '@/components/ui/navbar'
 import { useStreamContext } from '@/context/stream-ctx'
 import { forComponent } from '@/lib/logger'
+import { ThemeSwitch } from '../ui/theme-switch'
+import Link from 'next/link'
+import Image from 'next/image'
 
 const log = forComponent('stream-room')
 
@@ -123,20 +126,98 @@ export function StreamRoom({ streamId }: { streamId: string }) {
       : 'Waiting for the host to go live.'
 
   return (
-    <div className="flex flex-col min-h-screen bg-default-50/40 max-w-7xl mx-auto">
-      <Navbar />
-      <div className="flex-1 min-h-0 p-4 flex flex-col gap-4">
-        <div className="rounded-2xl border border-default-100 shadow-sm p-6 flex flex-col items-center gap-4 text-center">
-          <span className="text-xs font-medium uppercase text-default-500">Stream</span>
-          <h1 className="text-3xl font-semibold">{streamId}</h1>
-          <p className="text-sm text-default-500 text-balance">{statusDescription}</p>
-          <div className="text-xs text-default-500">
-            Logs below are real-time; refresh both tabs to compare host/viewer events.
+    <div className="flex flex-col min-h-screen bg-default-50/50">
+      <nav className="flex items-center justify-between w-full pt-2 px-3">
+        <div className="flex items-center gap-3">
+          <Link className="flex justify-start items-center gap-2" href="/">
+            <Image alt="metered logo" className={`text-foreground`} height="16" src="/metered.svg" width="16" />
+            <h1 className="font-semibold text-sm uppercase text-default-500">
+              Stream: <span className="font-medium">{streamId.slice(-7)}</span>
+            </h1>
+          </Link>
+        </div>
+
+        <ThemeSwitch />
+      </nav>
+      <div className="flex-1 mx-auto container min-h-0 p-2 pb-4 flex flex-col gap-4">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 lg:flex-row">
+          <div className="flex-1 rounded-xl bg-default-50 flex items-center justify-center">
+            <div className="relative flex h-full w-full items-center justify-center">
+              <div className="relative flex h-full w-full items-center justify-center rounded-xl bg-default-50">
+                {isHost ? (
+                  localStream ? (
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-sm">Start the stream to preview your broadcast.</p>
+                  )
+                ) : remoteStream ? (
+                  <>
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      className="max-h-full max-w-full object-contain"
+                      muted={!viewerAudioEnabled}
+                    />
+                    {!viewerAudioEnabled && (
+                      <div className="absolute bottom-4 right-4 rounded-full shadow-lg">
+                        <button
+                          className="px-4 py-2 text-xs font-semibold uppercase tracking-wide"
+                          onClick={handleEnableAudio}
+                        >
+                          Enable Sound
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-sm">
+                    <p>{viewerWaitingMessage}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+          <div className="w-full lg:w-80 flex-shrink-0 rounded-xl bg-default-50 p-4 text-xs text-default-500 flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
+              <p className="font-semibold text-default-600">Room Activity</p>
+              <span className="text-[10px] uppercase tracking-wider opacity-60">Live Updates</span>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
+              {roomLogs.length === 0 ? (
+                <p className="text-center py-4 opacity-50 italic">No activity yet</p>
+              ) : (
+                roomLogs.map((entry) => (
+                  <div key={entry.id} className="flex gap-2 items-start">
+                    <span className="opacity-40 font-mono whitespace-nowrap">
+                      {new Date(entry.timestamp).toLocaleTimeString([], {
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </span>
+                    <span className="text-default-700">{entry.message}</span>
+                  </div>
+                ))
+              )}
+              <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-default-50 shadow-sm p-6 flex flex-col items-center gap-2 text-center">
+          <p className="text-sm text-default-500 text-balance">{statusDescription}</p>
+
           {isHost && (
             <div className="flex items-center gap-3">
               <button
-                className="px-6 py-2 rounded-full text-sm font-semibold bg-primary-500 hover:bg-primary-600 disabled:opacity-60 text-white transition-colors"
+                className="px-6 py-2 rounded-full text-sm font-semibold bg-primary-500 hover:bg-primary-600 disabled:opacity-60 transition-colors"
                 disabled={status === 'starting'}
                 onClick={status === 'live' ? stopHosting : startHosting}
               >
@@ -144,8 +225,8 @@ export function StreamRoom({ streamId }: { streamId: string }) {
               </button>
               {status === 'live' && (
                 <button
-                  className={`px-6 py-2 rounded-full text-sm font-semibold transition-colors text-white ${
-                    isScreenSharing ? 'bg-red-500 hover:bg-red-600' : 'bg-zinc-700 hover:bg-zinc-800'
+                  className={`px-6 py-2 rounded-full text-sm font-semibold transition-colorse ${
+                    isScreenSharing ? 'bg-red-500 hover:bg-red-600' : 'bg-default-100 hover:bg-default-100'
                   }`}
                   onClick={toggleScreenShare}
                 >
@@ -171,69 +252,6 @@ export function StreamRoom({ streamId }: { streamId: string }) {
               </button>
             </div>
           )}
-        </div>
-
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="flex-1 bg-black rounded-2xl overflow-hidden flex items-center justify-center relative">
-            {isHost ? (
-              localStream ? (
-                <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              ) : (
-                <p className="text-white/60 text-sm">Start the stream to preview your broadcast.</p>
-              )
-            ) : remoteStream ? (
-              <div className="relative h-full w-full">
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="h-full w-full object-cover"
-                  muted={!viewerAudioEnabled}
-                />
-                {!viewerAudioEnabled && (
-                  <div className="absolute bottom-4 right-4 rounded-full bg-black/60 text-white shadow-lg">
-                    <button
-                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wide"
-                      onClick={handleEnableAudio}
-                    >
-                      Enable Sound
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-white/70 text-sm">
-                <p>{viewerWaitingMessage}</p>
-              </div>
-            )}
-          </div>
-          <div className="mt-3 rounded-xl border border-default-200 bg-default-100/80 p-3 text-xs text-default-500 text-left flex flex-col h-48">
-            <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
-              <p className="font-semibold text-default-600">Room Activity</p>
-              <span className="text-[10px] uppercase tracking-wider opacity-60">Live Updates</span>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
-              {roomLogs.length === 0 ? (
-                <p className="text-center py-4 opacity-50 italic">No activity yet</p>
-              ) : (
-                roomLogs.map((entry) => (
-                  <div key={entry.id} className="flex gap-2 items-start">
-                    <span className="opacity-40 font-mono whitespace-nowrap">
-                      {new Date(entry.timestamp).toLocaleTimeString([], {
-                        hour12: false,
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })}
-                    </span>
-                    <span className="text-default-700">{entry.message}</span>
-                  </div>
-                ))
-              )}
-              {/* Auto-scroll anchor */}
-              <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
-            </div>
-          </div>
         </div>
       </div>
     </div>
