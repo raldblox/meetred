@@ -12,6 +12,108 @@ import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-context')
 
+type ReceiverWithPlayoutDelay = RTCRtpReceiver & { playoutDelayHint?: number }
+
+const applyLowLatencyReceiverSettings = (receiver?: RTCRtpReceiver | null) => {
+  if (!receiver) return
+
+  const target = receiver as ReceiverWithPlayoutDelay
+
+  try {
+    if (typeof target.playoutDelayHint === 'number' || target.playoutDelayHint === undefined) {
+      target.playoutDelayHint = 0.04
+    }
+  } catch (error) {
+    log.error('failed to set receiver playout delay %o', error)
+  }
+}
+
+const applyLowLatencySenderSettings = (pc?: RTCPeerConnection | null) => {
+  if (!pc) return
+
+  pc.getSenders().forEach((sender) => {
+    if (
+      !sender?.track ||
+      typeof sender.getParameters !== 'function' ||
+      typeof sender.setParameters !== 'function'
+    ) {
+      return
+    }
+
+    try {
+      const parameters = sender.getParameters()
+
+      if (!parameters.encodings || parameters.encodings.length === 0) {
+        parameters.encodings = [{}]
+      }
+
+      parameters.degradationPreference = 'maintain-framerate'
+      parameters.encodings = parameters.encodings.map((encoding) => {
+        if (sender.track?.kind === 'video') {
+          return {
+            ...encoding,
+            maxBitrate: 1_500_000,
+            maxFramerate: 30,
+            priority: 'high',
+          }
+        }
+
+        return {
+          ...encoding,
+          maxBitrate: 128_000,
+          priority: 'high',
+        }
+      })
+
+      Promise.resolve(sender.setParameters(parameters)).catch((error) => {
+        log.error('failed to update rtc sender parameters %o', error)
+      })
+    } catch (error) {
+      log.error('failed to prepare rtc sender parameters %o', error)
+    }
+  })
+}
+
+const prepareLocalMediaForRealtime = async (stream: MediaStream) => {
+  const tasks: Promise<unknown>[] = []
+
+  stream.getVideoTracks().forEach((track) => {
+    try {
+      track.contentHint = 'motion'
+    } catch {
+      // ignore unsupported hints
+    }
+
+    if (typeof track.applyConstraints === 'function') {
+      tasks.push(
+        track.applyConstraints(VIDEO_TRACK_CONSTRAINTS).catch((error) => {
+          log.error('failed to apply video constraints %o', error)
+        }),
+      )
+    }
+  })
+
+  stream.getAudioTracks().forEach((track) => {
+    try {
+      track.contentHint = 'speech'
+    } catch {
+      // ignore unsupported hints
+    }
+
+    if (typeof track.applyConstraints === 'function') {
+      tasks.push(
+        track.applyConstraints(AUDIO_TRACK_CONSTRAINTS).catch((error) => {
+          log.error('failed to apply audio constraints %o', error)
+        }),
+      )
+    }
+  })
+
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks)
+  }
+}
+
 type StreamStatus = 'idle' | 'starting' | 'live' | 'connecting' | 'error'
 
 interface StreamSignalMessage {
@@ -56,6 +158,18 @@ export interface StreamContextValue {
 }
 
 const ICE_SERVERS: RTCConfiguration['iceServers'] = [{ urls: ['stun:stun.l.google.com:19302'] }]
+
+const VIDEO_TRACK_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  frameRate: { ideal: 30, max: 30 },
+}
+
+const AUDIO_TRACK_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+}
 
 const StreamContext = createContext<StreamContextValue | undefined>(undefined)
 
@@ -198,6 +312,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
       if (stream) {
         stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream))
+        applyLowLatencySenderSettings(peerConnection)
       }
 
       peerConnection.onicecandidate = (event) => {
@@ -522,7 +637,12 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     appendStatusLog('host requesting camera/mic')
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: VIDEO_TRACK_CONSTRAINTS,
+        audio: AUDIO_TRACK_CONSTRAINTS,
+      })
+
+      await prepareLocalMediaForRealtime(stream)
 
       localStreamRef.current = stream
       setLocalStream(stream)
@@ -559,6 +679,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     viewerPeerConnectionRef.current = peerConnection
 
     peerConnection.ontrack = (event) => {
+      applyLowLatencyReceiverSettings(event.receiver)
       const [stream] = event.streams
 
       setRemoteStream(stream ?? null)
@@ -584,6 +705,11 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     }
 
     try {
+      // Advertise that we want to receive both audio & video; without recvonly
+      // transceivers the SDP offer has no media sections and the host can't send tracks.
+      peerConnection.addTransceiver('video', { direction: 'recvonly' })
+      peerConnection.addTransceiver('audio', { direction: 'recvonly' })
+
       const offer = await peerConnection.createOffer()
 
       await peerConnection.setLocalDescription(offer)
@@ -657,7 +783,13 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     try {
       if (isScreenSharing) {
         // Switch back to camera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: VIDEO_TRACK_CONSTRAINTS,
+          audio: false,
+        })
+
+        await prepareLocalMediaForRealtime(stream)
+
         const videoTrack = stream.getVideoTracks()[0]
 
         // Replace track in local stream
@@ -674,7 +806,9 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
           const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
 
           if (sender) {
-            sender.replaceTrack(videoTrack)
+            Promise.resolve(sender.replaceTrack(videoTrack))
+              .then(() => applyLowLatencySenderSettings(pc))
+              .catch((error) => log.error('failed to replace video track %o', error))
           }
         })
 
@@ -685,6 +819,12 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
         // Switch to screen share
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
         const screenTrack = stream.getVideoTracks()[0]
+
+        try {
+          screenTrack.contentHint = 'detail'
+        } catch {
+          // ignore unsupported hints
+        }
 
         // Handle user stopping screen share via browser UI
         screenTrack.onended = () => {
@@ -718,7 +858,9 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
           const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
 
           if (sender) {
-            sender.replaceTrack(screenTrack)
+            Promise.resolve(sender.replaceTrack(screenTrack))
+              .then(() => applyLowLatencySenderSettings(pc))
+              .catch((error) => log.error('failed to replace screen track %o', error))
           }
         })
 

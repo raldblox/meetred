@@ -7,11 +7,37 @@ import { StreamProvider, useStreamContext, type StreamContextValue } from '@/con
 
 // --- Mocks (Copied from stream-ctx.test.tsx) ---
 
+class MockMediaStreamTrack {
+  public stop = vi.fn()
+  public applyConstraints = vi.fn(async () => {})
+  public contentHint?: string
+
+  constructor(public kind: 'audio' | 'video') {}
+}
+
 class MockMediaStream {
-  private tracks = [{ stop: vi.fn() }]
+  private videoTrack = new MockMediaStreamTrack('video')
+  private audioTrack = new MockMediaStreamTrack('audio')
+  private tracks = [this.videoTrack, this.audioTrack]
 
   getTracks() {
     return this.tracks
+  }
+
+  getVideoTracks() {
+    return [this.videoTrack]
+  }
+
+  getAudioTracks() {
+    return [this.audioTrack]
+  }
+
+  addTrack(track: MockMediaStreamTrack) {
+    this.tracks.push(track)
+  }
+
+  removeTrack(track: MockMediaStreamTrack) {
+    this.tracks = this.tracks.filter((t) => t !== track)
   }
 }
 
@@ -25,11 +51,23 @@ class MockRTCPeerConnection {
   public localDescription: any = null
   public remoteDescription: any = null
   public candidates: any[] = []
+  public transceivers: any[] = []
+  private senders: any[] = []
   private hasLocalMedia = false
   private readonly id = ++peerConnectionSeq
 
-  addTrack(): void {
+  addTrack(track?: any): void {
     this.hasLocalMedia = true
+    const sender: any = {
+      track,
+      replaceTrack: vi.fn(async (nextTrack?: any) => {
+        sender.track = nextTrack
+      }),
+      getParameters: vi.fn(() => ({ encodings: [] })),
+      setParameters: vi.fn(async () => {}),
+    }
+
+    this.senders.push(sender)
   }
 
   async setRemoteDescription(desc: any): Promise<void> {
@@ -62,8 +100,24 @@ class MockRTCPeerConnection {
     }
   }
 
+  addTransceiver(kind: string, init?: { direction?: string }) {
+    const transceiver = { kind, direction: init?.direction ?? 'sendrecv' }
+
+    this.transceivers.push(transceiver)
+
+    return transceiver
+  }
+
   async addIceCandidate(candidate: any): Promise<void> {
     this.candidates.push(candidate)
+  }
+
+  getSenders() {
+    return this.senders
+  }
+
+  removeTrack(sender: any) {
+    this.senders = this.senders.filter((item) => item !== sender)
   }
 
   close(): void {
