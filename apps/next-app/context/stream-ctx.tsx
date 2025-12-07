@@ -12,6 +12,33 @@ import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-context')
 
+const describeError = (error: unknown): string | undefined => {
+  if (!error) {
+    return undefined
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  const message = (error as any)?.message
+
+  if (typeof message === 'string') {
+    return message
+  }
+
+  try {
+    return JSON.stringify(error)
+  } catch {
+    try {
+      return String(error)
+    } catch {
+      return undefined
+    }
+  }
+}
+
 type ReceiverWithPlayoutDelay = RTCRtpReceiver & { playoutDelayHint?: number }
 
 const applyLowLatencyReceiverSettings = (receiver?: RTCRtpReceiver | null) => {
@@ -187,6 +214,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
   const pendingViewerOffersRef = useRef<Map<string, StreamSignalMessage>>(new Map())
   const pendingViewerIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
   const presenceLoggedRef = useRef(false)
+  const hostWentLiveRef = useRef(false)
   const topic = CHAT_TOPIC
 
   const selfPeerId = useMemo(() => libp2p.peerId?.toString() ?? null, [libp2p])
@@ -257,6 +285,20 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     [publishSignal],
   )
 
+  const recordRoomError = useCallback(
+    async (message: string, error?: unknown) => {
+      const detail = describeError(error)
+      const entry = detail ? `${message} - ${detail}` : message
+
+      try {
+        await postRoomLog(`Error: ${entry}`)
+      } catch (logError) {
+        log.error('failed to post room error %o', logError)
+      }
+    },
+    [postRoomLog],
+  )
+
   const cleanupViewerConnection = useCallback(() => {
     const pc = viewerPeerConnectionRef.current
 
@@ -280,6 +322,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       await publishSignal({ action: 'host-ready', payload: { live: false } })
     } catch (e) {
       log.error('failed to publish host offline signal %o', e)
+      await recordRoomError('Failed to announce host offline', e)
     }
     hostConnectionsRef.current.forEach((pc) => {
       pc.onicecandidate = null
@@ -300,7 +343,15 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     setHostStatus('idle')
     setRemoteHostReady(false)
     pendingViewerOffersRef.current.clear()
-  }, [])
+    if (isHost && hostWentLiveRef.current) {
+      hostWentLiveRef.current = false
+      try {
+        await postRoomLog('Stream stopped')
+      } catch (error) {
+        log.error('failed to log host stop %o', error)
+      }
+    }
+  }, [appendStatusLog, isHost, postRoomLog, publishSignal, recordRoomError])
 
   const createHostPeerConnection = useCallback(
     (viewerPeer: string) => {
@@ -378,9 +429,10 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
           to: peerId,
           payload: { message: 'Unable to negotiate stream. Please retry.' },
         })
+        await recordRoomError(`Host failed to process viewer ${peerId.slice(-5)} offer`, e)
       }
     },
-    [createHostPeerConnection, publishSignal],
+    [createHostPeerConnection, publishSignal, recordRoomError],
   )
 
   const handleViewerOffer = useCallback(
@@ -444,9 +496,10 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
         log.error('failed to handle host answer %o', e)
         setError(e?.message ?? 'failed to apply host answer')
         setSelfStatus('error')
+        await recordRoomError('Viewer failed to apply host answer', e)
       }
     },
-    [setSelfStatus, appendStatusLog],
+    [recordRoomError, setSelfStatus, appendStatusLog],
   )
 
   const handleHostIce = useCallback(async (signal: StreamSignalMessage) => {
@@ -650,13 +703,15 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       appendStatusLog('host live stream available')
       await publishSignal({ action: 'host-ready', payload: { live: true } })
       await postRoomLog('Stream started')
+      hostWentLiveRef.current = true
       await flushPendingViewerOffers()
     } catch (e: any) {
       log.error('failed to start hosting %o', e)
       setError(e?.message ?? 'failed to access camera/microphone')
       setSelfStatus('error')
+      await recordRoomError('Host failed to start stream', e)
     }
-  }, [appendStatusLog, flushPendingViewerOffers, isHost, publishSignal, resetError, setSelfStatus])
+  }, [appendStatusLog, flushPendingViewerOffers, isHost, publishSignal, recordRoomError, resetError, setSelfStatus])
 
   const startViewing = useCallback(async () => {
     if (isHost) {
@@ -723,8 +778,9 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       setError(e?.message ?? 'failed to create viewer offer')
       setSelfStatus('error')
       stopViewing()
+      await recordRoomError('Viewer failed to start stream', e)
     }
-  }, [hostPeerId, isHost, publishSignal, resetError, setSelfStatus, stopViewing])
+  }, [hostPeerId, isHost, publishSignal, recordRoomError, resetError, setSelfStatus, stopViewing])
 
   useEffect(() => {
     if (isHost || !selfPeerId) {
@@ -872,8 +928,9 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       log.error('failed to toggle screen share %o', e)
       setError(e?.message ?? 'failed to toggle screen share')
       setIsScreenSharing(false)
+      await recordRoomError('Screen share error', e)
     }
-  }, [isHost, isScreenSharing, appendStatusLog])
+  }, [appendStatusLog, isHost, isScreenSharing, recordRoomError])
 
   const value: StreamContextValue = {
     streamId,
