@@ -62,11 +62,7 @@ const applyLowLatencySenderSettings = (pc?: RTCPeerConnection | null) => {
   if (!pc) return
 
   pc.getSenders().forEach((sender) => {
-    if (
-      !sender?.track ||
-      typeof sender.getParameters !== 'function' ||
-      typeof sender.setParameters !== 'function'
-    ) {
+    if (!sender?.track || typeof sender.getParameters !== 'function' || typeof sender.setParameters !== 'function') {
       return
     }
 
@@ -327,6 +323,10 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
   // Tears down the broadcast state and lets viewers know the host is offline.
   const stopHosting = useCallback(async () => {
+    if (!isHost) {
+      return
+    }
+
     try {
       await publishSignal({ action: 'host-ready', payload: { live: false } })
     } catch (e) {
@@ -900,9 +900,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
         appendStatusLog('host switched to camera')
       } else {
         if (!navigator.mediaDevices?.getDisplayMedia) {
-          setError(
-            'This browser does not support screen sharing. Please update your browser or use a desktop device.',
-          )
+          setError('This browser does not support screen sharing. Please update your browser or use a desktop device.')
           await recordRoomError('Screen share unsupported on this device')
 
           return

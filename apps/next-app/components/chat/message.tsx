@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { peerIdFromString } from '@libp2p/peer-id'
 import Blockies from 'react-18-blockies'
 import Link from 'next/link'
@@ -6,9 +6,14 @@ import { Button } from '@heroui/react'
 
 import { PeerWrapper } from './peer'
 
+import { StreamInvitePreview } from '@/components/stream/stream-preview'
+import { StreamProvider } from '@/context/stream-ctx'
+import { StreamInlineOverlay } from '@/components/stream/stream-inline-overlay'
+import { StreamInlineViewer } from '@/components/stream/stream-inline-viewer'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { ChatMessage } from '@/context/chat-ctx'
 import { useMarkAsRead } from '@/hooks/useMarkAsRead'
+import { useStreamLiveStatus } from '@/hooks/useStreamLiveStatus'
 
 type MeetingInvitePayload = {
   type: 'meeting_invite'
@@ -94,6 +99,11 @@ export const Message = ({
   const meetingInvite = useMemo(() => parseMeetingInvite(msg), [msg])
   const streamInvite = useMemo(() => parseStreamInvite(msg), [msg])
   const isStreamHost = streamInvite ? libp2p.peerId.toString() === streamInvite.hostPeerId : false
+  const streamStatus = useStreamLiveStatus(
+    streamInvite && !isStreamHost ? streamInvite.hostPeerId : undefined,
+    Boolean(streamInvite && !isStreamHost),
+  )
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   const timestamp = new Date(receivedAt).toLocaleString()
 
@@ -124,12 +134,34 @@ export const Message = ({
               {showTimestamp && <span>{timestamp}</span>}
             </div>
           )}
-          <div className="w-full max-w-xl">
-            <div className="relative min-w-xs shadow overflow-hidden rounded-lg bg-default-100 transition">
-              <div className="flex items-start gap-3 p-4">
+          <div className="w-full max-w-sm">
+            <div className="relative w-full p-2 shadow overflow-hidden rounded-lg bg-default-100 transition">
+              <div className="flex items-start gap-3 p-1">
                 <div className="flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">Stream invite</span>
+                    {!isStreamHost && (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                          streamStatus.state === 'live'
+                            ? 'bg-rose-100 text-rose-600'
+                            : streamStatus.state === 'checking'
+                              ? 'bg-default-200 text-default-600'
+                              : 'bg-default-200 text-default-500'
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            streamStatus.state === 'live' ? 'bg-rose-500 animate-pulse' : 'bg-default-500'
+                          }`}
+                        />
+                        {streamStatus.state === 'live'
+                          ? 'Live now'
+                          : streamStatus.state === 'checking'
+                            ? 'Checking'
+                            : 'Offline'}
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
                     <span className="flex items-center gap-1">
@@ -140,18 +172,58 @@ export const Message = ({
                   </div>
                 </div>
 
-                <Button
-                  as={Link}
-                  className="font-semibold !text-sm"
-                  color={isStreamHost ? 'success' : 'primary'}
-                  href={`/stream/${streamInvite.hostPeerId}`}
-                  radius="full"
-                  size="md"
-                  variant="solid"
-                >
-                  {isStreamHost ? 'Start' : 'Watch'}
-                </Button>
+                {isStreamHost ? (
+                  <Button
+                    as={Link}
+                    className="font-semibold !text-sm"
+                    color="success"
+                    href={`/stream/${streamInvite.hostPeerId}`}
+                    radius="full"
+                    size="md"
+                    variant="solid"
+                  >
+                    Start
+                  </Button>
+                ) : (
+                  <Button
+                    className="font-semibold !text-sm"
+                    color="primary"
+                    radius="full"
+                    size="md"
+                    variant="solid"
+                    onPress={() => setViewerOpen(true)}
+                  >
+                    Watch
+                  </Button>
+                )}
               </div>
+
+              {!isStreamHost && (
+                <StreamProvider streamId={streamInvite.hostPeerId}>
+                  <StreamInlineOverlay
+                    open={viewerOpen}
+                    streamId={streamInvite.hostPeerId}
+                    onClose={() => setViewerOpen(false)}
+                  >
+                    <StreamInlineViewer />
+                  </StreamInlineOverlay>
+                  {streamStatus.state === 'live' && (
+                    <div className="mt-2">
+                      <StreamInvitePreview onClick={() => setViewerOpen(true)} />
+                    </div>
+                  )}
+                  {streamStatus.state === 'checking' && (
+                    <p className="mt-3 text-[11px] uppercase tracking-wide text-default-400">
+                      Checking if host is live...
+                    </p>
+                  )}
+                  {streamStatus.state === 'offline' && (
+                    <p className="mt-3 text-[11px] uppercase tracking-wide text-default-400">
+                      Preview will appear once the host goes live.
+                    </p>
+                  )}
+                </StreamProvider>
+              )}
             </div>
           </div>
         </div>

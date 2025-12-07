@@ -2,7 +2,7 @@
 
 /* eslint-disable jsx-a11y/media-has-caption */
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Navbar } from '@/components/ui/navbar'
 import { useStreamContext } from '@/context/stream-ctx'
@@ -17,7 +17,6 @@ export function StreamRoom({ streamId }: { streamId: string }) {
     startHosting,
     stopHosting,
     resetError,
-    statusLog,
     roomLogs,
     isScreenSharing,
     toggleScreenShare,
@@ -25,29 +24,13 @@ export function StreamRoom({ streamId }: { streamId: string }) {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
-  const [remotePlaybackBlocked, setRemotePlaybackBlocked] = useState(false)
-
-  const ensureRemotePlayback = useCallback(() => {
-    const video = remoteVideoRef.current
-
-    if (!video) {
-      return
-    }
-
-    const playPromise = video.play()
-
-    if (playPromise && typeof (playPromise as Promise<void>).then === 'function') {
-      playPromise
-        .then(() => setRemotePlaybackBlocked(false))
-        .catch(() => setRemotePlaybackBlocked(true))
-    } else {
-      setRemotePlaybackBlocked(false)
-    }
-  }, [])
+  const [viewerAudioEnabled, setViewerAudioEnabled] = useState(false)
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream
+    } else if (localVideoRef.current && !localStream) {
+      localVideoRef.current.srcObject = null
     }
   }, [localStream])
 
@@ -56,12 +39,45 @@ export function StreamRoom({ streamId }: { streamId: string }) {
 
     if (video && remoteStream) {
       video.srcObject = remoteStream
-      requestAnimationFrame(() => ensureRemotePlayback())
+      video.muted = !viewerAudioEnabled
+      const playPromise = video.play()
+
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch(() => {
+          // Ignore autoplay rejections; user can start audio via UI.
+        })
+      }
     } else if (video && !remoteStream) {
       video.srcObject = null
-      setRemotePlaybackBlocked(false)
+      setViewerAudioEnabled(false)
     }
-  }, [ensureRemotePlayback, remoteStream])
+  }, [remoteStream, viewerAudioEnabled])
+
+  useEffect(() => {
+    const video = remoteVideoRef.current
+
+    if (!video) {
+      return
+    }
+
+    video.muted = !viewerAudioEnabled
+
+    if (viewerAudioEnabled) {
+      const playPromise = video.play()
+
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          // If unmuted playback fails, revert and let user try again.
+          video.muted = true
+          setViewerAudioEnabled(false)
+        })
+      }
+    }
+  }, [viewerAudioEnabled])
+
+  const handleEnableAudio = () => {
+    setViewerAudioEnabled(true)
+  }
 
   const viewerWaitingMessage = 'Waiting for the host to go live.'
 
@@ -129,33 +145,38 @@ export function StreamRoom({ streamId }: { streamId: string }) {
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 bg-black rounded-2xl overflow-hidden flex items-center justify-center relative">
-          {isHost ? (
-            localStream ? (
-              <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+          <div className="flex-1 bg-black rounded-2xl overflow-hidden flex items-center justify-center relative">
+            {isHost ? (
+              localStream ? (
+                <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+              ) : (
+                <p className="text-white/60 text-sm">Start the stream to preview your broadcast.</p>
+              )
+            ) : remoteStream ? (
+              <div className="relative h-full w-full">
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="h-full w-full object-cover"
+                  muted={!viewerAudioEnabled}
+                />
+                {!viewerAudioEnabled && (
+                  <div className="absolute bottom-4 right-4 rounded-full bg-black/60 text-white shadow-lg">
+                    <button
+                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wide"
+                      onClick={handleEnableAudio}
+                    >
+                      Enable Sound
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
-              <p className="text-white/60 text-sm">Start the stream to preview your broadcast.</p>
-            )
-          ) : remoteStream ? (
-            <>
-              <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
-              {remotePlaybackBlocked && (
-                <div className="absolute inset-0 bg-black/80 text-white flex flex-col items-center justify-center gap-3 p-6 text-center">
-                  <p className="text-sm">Your browser blocked autoplay for this stream.</p>
-                  <button
-                    className="px-4 py-2 rounded-full bg-primary-500 hover:bg-primary-600 text-sm font-semibold transition-colors"
-                    onClick={ensureRemotePlayback}
-                  >
-                    Play Stream
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-white/70 text-sm">
-              <p>{viewerWaitingMessage}</p>
-            </div>
-          )}
+              <div className="flex flex-col items-center gap-2 text-white/70 text-sm">
+                <p>{viewerWaitingMessage}</p>
+              </div>
+            )}
           </div>
           <div className="mt-3 rounded-xl border border-default-200 bg-default-100/80 p-3 text-xs text-default-500 text-left flex flex-col h-48">
             <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
