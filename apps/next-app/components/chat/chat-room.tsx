@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
-import { Button, Input, Spinner, Textarea, Tooltip } from '@heroui/react'
-import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X } from 'lucide-react'
+import { Button, Input, Spinner, Textarea, Tooltip, ScrollShadow } from '@heroui/react'
+import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X, ChevronDown } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../../context/chat-ctx'
@@ -28,9 +28,11 @@ export default function ChatContainer() {
   const { messageHistory, setMessageHistory, directMessages, setDirectMessages, files, setFiles } = useChatContext()
   const [input, setInput] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const messageListRef = useRef<HTMLDivElement | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [showMobilePeerList, setShowMobilePeerList] = useState(false)
+  const [isMessageListAtBottom, setIsMessageListAtBottom] = useState(true)
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -281,6 +283,29 @@ export default function ChatContainer() {
     setShowMobilePeerList(!showMobilePeerList)
   }
 
+  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const list = messageListRef.current
+
+    if (!list) {
+      return
+    }
+
+    list.scrollTo({ top: list.scrollHeight, behavior })
+  }, [])
+
+  const handleMessageScroll = useCallback(() => {
+    const list = messageListRef.current
+
+    if (!list) {
+      return
+    }
+
+    const threshold = 64
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight <= threshold
+
+    setIsMessageListAtBottom((prev) => (prev === atBottom ? prev : atBottom))
+  }, [])
+
   useEffect(() => {
     // assumes a chat room is a peerId thus a direct message
     if (roomId === PUBLIC_CHAT_ROOM_ID) {
@@ -308,6 +333,17 @@ export default function ChatContainer() {
   }, [pathname, router, roomId, searchParams, setRoomId])
 
   useEffect(() => {
+    if (isMessageListAtBottom) {
+      scrollMessagesToBottom('auto')
+    }
+  }, [isMessageListAtBottom, messages, scrollMessagesToBottom])
+
+  useEffect(() => {
+    setIsMessageListAtBottom(true)
+    scrollMessagesToBottom('auto')
+  }, [roomId, scrollMessagesToBottom])
+
+  useEffect(() => {
     if (!roomId || roomId === PUBLIC_CHAT_ROOM_ID) {
       return
     }
@@ -319,8 +355,17 @@ export default function ChatContainer() {
     } catch {}
   }, [libp2p, roomId])
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
   return (
-    <div className="w-full relative border-x border-default-100 mx-auto container h-full min-h-0 grid grid-cols-1 lg:grid-cols-6">
+    <div className="w-full relative mx-auto container h-screen min-h-0 overflow-hidden border-x border-default-100 grid grid-cols-1 lg:grid-cols-6">
       <div className="hidden h-full lg:block border-r border-default-100">
         <ChatPeerList />
       </div>
@@ -404,33 +449,53 @@ export default function ChatContainer() {
         </div>
 
         <div className={`flex flex-col min-h-0 flex-1 `}>
-          <ul className={`p-3 space-y-1 overflow-y-auto flex-1 min-h-0 `}>
-            {messages.map((message: ChatMessage, index: number) => {
-              const previousMessage = index > 0 ? messages[index - 1] : undefined
-              const sameSender = previousMessage ? previousMessage.peerId === message.peerId : false
-              const withinTwoMinutes = previousMessage
-                ? message.receivedAt - previousMessage.receivedAt <= 2 * 60 * 1000
-                : false
-              const showTimestamp = !previousMessage || !sameSender || !withinTwoMinutes
+          <div className="relative flex-1 min-h-0">
+            <ScrollShadow
+              ref={messageListRef}
+              className="h-full"
+              hideScrollBar
+              offset={24}
+              onScroll={handleMessageScroll}
+            >
+              <ul className="p-3 space-y-1">
+                {messages.map((message: ChatMessage, index: number) => {
+                  const previousMessage = index > 0 ? messages[index - 1] : undefined
+                  const sameSender = previousMessage ? previousMessage.peerId === message.peerId : false
+                  const withinTwoMinutes = previousMessage
+                    ? message.receivedAt - previousMessage.receivedAt <= 2 * 60 * 1000
+                    : false
+                  const showTimestamp = !previousMessage || !sameSender || !withinTwoMinutes
 
-              const showAvatar = !previousMessage || !sameSender
+                  const showAvatar = !previousMessage || !sameSender
 
-              return (
-                <Message
-                  key={message.msgId}
-                  dm={roomId !== ''}
-                  fileObjectUrl={message.fileObjectUrl}
-                  msg={message.msg}
-                  msgId={message.msgId}
-                  peerId={message.peerId}
-                  read={message.read}
-                  receivedAt={message.receivedAt}
-                  showAvatar={showAvatar}
-                  showTimestamp={showTimestamp}
-                />
-              )
-            })}
-          </ul>
+                  return (
+                    <Message
+                      key={message.msgId}
+                      dm={roomId !== ''}
+                      fileObjectUrl={message.fileObjectUrl}
+                      msg={message.msg}
+                      msgId={message.msgId}
+                      peerId={message.peerId}
+                      read={message.read}
+                      receivedAt={message.receivedAt}
+                      showAvatar={showAvatar}
+                      showTimestamp={showTimestamp}
+                    />
+                  )
+                })}
+              </ul>
+            </ScrollShadow>
+            {!isMessageListAtBottom && (
+              <Button
+                isIconOnly
+                aria-label="Scroll to latest messages"
+                className="absolute bottom-4 right-5 flex items-center gap-2 rounded-full bg-foreground/20 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
+                onPress={() => scrollMessagesToBottom('smooth')}
+              >
+                <ChevronDown size={16} />
+              </Button>
+            )}
+          </div>
           <div className="w-full h-fit p-2">
             <div className="flex rounded-xl bg-default-100 p-2 items-end justify-between w-full">
               <Input
