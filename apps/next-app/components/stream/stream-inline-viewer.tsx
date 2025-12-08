@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useStreamContext } from '@/context/stream-ctx'
 
@@ -10,12 +10,21 @@ import { useStreamContext } from '@/context/stream-ctx'
 export function StreamInlineViewer() {
   const { remoteStream, status, error, resetError } = useStreamContext()
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [aspectRatio, setAspectRatio] = useState(16 / 9)
 
   useEffect(() => {
     const video = videoRef.current
 
     if (!video) {
       return
+    }
+
+    const updateRatio = () => {
+      const { videoWidth, videoHeight } = video
+
+      if (videoWidth > 0 && videoHeight > 0) {
+        setAspectRatio(videoWidth / videoHeight)
+      }
     }
 
     if (remoteStream) {
@@ -30,8 +39,27 @@ export function StreamInlineViewer() {
           // Ignore autoplay rejections; the overlay only opens after a user gesture.
         })
       }
+
+      video.addEventListener('loadedmetadata', updateRatio)
     } else {
       video.srcObject = null
+    }
+
+    return () => {
+      video.removeEventListener('loadedmetadata', updateRatio)
+    }
+  }, [remoteStream])
+
+  useEffect(() => {
+    if (!remoteStream) {
+      return
+    }
+
+    const track = remoteStream.getVideoTracks?.()[0]
+    const settings = track?.getSettings?.()
+
+    if (settings?.width && settings?.height) {
+      setAspectRatio(settings.width / settings.height)
     }
   }, [remoteStream])
 
@@ -53,9 +81,9 @@ export function StreamInlineViewer() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative aspect-video w-full overflow-hidden rounded-3xl bg-black">
+      <div className="relative w-full overflow-hidden rounded-3xl bg-black" style={{ aspectRatio }}>
         {remoteStream ? (
-          <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover">
+          <video ref={videoRef} autoPlay playsInline className="h-full w-full object-contain bg-black">
             <track
               default
               kind="captions"

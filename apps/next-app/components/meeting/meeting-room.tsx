@@ -115,7 +115,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const renderLocalTile = (extraClasses = '', compact = false) => (
     <div
       className={`relative flex overflow-hidden rounded-2xl bg-default-50 ${
-        compact ? 'aspect-video w-[280px] min-w-[220px] max-w-[320px]' : 'h-full min-h-[200px] w-full'
+        compact ? 'aspect-video w-[280px] min-w-[220px] max-w-[280px]' : 'h-full min-h-[200px] w-full'
       } ${extraClasses}`}
     >
       {}

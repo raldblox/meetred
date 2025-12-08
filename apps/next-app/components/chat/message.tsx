@@ -126,7 +126,7 @@ export const Message = ({
           ) : (
             <div className="w-8" />
           )}
-          <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+          <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
             {showTimestamp && (
               <div
                 className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
@@ -135,7 +135,7 @@ export const Message = ({
                 {showTimestamp && <span>{timestamp}</span>}
               </div>
             )}
-            <div className="w-sm">
+            <div className="min-w-[250px] md:min-w-md">
               <div className="relative w-full overflow-hidden rounded-lg bg-default-100 p-4 shadow transition">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -178,7 +178,7 @@ export const Message = ({
         ) : (
           <div className="w-8" />
         )}
-        <div className={`flex flex-col min-w-sm max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`flex flex-col min-w-[250px] max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
           {showTimestamp && (
             <div
               className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
