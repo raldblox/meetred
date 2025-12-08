@@ -21,7 +21,7 @@ import {
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import PeerList from '@/components/chat/peer-list'
-import { BOOTSTRAP_PEER_IDS } from '@/lib/constants'
+import { BOOTSTRAP_PEER_IDS } from '@/config/constants'
 import { connectToMultiaddr } from '@/lib/libp2p'
 
 export default function ConnectionPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {

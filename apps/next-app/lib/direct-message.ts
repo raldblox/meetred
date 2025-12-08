@@ -5,7 +5,7 @@ import { PeerId, Stream, Connection, TypedEventEmitter, Startable } from '@libp2
 import { serviceCapabilities, serviceDependencies } from '@libp2p/interface'
 import { pbStream } from 'it-protobuf-stream'
 
-import { DIRECT_MESSAGE_PROTOCOL, MIME_TEXT_PLAIN } from '@/lib/constants'
+import { DIRECT_MESSAGE_PROTOCOL, MIME_TEXT_PLAIN } from '@/config/constants'
 import { dm } from '@/lib/protobuf/direct-message'
 
 export const dmClientVersion = '0.0.1'

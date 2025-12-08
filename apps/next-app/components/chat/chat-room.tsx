@@ -14,7 +14,7 @@ import { ChatPeerList } from './chat-peer-list'
 import { Message } from './message'
 
 import { forComponent } from '@/lib/logger'
-import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/lib/constants'
+import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/config/constants'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 const log = forComponent('chat')
@@ -487,9 +487,10 @@ export default function ChatContainer() {
             </ScrollShadow>
             {!isMessageListAtBottom && (
               <Button
+                size="md"
                 isIconOnly
                 aria-label="Scroll to latest messages"
-                className="absolute bottom-4 right-5 flex items-center gap-2 rounded-full bg-foreground/20 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
+                className="absolute bottom-4 right-1.5 flex items-center gap-2 rounded-full bg-foreground/30 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
                 onPress={() => scrollMessagesToBottom('smooth')}
               >
                 <ChevronDown size={16} />

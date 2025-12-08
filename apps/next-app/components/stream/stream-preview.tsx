@@ -84,7 +84,7 @@ export function StreamInvitePreview({
           <p className="text-sm text-left text-foreground/50">{description}</p>
 
           <div className="pt-2">
-            <span className="inline-flex gap-2 bg-foreground text-background items-center justify-center rounded-full px-3 py-2 text-sm font-semibold shadow-lg transition">
+            <span className="inline-flex hover:invert gap-2 bg-foreground text-background items-center justify-center rounded-full px-3 py-2 text-sm font-semibold shadow-lg transition">
               <Play size={14} />
               {ctaLabel}
             </span>

@@ -5,7 +5,7 @@ import { Button, Chip } from '@heroui/react'
 import { useCallback } from 'react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { BOOTSTRAP_PEER_IDS } from '@/lib/constants'
+import { BOOTSTRAP_PEER_IDS } from '@/config/constants'
 
 interface PeerListProps {
   connections: Connection[]

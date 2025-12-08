@@ -7,7 +7,7 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/lib/constants'
+import { CHAT_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-context')

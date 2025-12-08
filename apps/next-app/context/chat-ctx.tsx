@@ -18,7 +18,7 @@ import {
   MIME_TEXT_PLAIN,
   PUBSUB_PEER_DISCOVERY,
   STREAM_SIGNAL_WRAPPER,
-} from '@/lib/constants'
+} from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
 
