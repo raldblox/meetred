@@ -274,13 +274,13 @@ export const Message = ({
   }
 
   return (
-    <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+    <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left  mr-10'}`}>
       {showAvatar ? (
         <div className="mt-5 w-8 h-8">
           <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
         </div>
       ) : (
-        <div className="w-8" />
+        <div className="!w-8 !h-8 aspect-square" />
       )}
       <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
         {showTimestamp && (
