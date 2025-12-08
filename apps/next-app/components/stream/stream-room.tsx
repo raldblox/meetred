@@ -8,8 +8,12 @@ import Image from 'next/image'
 
 import { ThemeSwitch } from '../ui/theme-switch'
 
+import { StreamChatPanel } from './stream-chat-panel'
+
 import { useStreamContext } from '@/context/stream-ctx'
 import { forComponent } from '@/lib/logger'
+import { Button } from '@heroui/react'
+import { LucideSpeaker, Speaker } from 'lucide-react'
 
 const log = forComponent('stream-room')
 
@@ -32,7 +36,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
-  const [viewerAudioEnabled, setViewerAudioEnabled] = useState(false)
+  const [viewerAudioEnabled, setViewerAudioEnabled] = useState(true)
   const viewerStartedRef = useRef(false)
 
   useEffect(() => {
@@ -127,7 +131,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-default-50/50">
-      <nav className="flex items-center justify-between w-full pt-2 px-3">
+      <nav className="flex items-center justify-between w-full px-3 h-10 border-b border-default-100">
         <div className="flex items-center gap-3">
           <Link className="flex justify-start items-center gap-2" href="/">
             <Image alt="metered logo" className={`text-foreground`} height="16" src="/metered.svg" width="16" />
@@ -139,57 +143,15 @@ export function StreamRoom({ streamId }: { streamId: string }) {
 
         <ThemeSwitch />
       </nav>
-      <div className="flex-1 mx-auto container min-h-0 p-2 pb-4 flex flex-col gap-4">
-        <div className="flex-1 min-h-0 flex flex-col gap-4 lg:flex-row">
-          <div className="flex-1 rounded-xl bg-default-50 flex items-center justify-center">
-            <div className="relative flex h-full w-full items-center justify-center">
-              <div className="relative flex h-full w-full items-center justify-center rounded-xl bg-default-50">
-                {isHost ? (
-                  localStream ? (
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : (
-                    <p className="text-sm">Start the stream to preview your broadcast.</p>
-                  )
-                ) : remoteStream ? (
-                  <>
-                    <video
-                      ref={remoteVideoRef}
-                      autoPlay
-                      playsInline
-                      className="max-h-full max-w-full object-contain"
-                      muted={!viewerAudioEnabled}
-                    />
-                    {!viewerAudioEnabled && (
-                      <div className="absolute bottom-4 right-4 rounded-full shadow-lg">
-                        <button
-                          className="px-4 py-2 text-xs font-semibold uppercase tracking-wide"
-                          onClick={handleEnableAudio}
-                        >
-                          Enable Sound
-                        </button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-sm">
-                    <p>{viewerWaitingMessage}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="w-full lg:w-80 flex-shrink-0 rounded-xl bg-default-50 p-4 text-xs text-default-500 flex flex-col">
+      <div className="h-10 bg-default-50 w-full border-b border-default-100"></div>
+      <div className="flex-1 mx-auto container flex flex-col min-h-0 p-4 pb-4">
+        <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+          <aside className="order-2 lg:order-none rounded-2xl bg-default-50 p-4 text-xs text-default-500 flex flex-col min-h-0">
             <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
               <p className="font-semibold text-default-600">Room Activity</p>
               <span className="text-[10px] uppercase tracking-wider opacity-60">Live Updates</span>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
               {roomLogs.length === 0 ? (
                 <p className="text-center py-4 opacity-50 italic">No activity yet</p>
               ) : (
@@ -209,49 +171,99 @@ export function StreamRoom({ streamId }: { streamId: string }) {
               )}
               <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
             </div>
-          </div>
-        </div>
-        <div className="rounded-2xl bg-default-50 shadow-sm p-6 flex flex-col items-center gap-2 text-center">
-          <p className="text-sm text-default-500 text-balance">{statusDescription}</p>
+          </aside>
 
-          {isHost && (
-            <div className="flex items-center gap-3">
-              <button
-                className="px-6 py-2 rounded-full text-sm font-semibold bg-primary-500 hover:bg-primary-600 disabled:opacity-60 transition-colors"
-                disabled={status === 'starting'}
-                onClick={status === 'live' ? stopHosting : startHosting}
-              >
-                {status === 'live' ? 'Stop Stream' : 'Start Stream'}
-              </button>
-              {status === 'live' && (
-                <button
-                  className={`px-6 py-2 rounded-full text-sm font-semibold transition-colorse ${
-                    isScreenSharing ? 'bg-red-500 hover:bg-red-600' : 'bg-default-100 hover:bg-default-100'
-                  }`}
-                  onClick={toggleScreenShare}
-                >
-                  {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
-                </button>
+          <section className="order-1 lg:order-none relative rounded-3xl border border-default-100 bg-default-900/5 min-h-[360px] flex flex-col">
+            <div className="relative flex-1 min-h-0 flex items-center justify-center rounded-3xl bg-default-950/5 overflow-hidden">
+              {isHost ? (
+                localStream ? (
+                  <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-contain" />
+                ) : (
+                  <p className="text-sm text-default-500">Start the stream to preview your broadcast.</p>
+                )
+              ) : remoteStream ? (
+                <>
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className="h-full w-full object-contain"
+                    muted={!viewerAudioEnabled}
+                  />
+                  {!viewerAudioEnabled && (
+                    <div className="absolute bottom-6 right-6">
+                      <Button radius="full" size="sm" onPress={handleEnableAudio}>
+                        Enable Sound
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-sm text-default-500">
+                  <p>{viewerWaitingMessage}</p>
+                </div>
               )}
-              <button
-                className="px-4 py-2 rounded-full text-sm font-medium border border-default-200 hover:bg-default-100 transition-colors"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href)
-                  // Optional: Show toast
-                }}
-              >
-                Copy Link
-              </button>
             </div>
-          )}
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2 flex items-center justify-between gap-3">
-              <span>{error}</span>
-              <button className="text-xs font-medium underline" onClick={resetError}>
-                dismiss
-              </button>
+            {/* controls */}
+            <div className="absolute w-fit h-10 inset-x-6 top-6 left-6">
+              <div className="flex items-center gap-3 rounded-md bg-default-200/80 px-4 py-2 text-xs font-semibold uppercase tracking-wide shadow-lg">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    status === 'live' ? 'bg-danger-400 animate-pulse' : 'bg-default-200'
+                  }`}
+                />
+                {status === 'live' ? 'Live' : isHost ? 'Preview' : 'Waiting'}
+              </div>
             </div>
-          )}
+          </section>
+
+          <div className="order-3 lg:order-none flex flex-col gap-4 min-h-0">
+            <div className="rounded-2xl bg-default-50 shadow-sm p-5 flex flex-col gap-4">
+              <div>
+                <p className="text-sm font-semibold text-default-700">Stream Controls</p>
+                <p className="text-xs text-default-500">{statusDescription}</p>
+              </div>
+              {isHost ? (
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    className="px-5 py-2 rounded-full text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60 transition-colors"
+                    disabled={status === 'starting'}
+                    onClick={status === 'live' ? stopHosting : startHosting}
+                  >
+                    {status === 'live' ? 'Stop Stream' : 'Go Live'}
+                  </button>
+                  <button
+                    className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
+                      isScreenSharing ? 'bg-red-500 text-white' : 'bg-default-100 text-default-800'
+                    }`}
+                    disabled={status !== 'live'}
+                    onClick={toggleScreenShare}
+                  >
+                    {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-full text-sm font-medium border border-default-200 hover:bg-default-100 transition-colors"
+                    onClick={() => navigator.clipboard.writeText(window.location.href)}
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-default-500">Only the host can control stream settings. Enjoy the show!</p>
+              )}
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2 flex items-center justify-between gap-3">
+                  <span>{error}</span>
+                  <button className="text-xs font-medium underline" onClick={resetError}>
+                    dismiss
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-h-0">
+              <StreamChatPanel streamId={streamId} />
+            </div>
+          </div>
         </div>
       </div>
     </div>

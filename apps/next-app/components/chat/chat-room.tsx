@@ -357,6 +357,7 @@ export default function ChatContainer() {
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
+
     document.body.style.overflow = 'hidden'
 
     return () => {
@@ -452,8 +453,8 @@ export default function ChatContainer() {
           <div className="relative flex-1 min-h-0">
             <ScrollShadow
               ref={messageListRef}
-              className="h-full"
               hideScrollBar
+              className="h-full"
               offset={24}
               onScroll={handleMessageScroll}
             >
@@ -487,10 +488,10 @@ export default function ChatContainer() {
             </ScrollShadow>
             {!isMessageListAtBottom && (
               <Button
-                size="md"
                 isIconOnly
                 aria-label="Scroll to latest messages"
                 className="absolute bottom-4 right-1.5 flex items-center gap-2 rounded-full bg-foreground/30 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
+                size="md"
                 onPress={() => scrollMessagesToBottom('smooth')}
               >
                 <ChevronDown size={16} />

@@ -23,6 +23,7 @@ import { ping } from '@libp2p/ping'
 import first from 'it-first'
 
 import { BOOTSTRAP_PEER_IDS, CHAT_FILE_TOPIC, CHAT_TOPIC, PUBSUB_PEER_DISCOVERY } from '../config/constants'
+
 import { forComponent, enable } from './logger'
 import { directMessage } from './direct-message'
 import { loadOrCreatePrivateKey } from './identity'
