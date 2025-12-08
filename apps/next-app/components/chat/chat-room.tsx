@@ -498,12 +498,7 @@ export default function ChatContainer() {
                   </>
                 )}
 
-                <Tooltip
-                  color={input ? 'primary' : 'default'}
-                  content="Send message"
-                  placement="top"
-                  radius="sm"
-                >
+                <Tooltip color={input ? 'primary' : 'default'} content="Send message" placement="top" radius="sm">
                   <Button
                     isIconOnly
                     className="border-1 border-default-100"

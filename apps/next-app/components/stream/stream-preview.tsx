@@ -2,9 +2,9 @@
 
 import { useEffect, useRef } from 'react'
 import Blockies from 'react-18-blockies'
+import { Play } from 'lucide-react'
 
 import { useStreamContext } from '@/context/stream-ctx'
-import { Play } from 'lucide-react'
 
 interface StreamInvitePreviewProps {
   onClick?: () => void

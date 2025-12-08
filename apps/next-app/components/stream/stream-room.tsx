@@ -3,13 +3,13 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 
 import { useEffect, useRef, useState } from 'react'
-
-import { Navbar } from '@/components/ui/navbar'
-import { useStreamContext } from '@/context/stream-ctx'
-import { forComponent } from '@/lib/logger'
-import { ThemeSwitch } from '../ui/theme-switch'
 import Link from 'next/link'
 import Image from 'next/image'
+
+import { ThemeSwitch } from '../ui/theme-switch'
+
+import { useStreamContext } from '@/context/stream-ctx'
+import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-room')
 
