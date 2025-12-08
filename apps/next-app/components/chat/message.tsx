@@ -116,63 +116,32 @@ export const Message = ({
   if (streamInvite) {
     const hostShortId = streamInvite.hostPeerId.slice(-7)
 
-    return (
-      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
-        {showAvatar ? (
-          <div className="mt-5 w-8 h-8">
-            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
-          </div>
-        ) : (
-          <div className="w-8" />
-        )}
-        <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
-          {showTimestamp && (
-            <div
-              className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
-            >
-              {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
-              {showTimestamp && <span>{timestamp}</span>}
+    if (isStreamHost) {
+      return (
+        <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+          {showAvatar ? (
+            <div className="mt-5 w-8 h-8">
+              <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
             </div>
+          ) : (
+            <div className="w-8" />
           )}
-          <div className="w-full max-w-sm">
-            <div className="relative w-full p-2 shadow overflow-hidden rounded-lg bg-default-100 transition">
-              <div className="flex items-start gap-3 p-1">
-                <div className="flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">Stream invite</span>
-                    {!isStreamHost && (
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                          streamStatus.state === 'live'
-                            ? 'bg-rose-100 text-rose-600'
-                            : streamStatus.state === 'checking'
-                              ? 'bg-default-200 text-default-600'
-                              : 'bg-default-200 text-default-500'
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            streamStatus.state === 'live' ? 'bg-rose-500 animate-pulse' : 'bg-default-500'
-                          }`}
-                        />
-                        {streamStatus.state === 'live'
-                          ? 'Live now'
-                          : streamStatus.state === 'checking'
-                            ? 'Checking'
-                            : 'Offline'}
-                      </span>
-                    )}
+          <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+            {showTimestamp && (
+              <div
+                className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
+              >
+                {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
+                {showTimestamp && <span>{timestamp}</span>}
+              </div>
+            )}
+            <div className="w-sm">
+              <div className="relative w-full overflow-hidden rounded-lg bg-default-100 p-4 shadow transition">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-default-400">Stream invite</p>
+                    <p className="text-lg uppercase text-left font-semibold">{hostShortId}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
-                    <span className="flex items-center gap-1">
-                      Host
-                      <Blockies className="h-4 w-4 rounded-sm" scale={3} seed={streamInvite.hostPeerId} size={10} />
-                      {hostShortId}
-                    </span>
-                  </div>
-                </div>
-
-                {isStreamHost ? (
                   <Button
                     as={Link}
                     className="font-semibold !text-sm"
@@ -184,48 +153,59 @@ export const Message = ({
                   >
                     Start
                   </Button>
-                ) : (
-                  <Button
-                    className="font-semibold !text-sm"
-                    color="primary"
-                    radius="full"
-                    size="md"
-                    variant="solid"
-                    onPress={() => setViewerOpen(true)}
-                  >
-                    Watch
-                  </Button>
-                )}
+                </div>
+                <p className="mt-3 text-sm text-left text-default-500">This is a public stream invite.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
+                  <span className="flex items-center gap-1">
+                    Host
+                    <Blockies className="h-4 w-4 rounded-sm" scale={3} seed={streamInvite.hostPeerId} size={10} />
+                    {hostShortId}
+                  </span>
+                </div>
               </div>
-
-              {!isStreamHost && (
-                <StreamProvider streamId={streamInvite.hostPeerId}>
-                  <StreamInlineOverlay
-                    open={viewerOpen}
-                    streamId={streamInvite.hostPeerId}
-                    onClose={() => setViewerOpen(false)}
-                  >
-                    <StreamInlineViewer />
-                  </StreamInlineOverlay>
-                  {streamStatus.state === 'live' && (
-                    <div className="mt-2">
-                      <StreamInvitePreview onClick={() => setViewerOpen(true)} />
-                    </div>
-                  )}
-                  {streamStatus.state === 'checking' && (
-                    <p className="mt-3 text-[11px] uppercase tracking-wide text-default-400">
-                      Checking if host is live...
-                    </p>
-                  )}
-                  {streamStatus.state === 'offline' && (
-                    <p className="mt-3 text-[11px] uppercase tracking-wide text-default-400">
-                      Preview will appear once the host goes live.
-                    </p>
-                  )}
-                </StreamProvider>
-              )}
             </div>
           </div>
+        </li>
+      )
+    }
+
+    return (
+      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+        {showAvatar ? (
+          <div className="mt-5 w-8 h-8">
+            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+          </div>
+        ) : (
+          <div className="w-8" />
+        )}
+        <div className={`flex flex-col min-w-sm max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+          {showTimestamp && (
+            <div
+              className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
+            >
+              {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
+              {showTimestamp && <span>{timestamp}</span>}
+            </div>
+          )}
+          <StreamProvider streamId={streamInvite.hostPeerId}>
+            <StreamInlineOverlay
+              open={viewerOpen}
+              streamId={streamInvite.hostPeerId}
+              onClose={() => setViewerOpen(false)}
+            >
+              <StreamInlineViewer />
+            </StreamInlineOverlay>
+            <div className="w-full max-w-xl space-y-3">
+              <StreamInvitePreview
+                ctaLabel="Watch Now"
+                description="This is a public stream invite."
+                hostPeerId={streamInvite.hostPeerId}
+                status={streamStatus.state}
+                title={hostShortId}
+                onClick={() => setViewerOpen(true)}
+              />
+            </div>
+          </StreamProvider>
         </div>
       </li>
     )
