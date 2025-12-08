@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
-import { Button, Input, Spinner, Textarea } from '@heroui/react'
+import { Button, Input, Spinner, Textarea, Tooltip } from '@heroui/react'
 import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
@@ -440,16 +440,22 @@ export default function ChatContainer() {
                 type="file"
                 onChange={handleFileInput}
               />
-              <Button
-                isIconOnly
-                className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} border-1 border-default-100 p-0`}
-                disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
-                title={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload file' : "Unsupported in DM's"}
-                variant="ghost"
-                onPress={handleFileSend}
+              <Tooltip
+                color="default"
+                content={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload a file' : "Unavailable in DM's"}
+                placement="top"
+                radius="sm"
               >
-                <Share size={16} />
-              </Button>
+                <Button
+                  isIconOnly
+                  className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} border-1 border-default-100 p-0`}
+                  disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
+                  variant="ghost"
+                  onPress={handleFileSend}
+                >
+                  <Share size={16} />
+                </Button>
+              </Tooltip>
 
               <Textarea
                 classNames={{ inputWrapper: '!bg-transparent shadow-none' }}
@@ -465,42 +471,51 @@ export default function ChatContainer() {
               <div className="flex items-center gap-1">
                 {!input && (
                   <>
-                    <Button
-                      isIconOnly
-                      className="border-1 border-default-100"
-                      color="secondary"
-                      isDisabled={sending}
-                      title="Send stream invite"
-                      variant="ghost"
-                      onPress={handleSendStreamInvite}
-                    >
-                      <Cast size={16} />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      className="border-1 border-default-100"
-                      color="success"
-                      isDisabled={sending}
-                      title="Send meeting invite"
-                      variant="ghost"
-                      onPress={handleSendMeetingInvite}
-                    >
-                      <Video size={16} />
-                    </Button>
+                    <Tooltip color="secondary" content="Send stream invite" placement="top" radius="sm">
+                      <Button
+                        isIconOnly
+                        className="border-1 border-default-100"
+                        color="secondary"
+                        isDisabled={sending}
+                        variant="ghost"
+                        onPress={handleSendStreamInvite}
+                      >
+                        <Cast size={16} />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip color="success" content="Send meeting invite" placement="top" radius="sm">
+                      <Button
+                        isIconOnly
+                        className="border-1 border-default-100"
+                        color="success"
+                        isDisabled={sending}
+                        variant="ghost"
+                        onPress={handleSendMeetingInvite}
+                      >
+                        <Video size={16} />
+                      </Button>
+                    </Tooltip>
                   </>
                 )}
 
-                <Button
-                  isIconOnly
-                  className="border-1 border-default-100"
+                <Tooltip
                   color={input ? 'primary' : 'default'}
-                  isDisabled={sending}
-                  type="submit"
-                  variant="solid"
-                  onPress={handleSend}
+                  content="Send message"
+                  placement="top"
+                  radius="sm"
                 >
-                  {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
-                </Button>
+                  <Button
+                    isIconOnly
+                    className="border-1 border-default-100"
+                    color={input ? 'primary' : 'default'}
+                    isDisabled={sending}
+                    type="submit"
+                    variant="solid"
+                    onPress={handleSend}
+                  >
+                    {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
+                  </Button>
+                </Tooltip>
               </div>
             </div>
           </div>
