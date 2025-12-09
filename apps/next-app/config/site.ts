@@ -1,8 +1,8 @@
 export type SiteConfig = typeof siteConfig
 
 export const siteConfig = {
-  name: 'METERED',
-  description: 'Make beautiful websites regardless of your design experience.',
+  name: 'Meetred',
+  description: 'Hang out, meet, and stream without switching apps',
   navItems: [
     {
       label: 'Public Chat',

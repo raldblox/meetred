@@ -121,7 +121,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
     },
     peerDiscovery: [
       pubsubPeerDiscovery({
-        interval: 10_000,
+        interval: 3_000,
         topics: [PUBSUB_PEER_DISCOVERY],
         listenOnly: false,
       }),

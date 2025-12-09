@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Button } from '@heroui/react'
+import { Alert, Button, Chip } from '@heroui/react'
 
 import { ThemeSwitch } from '../ui/theme-switch'
 
@@ -13,6 +13,19 @@ import { StreamChatPanel } from './stream-chat-panel'
 
 import { useStreamContext } from '@/context/stream-ctx'
 import { forComponent } from '@/lib/logger'
+import {
+  Gift,
+  LucideCircleStop,
+  Play,
+  PlayCircle,
+  PlaySquareIcon,
+  ScreenShareIcon,
+  ScreenShareOffIcon,
+  SquareStop,
+  SquareStopIcon,
+  StopCircle,
+  X,
+} from 'lucide-react'
 
 const log = forComponent('stream-room')
 
@@ -129,7 +142,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
       : 'Waiting for the host to go live.'
 
   return (
-    <div className="flex flex-col min-h-screen bg-default-50/50">
+    <div className="flex flex-col h-screen bg-default-50/50">
       <nav className="flex items-center justify-between w-full px-3 h-10 border-b border-default-100">
         <div className="flex items-center gap-3">
           <Link className="flex justify-start items-center gap-2" href="/">
@@ -147,7 +160,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
         <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
           <aside className="order-2 lg:order-none rounded-2xl bg-default-50 p-4 text-xs text-default-500 flex flex-col min-h-0">
             <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
-              <p className="font-semibold text-default-600">Room Activity</p>
+              <p className="text-sm font-semibold text-default-700">Activity Log</p>
               <span className="text-[10px] uppercase tracking-wider opacity-60">Live Updates</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
@@ -156,7 +169,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
               ) : (
                 roomLogs.map((entry) => (
                   <div key={entry.id} className="flex gap-2 items-start">
-                    <span className="opacity-40 font-mono whitespace-nowrap">
+                    <span className="opacity-40 font-mono whitespace-nowrap min-w-[50px]">
                       {new Date(entry.timestamp).toLocaleTimeString([], {
                         hour12: false,
                         hour: '2-digit',
@@ -178,7 +191,14 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                 localStream ? (
                   <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-contain" />
                 ) : (
-                  <p className="text-sm text-default-500">Start the stream to preview your broadcast.</p>
+                  <div className="flex flex-col gap-3 justify-center items-center mx-auto max-w-md text-center">
+                    <p className="text-xl ">You&apos;re about to go live</p>
+                    <p className="text-xs text-default-500">
+                      When you start streaming, a link to this room will appear in the public room and people will see a
+                      preview card there. Chat messages from here can also echo to the public room to help others
+                      discover you.
+                    </p>
+                  </div>
                 )
               ) : remoteStream ? (
                 <>
@@ -203,17 +223,14 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                 </div>
               )}
             </div>
-            {/* controls */}
-            <div className="absolute w-fit h-10 inset-x-6 top-6 left-6">
-              <div className="flex items-center gap-3 rounded-md bg-default-200/80 px-4 py-2 text-xs font-semibold uppercase tracking-wide shadow-lg">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    status === 'live' ? 'bg-danger-400 animate-pulse' : 'bg-default-200'
-                  }`}
-                />
-                {status === 'live' ? 'Live' : isHost ? 'Preview' : 'Waiting'}
+            {/* status */}
+            {status === 'live' && (
+              <div className="absolute w-fit h-10 inset-x-6 top-6 left-6">
+                <Chip variant="dot" color="primary" size="sm" className="font-mono">
+                  LIVE
+                </Chip>
               </div>
-            </div>
+            )}
           </section>
 
           <div className="order-3 lg:order-none flex flex-col gap-4 min-h-0">
@@ -223,40 +240,54 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                 <p className="text-xs text-default-500">{statusDescription}</p>
               </div>
               {isHost ? (
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    className="px-5 py-2 rounded-full text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60 transition-colors"
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Button
+                    color="primary"
+                    radius="full"
                     disabled={status === 'starting'}
-                    onClick={status === 'live' ? stopHosting : startHosting}
+                    onPress={status === 'live' ? stopHosting : startHosting}
+                    startContent={status === 'live' ? <LucideCircleStop /> : <PlaySquareIcon />}
                   >
-                    {status === 'live' ? 'Stop Stream' : 'Go Live'}
-                  </button>
-                  <button
-                    className={`px-5 py-2 rounded-full text-sm font-semibold transition ${
-                      isScreenSharing ? 'bg-red-500 text-white' : 'bg-default-100 text-default-800'
-                    }`}
+                    {status === 'live' ? 'Stop Stream' : 'Start stream'}
+                  </Button>
+
+                  <Button
+                    radius="full"
+                    color={isScreenSharing ? 'danger' : 'default'}
                     disabled={status !== 'live'}
-                    onClick={toggleScreenShare}
+                    onPress={toggleScreenShare}
+                    startContent={isScreenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
                   >
                     {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
-                  </button>
-                  <button
+                  </Button>
+
+                  {/* <Button
                     className="px-4 py-2 rounded-full text-sm font-medium border border-default-200 hover:bg-default-100 transition-colors"
-                    onClick={() => navigator.clipboard.writeText(window.location.href)}
+                    onPress={() => navigator.clipboard.writeText(window.location.href)}
                   >
                     Copy Link
-                  </button>
+                  </Button> */}
                 </div>
               ) : (
-                <p className="text-sm text-default-500">Only the host can control stream settings. Enjoy the show!</p>
+                <div className="flex flex-col items-center justify-center flex-wrap gap-3">
+                  <Button radius="full" startContent={<Gift />}>
+                    Support the host
+                  </Button>
+                </div>
               )}
               {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2 flex items-center justify-between gap-3">
-                  <span>{error}</span>
-                  <button className="text-xs font-medium underline" onClick={resetError}>
-                    dismiss
-                  </button>
-                </div>
+                <Alert
+                  variant="bordered"
+                  color="danger"
+                  endContent={
+                    <Button color="danger" isIconOnly size="sm" variant="solid" onPress={resetError}>
+                      <X />
+                    </Button>
+                  }
+                  className="mt-2 text-xs"
+                >
+                  {error}
+                </Alert>
               )}
             </div>
             <div className="flex-1 min-h-0">
