@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Button } from '@heroui/react'
 
 import { ThemeSwitch } from '../ui/theme-switch'
 
@@ -12,8 +13,6 @@ import { StreamChatPanel } from './stream-chat-panel'
 
 import { useStreamContext } from '@/context/stream-ctx'
 import { forComponent } from '@/lib/logger'
-import { Button } from '@heroui/react'
-import { LucideSpeaker, Speaker } from 'lucide-react'
 
 const log = forComponent('stream-room')
 
@@ -143,7 +142,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
 
         <ThemeSwitch />
       </nav>
-      <div className="h-10 bg-default-50 w-full border-b border-default-100"></div>
+      <div className="h-10 bg-default-50 w-full border-b border-default-100" />
       <div className="flex-1 mx-auto container flex flex-col min-h-0 p-4 pb-4">
         <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
           <aside className="order-2 lg:order-none rounded-2xl bg-default-50 p-4 text-xs text-default-500 flex flex-col min-h-0">
