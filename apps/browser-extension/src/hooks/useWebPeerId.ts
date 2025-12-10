@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { createFromPrivKey } from '@libp2p/peer-id-factory'
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys'
 
-const WEB_STORAGE_KEY = 'uniconnect.peer.identity'
+const WEB_STORAGE_KEY = 'uniconnect.web.peer.identity'
+const LEGACY_WEB_STORAGE_KEY = 'uniconnect.peer.identity'
 
 const decodePeerId = async (encoded?: string | null): Promise<string | null> => {
   if (!encoded) {
@@ -21,98 +22,145 @@ const decodePeerId = async (encoded?: string | null): Promise<string | null> => 
   }
 }
 
+export type WebPeerSyncResult = 'live' | 'stored' | 'none'
+
 interface WebPeerState {
   peerId: string | null
-  refresh: () => Promise<boolean>
+  online: boolean
+  refresh: () => Promise<WebPeerSyncResult>
   syncing: boolean
 }
 
 export function useWebPeerId(): WebPeerState {
   const [webPeerId, setWebPeerId] = useState<string | null>(null)
+  const [hostOnline, setHostOnline] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const pendingProbe = useRef(false)
 
-  const updateFromEncoded = useCallback(async (encoded?: string | null) => {
-    const derived = await decodePeerId(encoded)
+  const applyEncodedPeer = useCallback(
+    async (encoded?: string | null, opts: { online?: boolean | null } = {}) => {
+      const derived = await decodePeerId(encoded)
 
-    setWebPeerId((prev) => {
-      if (prev === derived) {
-        return prev
+      setWebPeerId((prev) => {
+        if (prev === derived) {
+          return prev
+        }
+
+        return derived
+      })
+
+      if (opts.online === true) {
+        setHostOnline(Boolean(derived))
+      } else if (opts.online === false) {
+        setHostOnline(false)
       }
 
-      return derived
-    })
-  }, [])
+      return Boolean(derived)
+    },
+    [],
+  )
 
-  const readFromStorage = useCallback(() => {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-      return
-    }
+  const loadFromStorage = useCallback(
+    async ({ markOffline = false }: { markOffline?: boolean } = {}) => {
+      if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+        if (markOffline) {
+          setHostOnline(false)
+        }
 
-    chrome.storage.local.get([WEB_STORAGE_KEY], (items) => {
-      updateFromEncoded(items[WEB_STORAGE_KEY] as string | undefined).catch(() => {})
-    })
-  }, [updateFromEncoded])
+        return false
+      }
 
-  const refreshFromTabs = useCallback(async () => {
+      return await new Promise<boolean>((resolve) => {
+        chrome.storage.local.get([WEB_STORAGE_KEY], (items) => {
+          applyEncodedPeer(items[WEB_STORAGE_KEY] as string | undefined, {
+            online: markOffline ? false : undefined,
+          })
+            .then((hasPeer) => resolve(hasPeer))
+            .catch(() => resolve(false))
+        })
+      })
+    },
+    [applyEncodedPeer],
+  )
+
+  const probeForLiveTab = useCallback(async () => {
     if (typeof chrome === 'undefined' || !chrome.tabs?.query) {
       return false
     }
 
-    setSyncing(true)
+    let live = false
 
-    let synced = false
+    let tabs: chrome.tabs.Tab[]
 
     try {
-      const tabs = await chrome.tabs.query({ url: ['http://localhost/*', 'https://*/*'] })
+      tabs = await chrome.tabs.query({ url: ['http://localhost/*', 'https://*/*'] })
+    } catch {
+      return false
+    }
 
-      for (const tab of tabs) {
-        if (!tab.id) continue
+    for (const tab of tabs) {
+      if (!tab.id) continue
 
-        const response = await new Promise<{ encodedKey?: string | null } | undefined>((resolve) => {
-          try {
-            chrome.tabs.sendMessage(
-              tab.id!,
-              { type: 'metered:getWebIdentity' },
-              (result) => {
-                if (chrome.runtime?.lastError) {
-                  resolve(undefined)
+      const response = await new Promise<{ encodedKey?: string | null } | undefined>((resolve) => {
+        try {
+          chrome.tabs.sendMessage(
+            tab.id!,
+            { type: 'metered:getWebIdentity' },
+            (result) => {
+              if (chrome.runtime?.lastError) {
+                resolve(undefined)
 
-                  return
-                }
+                return
+              }
 
-                resolve(result as { encodedKey?: string | null } | undefined)
-              },
-            )
-          } catch {
-            resolve(undefined)
-          }
-        })
+              resolve(result as { encodedKey?: string | null } | undefined)
+            },
+          )
+        } catch {
+          resolve(undefined)
+        }
+      })
 
-        if (response?.encodedKey) {
-          await updateFromEncoded(response.encodedKey)
-          synced = true
+      if (response?.encodedKey) {
+        const applied = await applyEncodedPeer(response.encodedKey, { online: true })
 
+        if (applied) {
+          live = true
           break
         }
       }
+    }
 
-      if (!synced) {
-        readFromStorage()
+    return live
+  }, [applyEncodedPeer])
+
+  const refresh = useCallback(async () => {
+    if (syncing) {
+      return 'none'
+    }
+
+    setSyncing(true)
+
+    try {
+      const live = await probeForLiveTab()
+
+      if (live) {
+        return 'live'
       }
+
+      const stored = await loadFromStorage({ markOffline: true })
+
+      return stored ? 'stored' : 'none'
     } finally {
       setSyncing(false)
     }
-
-    return synced
-  }, [readFromStorage, updateFromEncoded])
+  }, [loadFromStorage, probeForLiveTab, syncing])
 
   useEffect(() => {
-    let cancelled = false
+    loadFromStorage({ markOffline: true }).catch(() => {})
+    probeForLiveTab().catch(() => {})
 
-    readFromStorage()
-    refreshFromTabs().catch(() => {})
-
-    const listener: Parameters<typeof chrome.storage.onChanged.addListener>[0] = (changes, area) => {
+    const handleStorageChange: Parameters<typeof chrome.storage.onChanged.addListener>[0] = (changes, area) => {
       if (area !== 'local') {
         return
       }
@@ -123,30 +171,35 @@ export function useWebPeerId(): WebPeerState {
         return
       }
 
-      updateFromEncoded(change.newValue as string | undefined).catch(() => {})
+      applyEncodedPeer(change.newValue as string | undefined, {
+        online: change.newValue ? undefined : false,
+      }).catch(() => {})
+
+      if (change.newValue && !pendingProbe.current) {
+        pendingProbe.current = true
+        probeForLiveTab()
+          .catch(() => {})
+          .finally(() => {
+            pendingProbe.current = false
+          })
+      }
     }
 
-    chrome.storage.onChanged.addListener(listener)
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange)
+    }
+
+    const interval = setInterval(() => {
+      probeForLiveTab().catch(() => {})
+    }, 20000)
 
     return () => {
-      cancelled = true
-      chrome.storage.onChanged.removeListener(listener)
+      if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+        chrome.storage.onChanged.removeListener(handleStorageChange)
+      }
+      clearInterval(interval)
     }
-  }, [readFromStorage, refreshFromTabs, updateFromEncoded])
+  }, [applyEncodedPeer, loadFromStorage, probeForLiveTab])
 
-  const refresh = useCallback(async () => {
-    if (syncing) {
-      return false
-    }
-
-    const result = await refreshFromTabs()
-
-    if (!result) {
-      readFromStorage()
-    }
-
-    return result
-  }, [readFromStorage, refreshFromTabs, syncing])
-
-  return { peerId: webPeerId, refresh, syncing }
+  return { peerId: webPeerId, online: hostOnline, refresh, syncing }
 }

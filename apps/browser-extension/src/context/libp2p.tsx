@@ -4,10 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import type { Libp2pType } from '@/context/libp2p-ctx'
 import { startLibp2p, type StartLibp2pOptions } from '@/lib/libp2p'
 import { forComponent } from '@/lib/logger'
-import {
-  importExtensionPrivateKey,
-  loadOrCreateExtensionPrivateKey,
-} from '@extension/lib/extension-identity'
+import { importSharedPrivateKey, loadSharedPrivateKey } from '@extension/lib/shared-identity'
 
 interface Libp2pContextValue {
   libp2p?: Libp2pType
@@ -42,7 +39,7 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
       try {
         const node = (await startLibp2p({
           ...options,
-          privateKey: await loadOrCreateExtensionPrivateKey({
+          privateKey: await loadSharedPrivateKey({
             forceNew: options?.forceNewIdentity,
           }),
         })) as Libp2pType
@@ -107,7 +104,7 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
       setRotatingIdentity(true)
 
       try {
-        await importExtensionPrivateKey(encodedKey)
+        await importSharedPrivateKey(encodedKey)
         await restart()
       } finally {
         setRotatingIdentity(false)

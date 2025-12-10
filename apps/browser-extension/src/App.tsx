@@ -37,16 +37,16 @@ function SpecialPeer({ label, peerId, role }: SpecialPeerProps) {
 function AppShell() {
   const { libp2p, status, error, restart } = useExtensionLibp2p()
   const { peers, connectedCount, subscribedCount } = usePeerPresence(libp2p)
-  const { peerId: webPeerId, refresh: refreshWebPeerId, syncing: syncingWebPeer } = useWebPeerId()
+  const { peerId: webPeerId, refresh: refreshWebPeerId, syncing: syncingWebPeer, online: webPeerOnline } = useWebPeerId()
 
   const extensionPeerId = libp2p?.peerId.toString() ?? ''
-  const hostPeerId = webPeerId ?? extensionPeerId
-  const usingWebPeer = Boolean(webPeerId)
+  const hostPeerId = webPeerId ?? null
+  const hasHostIdentity = Boolean(hostPeerId)
 
   const [linkStatus, setLinkStatus] = useState<'idle' | 'copied'>('idle')
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const [inviteError, setInviteError] = useState<string | null>(null)
-  const [manualSyncFeedback, setManualSyncFeedback] = useState<'success' | 'error' | null>(null)
+  const [manualSyncFeedback, setManualSyncFeedback] = useState<'live' | 'stored' | 'error' | null>(null)
 
   const streamLink = useMemo(() => {
     if (!hostPeerId) {
@@ -65,7 +65,16 @@ function AppShell() {
     }
   }, [hostPeerId])
 
-  const canUseStreamActions = Boolean(hostPeerId)
+  const hostRoleLabel = webPeerOnline ? 'Web app online' : hasHostIdentity ? 'Stored ID' : 'Not synced'
+  const hostRoleClass = webPeerOnline ? 'role-pill--host' : 'role-pill--assistant'
+  const hostStatusMessage = !hasHostIdentity
+    ? { variant: 'warning', text: 'No host identity found. Open the Metered web app once to sync your ID.' }
+    : webPeerOnline
+      ? { variant: 'success', text: 'Host tab online. Invites will use your live stream.' }
+      : { variant: 'warning', text: 'Using stored host ID. Launch the Metered web app to go live.' }
+
+  const canShareStreamLink = hasHostIdentity
+  const canBroadcastInvite = hasHostIdentity && webPeerOnline
 
   const copyStreamLink = async () => {
     if (!streamLink) {
@@ -85,9 +94,13 @@ function AppShell() {
     setManualSyncFeedback(null)
 
     try {
-      const synced = await refreshWebPeerId()
+      const result = await refreshWebPeerId()
 
-      setManualSyncFeedback(synced ? 'success' : 'error')
+      if (result === 'none') {
+        setManualSyncFeedback('error')
+      } else {
+        setManualSyncFeedback(result)
+      }
     } catch {
       setManualSyncFeedback('error')
     }
@@ -97,6 +110,13 @@ function AppShell() {
     if (!libp2p || !hostPeerId) {
       setInviteStatus('error')
       setInviteError('Open the Metered web app and sync your host ID before broadcasting.')
+
+      return
+    }
+
+    if (!webPeerOnline) {
+      setInviteStatus('error')
+      setInviteError('Your host tab is offline. Open the Metered web app so invites reach the public chat.')
 
       return
     }
@@ -152,9 +172,7 @@ function AppShell() {
               <p className="helper-text">Broadcast identity</p>
               <div className="mono-field host-field">
                 <span>{hostPeerId || 'Waiting for host…'}</span>
-                <span className={`role-pill ${usingWebPeer ? 'role-pill--host' : 'role-pill--assistant'}`}>
-                  {usingWebPeer ? 'Web app host' : 'Assistant' }
-                </span>
+                <span className={`role-pill ${hostRoleClass}`}>{hostRoleLabel}</span>
               </div>
             </div>
             <button className="button button--ghost button--xs" disabled={syncingWebPeer} type="button" onClick={handleManualSync}>
@@ -162,32 +180,33 @@ function AppShell() {
             </button>
           </div>
           {manualSyncFeedback === 'error' && (
-            <p className="status-note status-note--error">Unable to find a live Metered tab. Open the web app and try again.</p>
+            <p className="status-note status-note--error">Unable to locate your Metered tab. Open the web app and try again.</p>
           )}
-          {manualSyncFeedback === 'success' && (
-            <p className="status-note status-note--success">Host ID synced from web app.</p>
+          {manualSyncFeedback === 'live' && (
+            <p className="status-note status-note--success">Host tab synced. Invites will use your live stream.</p>
           )}
-          {!usingWebPeer && (
-            <p className="status-note status-note--warning">
-              Currently using the assistant identity. Open the Metered app so invites use your public host ID.
-            </p>
+          {manualSyncFeedback === 'stored' && (
+            <p className="status-note status-note--warning">Loaded your saved host ID. Launch the Metered web app to come online.</p>
+          )}
+          {hostStatusMessage && (
+            <p className={`status-note status-note--${hostStatusMessage.variant}`}>{hostStatusMessage.text}</p>
           )}
           <div>
             <p className="helper-text">Stream room link</p>
             <div className="mono-field">
               <span>{streamLink || 'Open the Metered web app to generate a stream link.'}</span>
-              <button className="button button--ghost" disabled={!canUseStreamActions} type="button" onClick={copyStreamLink}>
+              <button className="button button--ghost" disabled={!canShareStreamLink} type="button" onClick={copyStreamLink}>
                 <Copy size={16} /> {linkStatus === 'copied' ? 'Copied' : 'Copy'}
               </button>
             </div>
           </div>
           <div className="actions">
-            <button className="button button--primary" disabled={!canUseStreamActions} type="button" onClick={() => openInNewTab(streamLink)}>
+            <button className="button button--primary" disabled={!canShareStreamLink} type="button" onClick={() => openInNewTab(streamLink)}>
               <ExternalLink size={16} /> Open stream lobby
             </button>
             <button
               className="button button--ghost"
-              disabled={!canUseStreamActions || inviteStatus === 'sending'}
+              disabled={!canBroadcastInvite || inviteStatus === 'sending'}
               type="button"
               onClick={handleSendStreamInvite}
             >
@@ -207,7 +226,7 @@ function AppShell() {
           <Users size={14} /> Peers
         </header>
         <div className="special-peers">
-          <SpecialPeer label="You" peerId={webPeerId ?? extensionPeerId} role="you" />
+          <SpecialPeer label="You" peerId={hostPeerId} role="you" />
           <SpecialPeer label="Assistant" peerId={extensionPeerId} role="assistant" />
           <div className="special-peer special-peer--stat">
             <div>

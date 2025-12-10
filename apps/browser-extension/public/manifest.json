@@ -32,7 +32,7 @@
     {
       "matches": ["http://localhost/*", "https://*/*"],
       "js": ["content-script.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "content_security_policy": {

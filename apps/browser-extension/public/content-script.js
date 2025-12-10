@@ -1,6 +1,8 @@
-﻿;(() => {
-  const STORAGE_KEY = 'uniconnect.peer.identity'
-  const CHECKSUM_KEY = `${STORAGE_KEY}.sha256`
+;(() => {
+  const PAGE_STORAGE_KEY = 'uniconnect.peer.identity'
+  const PAGE_CHECKSUM_KEY = `${PAGE_STORAGE_KEY}.sha256`
+  const SHARED_STORAGE_KEY = 'uniconnect.web.peer.identity'
+  const SHARED_CHECKSUM_KEY = `${SHARED_STORAGE_KEY}.sha256`
 
   const hasChromeStorage = typeof chrome !== 'undefined' && chrome?.storage?.local
 
@@ -11,8 +13,8 @@
   const readPageIdentity = () => {
     try {
       return {
-        value: window.localStorage.getItem(STORAGE_KEY),
-        checksum: window.localStorage.getItem(CHECKSUM_KEY),
+        value: window.localStorage.getItem(PAGE_STORAGE_KEY),
+        checksum: window.localStorage.getItem(PAGE_CHECKSUM_KEY),
       }
     } catch (error) {
       return { value: null, checksum: null }
@@ -22,15 +24,15 @@
   const writePageIdentity = (value, checksum) => {
     try {
       if (value) {
-        window.localStorage.setItem(STORAGE_KEY, value)
+        window.localStorage.setItem(PAGE_STORAGE_KEY, value)
       } else {
-        window.localStorage.removeItem(STORAGE_KEY)
+        window.localStorage.removeItem(PAGE_STORAGE_KEY)
       }
 
       if (checksum) {
-        window.localStorage.setItem(CHECKSUM_KEY, checksum)
+        window.localStorage.setItem(PAGE_CHECKSUM_KEY, checksum)
       } else {
-        window.localStorage.removeItem(CHECKSUM_KEY)
+        window.localStorage.removeItem(PAGE_CHECKSUM_KEY)
       }
     } catch (error) {
       // ignore storage failures
@@ -47,8 +49,8 @@
     const { value, checksum } = readPageIdentity()
 
     chrome.storage.local.set({
-      [STORAGE_KEY]: value ?? null,
-      [CHECKSUM_KEY]: checksum ?? null,
+      [SHARED_STORAGE_KEY]: value ?? null,
+      [SHARED_CHECKSUM_KEY]: checksum ?? null,
     })
   }
 
@@ -65,13 +67,13 @@
   }
 
   const hydrateFromChrome = () => {
-    chrome.storage.local.get([STORAGE_KEY, CHECKSUM_KEY], (items) => {
+    chrome.storage.local.get([SHARED_STORAGE_KEY, SHARED_CHECKSUM_KEY], (items) => {
       if (chrome.runtime?.lastError) {
         return
       }
 
-      const storedValue = items[STORAGE_KEY] ?? null
-      const storedChecksum = items[CHECKSUM_KEY] ?? null
+      const storedValue = items[SHARED_STORAGE_KEY] ?? null
+      const storedChecksum = items[SHARED_CHECKSUM_KEY] ?? null
 
       if (storedValue) {
         applyChromeToPage(storedValue, storedChecksum)
@@ -88,7 +90,7 @@
     window.localStorage.setItem = function patchedSetItem(key, value) {
       originalSetItem.apply(this, arguments)
 
-      if (key === STORAGE_KEY || key === CHECKSUM_KEY) {
+      if (key === PAGE_STORAGE_KEY || key === PAGE_CHECKSUM_KEY) {
         syncPageToChrome()
       }
     }
@@ -96,7 +98,7 @@
     window.localStorage.removeItem = function patchedRemoveItem(key) {
       originalRemoveItem.apply(this, arguments)
 
-      if (key === STORAGE_KEY || key === CHECKSUM_KEY) {
+      if (key === PAGE_STORAGE_KEY || key === PAGE_CHECKSUM_KEY) {
         syncPageToChrome()
       }
     }
@@ -107,8 +109,8 @@
       return
     }
 
-    const identityChange = changes[STORAGE_KEY]
-    const checksumChange = changes[CHECKSUM_KEY]
+    const identityChange = changes[SHARED_STORAGE_KEY]
+    const checksumChange = changes[SHARED_CHECKSUM_KEY]
 
     if (!identityChange && !checksumChange) {
       return
@@ -130,8 +132,8 @@
     }
 
     sendResponse({
-      encodedKey: window.localStorage.getItem(STORAGE_KEY),
-      checksum: window.localStorage.getItem(CHECKSUM_KEY),
+      encodedKey: window.localStorage.getItem(PAGE_STORAGE_KEY),
+      checksum: window.localStorage.getItem(PAGE_CHECKSUM_KEY),
     })
 
     return true
