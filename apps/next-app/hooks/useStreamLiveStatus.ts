@@ -5,7 +5,7 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
+import { CHAT_TOPIC, STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 
 type StreamLiveState = 'checking' | 'live' | 'offline'
 
@@ -43,7 +43,11 @@ export const useStreamLiveStatus = (streamId?: string, enabled: boolean = true) 
         return
       }
 
-      if (envelope?.type !== STREAM_SIGNAL_WRAPPER || envelope?.payload?.streamId !== streamId) {
+      if (
+        envelope?.type !== STREAM_SIGNAL_WRAPPER ||
+        envelope?.app !== STREAM_SIGNAL_APP_ID ||
+        envelope?.payload?.streamId !== streamId
+      ) {
         return
       }
 
@@ -76,6 +80,7 @@ export const useStreamLiveStatus = (streamId?: string, enabled: boolean = true) 
       try {
         const envelope = {
           type: STREAM_SIGNAL_WRAPPER,
+          app: STREAM_SIGNAL_APP_ID,
           payload: {
             streamId,
             action: 'viewer-hello',

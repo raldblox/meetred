@@ -4,6 +4,7 @@ export const PUBSUB_PEER_DISCOVERY = 'universal-connectivity-browser-peer-discov
 export const FILE_EXCHANGE_PROTOCOL = '/universal-connectivity-file/1'
 export const DIRECT_MESSAGE_PROTOCOL = '/universal-connectivity/dm/1.0.0'
 export const STREAM_SIGNAL_WRAPPER = 'stream-signal'
+export const STREAM_SIGNAL_APP_ID = 'metered'
 
 export const CIRCUIT_RELAY_CODE = 290
 

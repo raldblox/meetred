@@ -7,7 +7,7 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
+import { CHAT_TOPIC, STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-context')
@@ -161,6 +161,7 @@ interface StreamSignalMessage {
 
 interface StreamSignalEnvelope {
   type: typeof STREAM_SIGNAL_WRAPPER
+  app: typeof STREAM_SIGNAL_APP_ID
   payload: StreamSignalMessage
 }
 
@@ -261,6 +262,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
 
       const envelope: StreamSignalEnvelope = {
         type: STREAM_SIGNAL_WRAPPER,
+        app: STREAM_SIGNAL_APP_ID,
         payload,
       }
 
@@ -547,7 +549,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       try {
         const envelope = JSON.parse(uint8ArrayToString(evt.detail.data)) as StreamSignalEnvelope
 
-        if (envelope?.type !== STREAM_SIGNAL_WRAPPER || !envelope.payload) {
+        if (envelope?.type !== STREAM_SIGNAL_WRAPPER || envelope?.app !== STREAM_SIGNAL_APP_ID || !envelope.payload) {
           return
         }
 

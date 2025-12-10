@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Alert, Button, Chip } from '@heroui/react'
+import { Gift, LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, X } from 'lucide-react'
 
 import { ThemeSwitch } from '../ui/theme-switch'
 
@@ -13,19 +14,6 @@ import { StreamChatPanel } from './stream-chat-panel'
 
 import { useStreamContext } from '@/context/stream-ctx'
 import { forComponent } from '@/lib/logger'
-import {
-  Gift,
-  LucideCircleStop,
-  Play,
-  PlayCircle,
-  PlaySquareIcon,
-  ScreenShareIcon,
-  ScreenShareOffIcon,
-  SquareStop,
-  SquareStopIcon,
-  StopCircle,
-  X,
-} from 'lucide-react'
 
 const log = forComponent('stream-room')
 
@@ -226,7 +214,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
             {/* status */}
             {status === 'live' && (
               <div className="absolute w-fit h-10 inset-x-6 top-6 left-6">
-                <Chip variant="dot" color="primary" size="sm" className="font-mono">
+                <Chip className="font-mono" color="primary" size="sm" variant="dot">
                   LIVE
                 </Chip>
               </div>
@@ -243,20 +231,20 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <Button
                     color="primary"
-                    radius="full"
                     disabled={status === 'starting'}
-                    onPress={status === 'live' ? stopHosting : startHosting}
+                    radius="full"
                     startContent={status === 'live' ? <LucideCircleStop /> : <PlaySquareIcon />}
+                    onPress={status === 'live' ? stopHosting : startHosting}
                   >
                     {status === 'live' ? 'Stop Stream' : 'Start stream'}
                   </Button>
 
                   <Button
-                    radius="full"
                     color={isScreenSharing ? 'danger' : 'default'}
                     disabled={status !== 'live'}
-                    onPress={toggleScreenShare}
+                    radius="full"
                     startContent={isScreenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
+                    onPress={toggleScreenShare}
                   >
                     {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
                   </Button>
@@ -277,14 +265,14 @@ export function StreamRoom({ streamId }: { streamId: string }) {
               )}
               {error && (
                 <Alert
-                  variant="bordered"
+                  className="mt-2 text-xs"
                   color="danger"
                   endContent={
-                    <Button color="danger" isIconOnly size="sm" variant="solid" onPress={resetError}>
+                    <Button isIconOnly color="danger" size="sm" variant="solid" onPress={resetError}>
                       <X />
                     </Button>
                   }
-                  className="mt-2 text-xs"
+                  variant="bordered"
                 >
                   {error}
                 </Alert>

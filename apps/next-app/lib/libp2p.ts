@@ -1,4 +1,4 @@
-import type { Connection, Message, SignedMessage, PeerId, Libp2p } from '@libp2p/interface'
+import type { Connection, Message, SignedMessage, PeerId, Libp2p, PrivateKey } from '@libp2p/interface'
 import type { Libp2pType } from '@/context/libp2p-ctx'
 
 import {
@@ -76,6 +76,7 @@ const ensureRelayReservations = async (libp2p: Libp2p, relayListenAddrs: string[
 
 export interface StartLibp2pOptions {
   forceNewIdentity?: boolean
+  privateKey?: PrivateKey
 }
 
 export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Libp2pType> {
@@ -90,7 +91,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
 
   let libp2p: Libp2pType
 
-  const privateKey = await loadOrCreatePrivateKey({ forceNew: options.forceNewIdentity })
+  const privateKey = options.privateKey ?? (await loadOrCreatePrivateKey({ forceNew: options.forceNewIdentity }))
 
   libp2p = await createLibp2p({
     privateKey,

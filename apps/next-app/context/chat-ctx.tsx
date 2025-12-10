@@ -17,6 +17,7 @@ import {
   FILE_EXCHANGE_PROTOCOL,
   MIME_TEXT_PLAIN,
   PUBSUB_PEER_DISCOVERY,
+  STREAM_SIGNAL_APP_ID,
   STREAM_SIGNAL_WRAPPER,
 } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
@@ -28,7 +29,7 @@ const isStreamSignal = (content: string) => {
   try {
     const parsed = JSON.parse(content)
 
-    return parsed?.type === STREAM_SIGNAL_WRAPPER
+    return parsed?.type === STREAM_SIGNAL_WRAPPER && parsed?.app === STREAM_SIGNAL_APP_ID
   } catch {
     return false
   }
