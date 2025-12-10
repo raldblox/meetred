@@ -4,8 +4,9 @@ A Chrome side panel companion for the Metered web app. It boots the same libp2p 
 
 ## Features
 
-- Boots the shared libp2p node and persists the identity key inside the extension storage.
-- Quick actions to rotate, back up, or restore the identity so it matches the web app.
+- Boots its own libp2p node so it can stay online even when the Next.js app is closed.
+- Reads the active web-app peer ID (when a tab is open) so invites always point to the main host.
+- Quick actions to rotate, back up, or restore the extension identity.
 - Stream tools: copy the `/stream/:peerId` link, open the lobby, or broadcast a `stream_invite` to the public chat topic.
 - Live presence list sourced from connections, pubsub subscribers, and recently seen peers.
 - CTA to open the full Metered experience in a tab when you need the full chat UI.
@@ -45,13 +46,13 @@ The value is used when generating the "Open web app" CTA and the stream invite l
 
 ## Identity backups
 
-- **Copy identity key**: stores the base64 private key on your clipboard so it can be pasted into the web app.
-- **Restore identity**: paste a key exported from the web app to keep the extension in sync, then the node restarts automatically.
+- **Copy identity key**: stores the extension's base64 private key on your clipboard so it can be backed up.
+- **Restore identity**: paste a previous extension key; the node restarts automatically with it.
 
-Both flows use the existing `@/lib/identity` helpers so the key format matches the Next.js implementation exactly.
+These flows use the same protobuf/key format as the web app, so you can shuttle keys between them if needed without conversion.
 
-## Automatic identity sync with the web app
+## Reading the web-app peer
 
-`public/content-script.js` mirrors the `uniconnect.peer.identity` entry between the Next.js app's `localStorage` and `chrome.storage.local`. When the web app rotates an identity the content script copies it into `chrome.storage`, the side panel notices the change, and it restarts libp2p with the same key. Likewise, when the extension rotates or imports a key the updated bytes propagate back to the web app.
+`public/content-script.js` listens for changes to `uniconnect.peer.identity` inside pages where the Next.js app runs. When that value changes, it copies the raw private key bytes into `chrome.storage.local`. The side panel never writes to that storage key—it only decodes it to show the matching peer ID and to build stream invites that target the main web app. If no host is detected you can click “Sync with web app” in the panel; it will ping every open Metered tab until it finds one running the content script.
 
-The manifest currently grants host access to `http://localhost/*` and every `https://` origin so the script can run wherever the Next app is hosted. Trim these patterns inside `public/manifest.json` → `content_scripts.matches`/`host_permissions` if you deploy to a known domain.
+The manifest currently grants host access to `http://localhost/*` and every `https://` origin so the script can run wherever the Next app is hosted. Trim these patterns inside `public/manifest.json` → `content_scripts.matches`/`host_permissions` once you know your production domain.

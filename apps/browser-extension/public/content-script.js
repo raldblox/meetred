@@ -123,4 +123,17 @@
   patchStorage()
   hydrateFromChrome()
   syncPageToChrome()
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== 'metered:getWebIdentity') {
+      return
+    }
+
+    sendResponse({
+      encodedKey: window.localStorage.getItem(STORAGE_KEY),
+      checksum: window.localStorage.getItem(CHECKSUM_KEY),
+    })
+
+    return true
+  })
 })()

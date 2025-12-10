@@ -5,18 +5,18 @@ import type { Libp2pType } from '@/context/libp2p-ctx'
 import { startLibp2p, type StartLibp2pOptions } from '@/lib/libp2p'
 import { forComponent } from '@/lib/logger'
 import {
-  mirrorIdentityFromChromeStorage,
-  mirrorIdentityToChromeStorage,
-  subscribeToChromeIdentityChanges,
-} from '@extension/lib/identity-sync'
+  importExtensionPrivateKey,
+  loadOrCreateExtensionPrivateKey,
+} from '@extension/lib/extension-identity'
 
 interface Libp2pContextValue {
   libp2p?: Libp2pType
   status: 'booting' | 'ready' | 'error'
   error?: string | null
-  restart: (options?: StartLibp2pOptions, extras?: { skipChromePrefetch?: boolean }) => Promise<void>
+  restart: (options?: StartLibp2pOptions) => Promise<void>
   rotateIdentity: () => Promise<void>
   rotatingIdentity: boolean
+  importIdentity: (encodedKey: string) => Promise<void>
 }
 
 const Libp2pContext = createContext<Libp2pContextValue>({
@@ -24,6 +24,7 @@ const Libp2pContext = createContext<Libp2pContextValue>({
   restart: async () => {},
   rotateIdentity: async () => {},
   rotatingIdentity: false,
+  importIdentity: async () => {},
 })
 
 const log = forComponent('extension-libp2p')
@@ -36,14 +37,15 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
   const hasInitialized = useRef(false)
 
   const boot = useCallback(
-    async (options?: StartLibp2pOptions, opts?: { skipChromePrefetch?: boolean }) => {
+    async (options?: StartLibp2pOptions) => {
       setStatus('booting')
       try {
-        if (!opts?.skipChromePrefetch) {
-          await mirrorIdentityFromChromeStorage()
-        }
-
-        const node = (await startLibp2p(options)) as Libp2pType
+        const node = (await startLibp2p({
+          ...options,
+          privateKey: await loadOrCreateExtensionPrivateKey({
+            forceNew: options?.forceNewIdentity,
+          }),
+        })) as Libp2pType
 
         // @ts-ignore helpful for debugging inside DevTools
         window.libp2p = node
@@ -51,7 +53,6 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
         setLibp2p(node)
         setStatus('ready')
         setError(null)
-        await mirrorIdentityToChromeStorage()
       } catch (err: any) {
         log.error('failed to start libp2p %o', err)
         setError(err?.message ?? 'Failed to start libp2p')
@@ -75,10 +76,10 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
   }, [libp2p])
 
   const restart = useCallback(
-    async (options?: StartLibp2pOptions, opts?: { skipChromePrefetch?: boolean }) => {
+    async (options?: StartLibp2pOptions) => {
       await stopNode()
       setLibp2p(undefined)
-      await boot(options, opts)
+      await boot(options)
     },
     [boot, stopNode],
   )
@@ -91,12 +92,29 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
     setRotatingIdentity(true)
 
     try {
-      await restart({ forceNewIdentity: true }, { skipChromePrefetch: true })
-      await mirrorIdentityToChromeStorage()
+      await restart({ forceNewIdentity: true })
     } finally {
       setRotatingIdentity(false)
     }
   }, [restart, rotatingIdentity])
+
+  const importIdentity = useCallback(
+    async (encodedKey: string) => {
+      if (rotatingIdentity) {
+        return
+      }
+
+      setRotatingIdentity(true)
+
+      try {
+        await importExtensionPrivateKey(encodedKey)
+        await restart()
+      } finally {
+        setRotatingIdentity(false)
+      }
+    },
+    [restart, rotatingIdentity],
+  )
 
   useEffect(() => {
     if (hasInitialized.current) {
@@ -108,26 +126,8 @@ export function ExtensionLibp2pProvider({ children }: { children: ReactNode }) {
     boot().catch((err) => log.error('initial libp2p boot failed %o', err))
   }, [boot])
 
-  useEffect(() => {
-    const unsubscribe = subscribeToChromeIdentityChanges(async (changed) => {
-      if (!changed) {
-        return
-      }
-
-      try {
-        await restart(undefined, { skipChromePrefetch: true })
-      } catch (err) {
-        log.error('failed to restart after chrome identity change %o', err)
-      }
-    })
-
-    return () => {
-      unsubscribe()
-    }
-  }, [restart])
-
   return (
-    <Libp2pContext.Provider value={{ libp2p, status, error, restart, rotateIdentity, rotatingIdentity }}>
+    <Libp2pContext.Provider value={{ libp2p, status, error, restart, rotateIdentity, rotatingIdentity, importIdentity }}>
       {children}
     </Libp2pContext.Provider>
   )
