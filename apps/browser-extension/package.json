@@ -1,0 +1,48 @@
+{
+  "name": "metered-browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@chainsafe/libp2p-gossipsub": "^14.1.0",
+    "@chainsafe/libp2p-noise": "^16.0.3",
+    "@chainsafe/libp2p-yamux": "^7.0.1",
+    "@helia/delegated-routing-v1-http-api-client": "^4.1.1",
+    "@libp2p/circuit-relay-v2": "^3.2.4",
+    "@libp2p/crypto": "^5.1.13",
+    "@libp2p/identify": "^3.0.23",
+    "@libp2p/interface": "^3.1.0",
+    "@libp2p/interface-internal": "^1.1.1",
+    "@libp2p/logger": "^5.1.10",
+    "@libp2p/ping": "^2.0.23",
+    "@libp2p/pubsub-peer-discovery": "^11.0.1",
+    "@libp2p/webrtc": "^5.2.5",
+    "@libp2p/websockets": "^9.2.3",
+    "@libp2p/webtransport": "^5.0.33",
+    "@multiformats/multiaddr": "^12.4.0",
+    "clsx": "^2.1.1",
+    "it-first": "^2.0.1",
+    "it-protobuf-stream": "^1.1.5",
+    "libp2p": "^2.7.4",
+    "lucide-react": "^0.553.0",
+    "protons-runtime": "^5.5.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "uint8arrays": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.269",
+    "@types/node": "20.5.7",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "5.6.3",
+    "vite": "^5.4.10",
+    "vite-plugin-node-polyfills": "^0.22.0"
+  }
+}

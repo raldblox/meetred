@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "moduleResolution": "Bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@extension/*": ["src/*"],
+      "@/*": ["../next-app/*"]
+    },
+    "types": ["chrome"],
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src", "vite.config.ts"],
+  "references": []
+}
