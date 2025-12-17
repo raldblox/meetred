@@ -44,6 +44,7 @@ export interface ChatMessage {
   peerId: string
   read: boolean
   receivedAt: number
+  status?: 'pending' | 'sent' | 'failed'
 }
 
 export interface ChatFile {
@@ -127,8 +128,8 @@ export const ChatProvider = ({ children }: any) => {
 
     // Append signed messages, otherwise discard
     if (evt.detail.type === 'signed') {
-      setMessageHistory([
-        ...messageHistory,
+      setMessageHistory((prev) => [
+        ...prev,
         {
           msgId: crypto.randomUUID(),
           msg,
@@ -136,6 +137,7 @@ export const ChatProvider = ({ children }: any) => {
           peerId: evt.detail.from.toString(),
           read: false,
           receivedAt: Date.now(),
+          status: 'sent',
         },
       ])
     }
@@ -188,7 +190,7 @@ export const ChatProvider = ({ children }: any) => {
               receivedAt: Date.now(),
             }
 
-            setMessageHistory([...messageHistory, msg])
+            setMessageHistory((prev) => [...prev, { ...msg, status: 'sent' }])
           }
         },
       )
@@ -217,11 +219,15 @@ export const ChatProvider = ({ children }: any) => {
         receivedAt: Date.now(),
       }
 
-      const updatedMessages = directMessages[peerId] ? [...directMessages[peerId], message] : [message]
+      const messageWithStatus: ChatMessage = { ...message, status: 'sent' }
 
-      setDirectMessages({
-        ...directMessages,
-        [peerId]: updatedMessages,
+      setDirectMessages((prev) => {
+        const existing = prev[peerId] ?? []
+
+        return {
+          ...prev,
+          [peerId]: [...existing, messageWithStatus],
+        }
       })
     }
 
@@ -230,7 +236,7 @@ export const ChatProvider = ({ children }: any) => {
     return () => {
       libp2p.services.directMessage.removeEventListener(directMessageEvent, handleDirectMessage)
     }
-  }, [directMessages, libp2p.services.directMessage, setDirectMessages])
+  }, [libp2p.services.directMessage, setDirectMessages])
 
   useEffect(() => {
     libp2p.services.pubsub.addEventListener('message', messageCB)

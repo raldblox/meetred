@@ -3,6 +3,7 @@ import { peerIdFromString } from '@libp2p/peer-id'
 import Blockies from 'react-18-blockies'
 import Link from 'next/link'
 import { Button } from '@heroui/react'
+import clsx from 'clsx'
 
 import { PeerWrapper } from './peer'
 
@@ -82,6 +83,7 @@ export const Message = ({
   read,
   dm,
   receivedAt,
+  status,
   showTimestamp = true,
   showAvatar = true,
 }: Props) => {
@@ -108,12 +110,17 @@ export const Message = ({
   const [viewerOpen, setViewerOpen] = useState(false)
 
   const timestamp = new Date(receivedAt).toLocaleString()
+  const deliveryStatus = status ?? 'sent'
+  const isPending = deliveryStatus === 'pending'
+  const isFailed = deliveryStatus === 'failed'
 
   useMarkAsRead(msgId, peerId, read, dm)
 
-  const bubbleClasses = isSelf
-    ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none'
-    : 'bg-default-300 text-default-900 rounded-md rounded-tl-none'
+  const bubbleClasses = clsx(
+    isSelf ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none' : 'bg-default-300 text-default-900 rounded-md rounded-tl-none',
+    isSelf && isPending && 'opacity-70',
+    isSelf && isFailed && 'bg-danger/80 text-danger-foreground',
+  )
 
   if (streamInvite) {
     const hostShortId = streamInvite.hostPeerId.slice(-7)
@@ -166,6 +173,11 @@ export const Message = ({
                 </div>
               </div>
             </div>
+            {isSelf && deliveryStatus !== 'sent' && (
+              <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+                {isPending ? 'Sending...' : 'Failed to send'}
+              </span>
+            )}
           </div>
         </li>
       )
@@ -209,6 +221,11 @@ export const Message = ({
             </div>
           </StreamProvider>
         </div>
+        {isSelf && deliveryStatus !== 'sent' && (
+          <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+            {isPending ? 'Sending...' : 'Failed to send'}
+          </span>
+        )}
       </li>
     )
   }
@@ -251,6 +268,11 @@ export const Message = ({
             </div>
           </div>
         </div>
+        {isSelf && deliveryStatus !== 'sent' && (
+          <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+            {isPending ? 'Sending...' : 'Failed to send'}
+          </span>
+        )}
       </li>
     )
   }
@@ -312,6 +334,11 @@ export const Message = ({
               </div>
             </div>
           </div>
+          {isSelf && deliveryStatus !== 'sent' && (
+            <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+              {isPending ? 'Sending...' : 'Failed to send'}
+            </span>
+          )}
         </div>
       </li>
     )
@@ -346,6 +373,11 @@ export const Message = ({
             </div>
           )}
         </div>
+        {isSelf && deliveryStatus !== 'sent' && (
+          <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+            {isPending ? 'Sending...' : 'Failed to send'}
+          </span>
+        )}
       </div>
     </li>
   )

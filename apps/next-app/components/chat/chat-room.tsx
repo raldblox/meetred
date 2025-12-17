@@ -39,82 +39,116 @@ export default function ChatContainer() {
 
   // Send message to public chat over gossipsub
   const sendPublicMessage = useCallback(
-    async (overrideMessage?: string) => {
-      const trimmedMessage = (overrideMessage ?? input).trim()
+    async (rawMessage: string) => {
+      const trimmedMessage = rawMessage.trim()
 
       if (trimmedMessage === '') return
 
       log(`peers in gossip for topic ${CHAT_TOPIC}:`, libp2p.services.pubsub.getSubscribers(CHAT_TOPIC).toString())
 
-      const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(trimmedMessage))
-
-      log(
-        'sent message to: ',
-        res.recipients.map((peerId) => peerId.toString()),
-      )
-
       const myPeerId = libp2p.peerId.toString()
+      const pendingMessage: ChatMessage = {
+        msgId: crypto.randomUUID(),
+        msg: trimmedMessage,
+        fileObjectUrl: undefined,
+        peerId: myPeerId,
+        read: true,
+        receivedAt: Date.now(),
+        status: 'pending',
+      }
 
-      setMessageHistory([
-        ...messageHistory,
-        {
-          msgId: crypto.randomUUID(),
-          msg: trimmedMessage,
-          fileObjectUrl: undefined,
-          peerId: myPeerId,
-          read: true,
-          receivedAt: Date.now(),
-        },
-      ])
+      setMessageHistory((prev) => [...prev, pendingMessage])
 
-      if (!overrideMessage) {
-        setInput('')
+      try {
+        const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(trimmedMessage))
+
+        log(
+          'sent message to: ',
+          res.recipients.map((peerId) => peerId.toString()),
+        )
+
+        setMessageHistory((prev) =>
+          prev.map((message) => (message.msgId === pendingMessage.msgId ? { ...message, status: 'sent' } : message)),
+        )
+      } catch (error) {
+        log.error('failed to send public message %o', error)
+        setMessageHistory((prev) =>
+          prev.map((message) => (message.msgId === pendingMessage.msgId ? { ...message, status: 'failed' } : message)),
+        )
+        throw error
       }
     },
-    [input, messageHistory, setInput, libp2p, setMessageHistory],
+    [libp2p, setMessageHistory],
   )
 
   // Send direct message over custom protocol
   const sendDirectMessage = useCallback(
-    async (overrideMessage?: string) => {
-      const trimmedMessage = (overrideMessage ?? input).trim()
+    async (rawMessage: string) => {
+      const trimmedMessage = rawMessage.trim()
 
       if (trimmedMessage === '') return
+
+      const targetRoomId = roomId
+      const myPeerId = libp2p.peerId.toString()
+      const pendingMessage: ChatMessage = {
+        msgId: crypto.randomUUID(),
+        msg: trimmedMessage,
+        fileObjectUrl: undefined,
+        peerId: myPeerId,
+        read: true,
+        receivedAt: Date.now(),
+        status: 'pending',
+      }
+
+      setDirectMessages((prev) => {
+        const existing = prev[targetRoomId] ?? []
+
+        return {
+          ...prev,
+          [targetRoomId]: [...existing, pendingMessage],
+        }
+      })
+
       try {
-        const res = await libp2p.services.directMessage.send(peerIdFromString(roomId), trimmedMessage)
+        const res = await libp2p.services.directMessage.send(peerIdFromString(targetRoomId), trimmedMessage)
 
         if (!res) {
-          log('Failed to send message')
-
-          return
+          throw new Error('Failed to send message')
         }
 
-        const myPeerId = libp2p.peerId.toString()
+        setDirectMessages((prev) => {
+          const existing = prev[targetRoomId]
+          if (!existing) {
+            return prev
+          }
 
-        const newMessage: ChatMessage = {
-          msgId: crypto.randomUUID(),
-          msg: trimmedMessage,
-          fileObjectUrl: undefined,
-          peerId: myPeerId,
-          read: true,
-          receivedAt: Date.now(),
-        }
+          return {
+            ...prev,
+            [targetRoomId]: existing.map((message) =>
+              message.msgId === pendingMessage.msgId ? { ...message, status: 'sent' } : message,
+            ),
+          }
+        })
+      } catch (error) {
+        log.error('failed to send direct message %o', error)
+        setDirectMessages((prev) => {
+          const existing = prev[targetRoomId]
+          if (!existing) {
+            return prev
+          }
 
-        const updatedMessages = directMessages[roomId] ? [...directMessages[roomId], newMessage] : [newMessage]
-
-        setDirectMessages({
-          ...directMessages,
-          [roomId]: updatedMessages,
+          return {
+            ...prev,
+            [targetRoomId]: existing.map((message) =>
+              message.msgId === pendingMessage.msgId ? { ...message, status: 'failed' } : message,
+            ),
+          }
         })
 
-        if (!overrideMessage) {
-          setInput('')
-        }
-      } catch (e: any) {
-        log(e)
+        throw error
       }
     },
-    [libp2p, setDirectMessages, directMessages, roomId, input],
+    [libp2p, roomId, setDirectMessages],
   )
 
   const sendFile = useCallback(
@@ -154,33 +188,17 @@ export default function ChatContainer() {
         peerId: myPeerId,
         read: true,
         receivedAt: Date.now(),
+        status: 'sent',
       }
 
-      setMessageHistory([...messageHistory, msg])
+      setMessageHistory((prev) => [...prev, msg])
     },
-    [messageHistory, libp2p, setMessageHistory, files, setFiles],
+    [libp2p, setMessageHistory, files, setFiles],
   )
 
   const newChatFileMessage = (id: string, body: Uint8Array, name?: string) => {
     return `File: ${name ?? id} (${body.length} bytes)`
   }
-
-  const handleKeyDown = useCallback(
-    async (e: React.KeyboardEvent<HTMLElement>) => {
-      if (e.key !== 'Enter' || e.shiftKey) {
-        return
-      }
-
-      e.preventDefault()
-
-      if (roomId === PUBLIC_CHAT_ROOM_ID) {
-        await sendPublicMessage()
-      } else {
-        await sendDirectMessage()
-      }
-    },
-    [sendPublicMessage, sendDirectMessage, roomId],
-  )
 
   const handleSend = useCallback(async () => {
     if (sending) return
@@ -197,10 +215,24 @@ export default function ChatContainer() {
         await sendDirectMessage(trimmedMessage)
       }
       setInput('')
+    } catch (error) {
+      log.error('failed to send message %o', error)
     } finally {
       setSending(false)
     }
   }, [input, roomId, sendDirectMessage, sendPublicMessage, sending])
+
+  const handleKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key !== 'Enter' || e.shiftKey) {
+        return
+      }
+
+      e.preventDefault()
+      await handleSend()
+    },
+    [handleSend],
+  )
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setInput(e.target.value)
@@ -244,6 +276,8 @@ export default function ChatContainer() {
       } else {
         await sendDirectMessage(meetingInvite)
       }
+    } catch (error) {
+      log.error('failed to send meeting invite %o', error)
     } finally {
       setSending(false)
     }
@@ -269,6 +303,8 @@ export default function ChatContainer() {
       } else {
         await sendDirectMessage(streamInvite)
       }
+    } catch (error) {
+      log.error('failed to send stream invite %o', error)
     } finally {
       setSending(false)
     }
@@ -476,12 +512,13 @@ export default function ChatContainer() {
                       fileObjectUrl={message.fileObjectUrl}
                       msg={message.msg}
                       msgId={message.msgId}
-                      peerId={message.peerId}
-                      read={message.read}
-                      receivedAt={message.receivedAt}
-                      showAvatar={showAvatar}
-                      showTimestamp={showTimestamp}
-                    />
+                    peerId={message.peerId}
+                    read={message.read}
+                    receivedAt={message.receivedAt}
+                    status={message.status}
+                    showAvatar={showAvatar}
+                    showTimestamp={showTimestamp}
+                  />
                   )
                 })}
               </ul>
