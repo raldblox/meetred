@@ -143,16 +143,22 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                 </div>
 
                 <div className="space-y-2">
-                  <p className="font-semibold text-xs uppercase tracking-wide text-default-500">Private Identity Key</p>
+                  <p className="font-semibold text-xs uppercase tracking-wide text-default-500">
+                    Reuse This Identity Later
+                  </p>
+                  <p className="text-[13px] text-default-500">
+                    If you like the current peer ID, copy its key and stash it in a password manager or secure notes. You
+                    can always import it again to come back as the same peer.
+                  </p>
                   {hexKey ? (
                     <>
-                      <div className="space-y-2 rounded-medium border border-warning/40 bg-warning/5 p-3 text-xs text-default-600">
-                        <p className="font-semibold text-warning">Sensitive information</p>
-                        <ol className="list-decimal list-inside space-y-1">
-                          <li>Ensure no one can see your screen.</li>
-                          <li>Store this key in a secure password manager.</li>
-                          <li>Never share it with untrusted parties.</li>
-                        </ol>
+                      <div className="space-y-1 rounded-medium border border-default-200 bg-default-50 p-3 text-xs text-default-600">
+                        <p className="font-semibold text-default-600">Quick tips</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>Reveal only when you’re ready to copy.</li>
+                          <li>Paste it into a password manager or secure note.</li>
+                          <li>Importing this key later restores the same identity.</li>
+                        </ul>
                       </div>
                       <Button
                         className="text-xs"
@@ -180,7 +186,11 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
 
                 {showImportArea && (
                   <div className="space-y-2">
-                    <p className="font-semibold text-xs uppercase tracking-wide text-default-500">Import Private Key</p>
+                    <p className="font-semibold text-xs uppercase tracking-wide text-default-500">Import a Saved Key</p>
+                    <p className="text-[13px] text-default-500">
+                      Paste any previously exported key (they start with <code>0x</code>) and we’ll reconnect you as that
+                      peer. Great for moving identities between browsers.
+                    </p>
                     <Textarea
                       isDisabled={rotatingIdentity || importing}
                       maxRows={6}
@@ -202,20 +212,20 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                             <UploadCloud aria-hidden className="h-3.5 w-3.5" strokeWidth={2} />
                           )
                         }
-                        variant="flat"
-                        onPress={handleImport}
-                      >
-                        {importing ? 'Importing…' : 'Import Key'}
-                      </Button>
-                    </div>
+                      variant="flat"
+                      onPress={handleImport}
+                    >
+                      {importing ? 'Importing…' : 'Import Key'}
+                    </Button>
                   </div>
-                )}
-                <Alert variant="bordered">
-                  <p className="text-default-500 text-xs">
-                    Regenerating a new identity wipes the stored key, disconnects current peers, and restarts your
-                    browser node with a fresh Ed25519 key pair.
-                  </p>
-                </Alert>
+                </div>
+              )}
+              <Alert variant="bordered">
+                <p className="text-default-500 text-xs">
+                  Rotating generates a fresh peer ID and disconnects active chats. Export the current key first if you
+                  plan to come back as this persona.
+                </p>
+              </Alert>
               </ModalBody>
               <ModalFooter>
                 <div className="flex w-full justify-between">
