@@ -2,14 +2,12 @@ import * as React from 'react'
 
 import { IconSvgProps } from '@/types'
 
-export const Logo: React.FC<IconSvgProps> = ({ size = 36, width, height, ...props }) => (
-  <svg fill="none" height={size || height} viewBox="0 0 32 32" width={size || width} {...props}>
-    <path
-      clipRule="evenodd"
-      d="M17.6482 10.1305L15.8785 7.02583L7.02979 22.5499H10.5278L17.6482 10.1305ZM19.8798 14.0457L18.11 17.1983L19.394 19.4511H16.8453L15.1056 22.5499H24.7272L19.8798 14.0457Z"
-      fill="currentColor"
-      fillRule="evenodd"
-    />
+export const Logo: React.FC<IconSvgProps> = ({ size = 18, width, height, ...props }) => (
+  <svg fill="none" height={size || height} viewBox="0 0 633 633" width={size || width} {...props}>
+    <rect y="435" width="198" height="198" fill="currentColor" />
+    <path d="M217 217H415V633H217V217Z" fill="currentColor" />
+    <rect width="198" height="416" fill="currentColor" fillOpacity="0.618" />
+    <rect x="435" width="198" height="633" fill="currentColor" />
   </svg>
 )
 

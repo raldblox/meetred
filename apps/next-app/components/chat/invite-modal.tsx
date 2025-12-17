@@ -40,8 +40,9 @@ export function InviteButton() {
   return (
     <>
       <Button
+        radius="none"
         aria-label="Invite to private chat"
-        className="h-7 font-normal bg-default-100 text-sm text-default-600"
+        className="h-7 font-normal bg-default-100 text-sm text-default-600 hover:bg-primary"
         size="sm"
         startContent={<UserPlus2 className="h-3.5 w-3.5" />}
         variant="flat"

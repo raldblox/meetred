@@ -1,6 +1,6 @@
 <svg width="633" height="633" viewBox="0 0 633 633" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect y="435" width="198" height="198" fill="white"/>
-<path d="M217 217H415V633H217V217Z" fill="white"/>
-<rect width="198" height="416" fill="white" fill-opacity="0.618"/>
-<rect x="435" width="198" height="633" fill="white"/>
+<rect y="435" width="198" height="198" fill="currentColor"/>
+<path d="M217 217H415V633H217V217Z" fill="currentColor"/>
+<rect width="198" height="416" fill="currentColor" fill-opacity="0.618"/>
+<rect x="435" width="198" height="633" fill="currentColor"/>
 </svg>

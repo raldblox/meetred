@@ -108,6 +108,7 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
         className={`h-7 font-normal bg-default-100 ${buttonIsIconOnly ? 'text-default-600' : 'text-sm text-default-600'}`}
         isDisabled={rotatingIdentity}
         isIconOnly={buttonIsIconOnly}
+        radius="none"
         size="sm"
         startContent={buttonIsIconOnly ? undefined : buttonStartContent}
         variant="flat"
