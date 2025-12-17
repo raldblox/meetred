@@ -16,6 +16,13 @@ import { ChatProvider } from './chat-ctx'
 import { forComponent } from '@/lib/logger'
 import { importPrivateKey } from '@/lib/identity'
 import { Booting } from '@/components/ui/booting'
+import {
+  DEFAULT_BOOT_STEPS,
+  PRIMARY_BOOT_PHASES,
+  getBootStatusCopy,
+  type BootStepSnapshot,
+  type BootStatusUpdate,
+} from '@/lib/boot-status'
 
 export type Libp2pType = Libp2p<{
   pubsub: PubSub<GossipsubEvents>
@@ -46,22 +53,77 @@ interface WrapperProps {
 
 const log = forComponent('libp2p-context')
 
+const buildBootSteps = (): BootStepSnapshot[] =>
+  DEFAULT_BOOT_STEPS.map((step) => ({
+    ...step,
+    state: 'pending',
+    message: undefined,
+  }))
+
 export function Libp2pProvider({ children }: WrapperProps) {
   const [libp2p, setLibp2p] = useState<Libp2pType | undefined>(undefined)
   const [error, setError] = useState('')
   const [rotatingIdentity, setRotatingIdentity] = useState(false)
+  const [bootSteps, setBootSteps] = useState<BootStepSnapshot[]>(() => buildBootSteps())
+  const [peerDiscoveryComplete, setPeerDiscoveryComplete] = useState(false)
+  const [bootLogs, setBootLogs] = useState<{ id: string; text: string }[]>([])
   const hasInitialized = useRef(false)
+  const bootSequenceRef = useRef(0)
+  const bootLogIdRef = useRef(0)
 
-  const init = useCallback(async (options?: StartLibp2pOptions) => {
-    const node = await startLibp2p(options)
+  const handleBootStatusUpdate = useCallback((update: BootStatusUpdate) => {
+    setBootSteps((prev) =>
+      prev.map((step) =>
+        step.phase === update.phase ? { ...step, state: update.state, message: update.message ?? step.message } : step,
+      ),
+    )
 
-    // @ts-ignore helpful for local debugging
-    window.libp2p = node
-    setLibp2p(node as Libp2pType)
-    setError('')
+    const message = getBootStatusCopy(update.phase, update.state)
 
-    return node
+    setBootLogs((prev) => {
+      if (prev[prev.length - 1]?.text === message) {
+        return prev
+      }
+
+      const nextLog = { id: `${bootSequenceRef.current}-${bootLogIdRef.current++}`, text: message }
+
+      return [...prev, nextLog]
+    })
+
+    if (update.phase === 'waiting-for-peers' && update.state === 'complete') {
+      setPeerDiscoveryComplete(true)
+    }
   }, [])
+
+  const init = useCallback(
+    async (options?: StartLibp2pOptions) => {
+      const bootId = bootSequenceRef.current + 1
+      bootSequenceRef.current = bootId
+      setPeerDiscoveryComplete(false)
+      setBootSteps(buildBootSteps())
+      setBootLogs([])
+      bootLogIdRef.current = 0
+
+      const node = await startLibp2p({
+        ...options,
+        onStatus: (update) => {
+          if (bootSequenceRef.current !== bootId) {
+            return
+          }
+
+          handleBootStatusUpdate(update)
+        },
+      })
+
+      // @ts-ignore helpful for local debugging
+      window.libp2p = node
+      setLibp2p(node as Libp2pType)
+      setError('')
+
+      return node
+    },
+    [handleBootStatusUpdate],
+  )
 
   const stopCurrentNode = useCallback(async () => {
     if (!libp2p) {
@@ -138,11 +200,12 @@ export function Libp2pProvider({ children }: WrapperProps) {
   )
 
   if (!libp2p) {
-    return <Booting error={error} />
+    return <Booting error={error} steps={bootSteps} logLines={bootLogs} />
   }
 
   return (
     <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity }}>
+      {!peerDiscoveryComplete && <Booting error={error} steps={bootSteps} logLines={bootLogs} variant="overlay" />}
       <ChatProvider>{children}</ChatProvider>
     </Libp2pContext.Provider>
   )

@@ -27,6 +27,7 @@ import { BOOTSTRAP_PEER_IDS, CHAT_FILE_TOPIC, CHAT_TOPIC, PUBSUB_PEER_DISCOVERY 
 import { forComponent, enable } from './logger'
 import { directMessage } from './direct-message'
 import { loadOrCreatePrivateKey } from './identity'
+import type { BootPhase, BootPhaseState, BootStatusUpdate } from './boot-status'
 
 const log = forComponent('libp2p')
 
@@ -77,22 +78,42 @@ const ensureRelayReservations = async (libp2p: Libp2p, relayListenAddrs: string[
 export interface StartLibp2pOptions {
   forceNewIdentity?: boolean
   privateKey?: PrivateKey
+  onStatus?: (update: BootStatusUpdate) => void
 }
+
+const setBootStatusFactory =
+  (reporter?: (update: BootStatusUpdate) => void) =>
+  (phase: BootPhase, state: BootPhaseState, message?: string) => {
+    reporter?.({ phase, state, message })
+  }
 
 export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Libp2pType> {
   // enable verbose logging in browser console to view debug logs
   enable('ui*,libp2p*,-libp2p:connection-manager*,-*:trace')
 
+  const setBootStatus = setBootStatusFactory(options.onStatus)
+
+  setBootStatus('resolving-relays', 'active', 'Resolving delegated relay addresses')
   const delegatedClient = createDelegatedRoutingV1HttpApiClient('https://delegated-ipfs.dev')
 
   const relayListenAddrs = await resolveRelayListenAddrs(delegatedClient)
+  setBootStatus(
+    'resolving-relays',
+    'complete',
+    relayListenAddrs.length > 0
+      ? `Resolved ${relayListenAddrs.length} relay${relayListenAddrs.length > 1 ? 's' : ''}`
+      : 'No relays resolved (continuing without relays)',
+  )
 
   log('starting libp2p with relayListenAddrs: %o', relayListenAddrs)
 
   let libp2p: Libp2pType
 
+  setBootStatus('loading-identity', 'active', 'Loading or creating identity')
   const privateKey = options.privateKey ?? (await loadOrCreatePrivateKey({ forceNew: options.forceNewIdentity }))
+  setBootStatus('loading-identity', 'complete', 'Identity ready')
 
+  setBootStatus('starting-libp2p', 'active', 'Spinning up browser node')
   libp2p = await createLibp2p({
     privateKey,
     addresses: {
@@ -147,9 +168,13 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
     throw new Error('Failed to create libp2p node')
   }
 
+  setBootStatus('starting-libp2p', 'complete', `Node ready as ${libp2p.peerId.toString()}`)
+
+  setBootStatus('subscribing-topics', 'active', 'Joining pubsub topics')
   libp2p.services.pubsub.subscribe(CHAT_TOPIC)
   libp2p.services.pubsub.subscribe(CHAT_FILE_TOPIC)
   libp2p.services.pubsub.subscribe(PUBSUB_PEER_DISCOVERY)
+  setBootStatus('subscribing-topics', 'complete', 'Subscribed to chat and discovery topics')
 
   libp2p.addEventListener('self:peer:update', ({ detail: { peer } }) => {
     const multiaddrs = peer.addresses.map(({ multiaddr }) => multiaddr)
@@ -157,9 +182,42 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
     log(`changed multiaddrs: peer ${peer.id.toString()} multiaddrs: ${multiaddrs}`)
   })
 
+  // Make sure we reserve slots on the relays we resolved above so that other peers can discover/dial us.
+  if (relayListenAddrs.length > 0) {
+    setBootStatus('reserving-relays', 'active', 'Creating relay reservations')
+    ensureRelayReservations(libp2p, relayListenAddrs)
+      .then(() => setBootStatus('reserving-relays', 'complete', 'Relay reservations ready'))
+      .catch((error) => {
+        setBootStatus('reserving-relays', 'error', 'Unable to reserve relays')
+        log.error('failed to ensure relay reservations %o', error)
+      })
+  } else {
+    setBootStatus('reserving-relays', 'complete', 'No relay reservations required')
+  }
+
+  setBootStatus('waiting-for-peers', 'active', 'Waiting for discovery events')
+  let peerDiscoveryResolved = false
+  let peerDiscoveryTimeout: ReturnType<typeof setTimeout> | undefined
+  const finishPeerDiscovery = (state: BootPhaseState, message?: string) => {
+    if (peerDiscoveryResolved) {
+      return
+    }
+    peerDiscoveryResolved = true
+    if (peerDiscoveryTimeout) {
+      clearTimeout(peerDiscoveryTimeout)
+    }
+    setBootStatus('waiting-for-peers', state, message)
+  }
+
+  peerDiscoveryTimeout = setTimeout(() => {
+    finishPeerDiscovery('complete', 'Peer discovery timed out, continuing without peers')
+  }, 15_000)
+
   // 👇 explicitly dial peers discovered via pubsub
   libp2p.addEventListener('peer:discovery', (event) => {
     const { multiaddrs, id } = event.detail
+
+    finishPeerDiscovery('complete', `Discovered peer ${id.toString()}`)
 
     if (libp2p.getConnections(id)?.length > 0) {
       log(`Already connected to peer %s. Will not try dialling`, id)
@@ -170,10 +228,9 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
     dialDiscoveredAddrs(libp2p, multiaddrs)
   })
 
-  // Make sure we reserve slots on the relays we resolved above so that other peers can discover/dial us.
-  ensureRelayReservations(libp2p, relayListenAddrs).catch((error) =>
-    log.error('failed to ensure relay reservations %o', error),
-  )
+  libp2p.addEventListener('peer:connect', ({ detail }) => {
+    finishPeerDiscovery('complete', `Connected to peer ${detail.toString()}`)
+  })
 
   return libp2p
 }
