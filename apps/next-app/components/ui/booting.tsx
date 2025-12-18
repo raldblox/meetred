@@ -21,7 +21,7 @@ interface Props {
   logLines?: BootLogLine[]
 }
 
-const DISPLAY_HEIGHT = 'h-24'
+const DISPLAY_HEIGHT = 'h-[3rem]'
 
 export function Booting({ error, steps = [], variant = 'standalone', logLines = [] }: Props) {
   const containerClass = clsx(
@@ -143,7 +143,10 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
   return (
     <motion.div className={containerClass} {...overlayMotionProps}>
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 text-center">
-        <Logo size={64} className="text-primary" />
+        <div className="flex flex-col items-center justify-center gap-6">
+          <Logo size={64} className="text-primary" />
+          <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You’re joining live.</p>
+        </div>
 
         <div className="w-full max-w-sm px-4">
           <div
@@ -183,7 +186,7 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
       animate={{ opacity: targetOpacity, y: targetOffset }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.15, ease: 'easeOut' }}
-      className="flex h-4 items-center justify-center text-[11px] leading-none"
+      className="flex items-center justify-center text-[11px] leading-none"
     >
       {text}
     </motion.p>
