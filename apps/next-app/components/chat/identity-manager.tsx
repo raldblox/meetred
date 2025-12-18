@@ -147,17 +147,17 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                     Reuse This Identity Later
                   </p>
                   <p className="text-[13px] text-default-500">
-                    If you like the current peer ID, copy its key and stash it in a password manager or secure notes. You
-                    can always import it again to come back as the same peer.
+                    Love this peer ID? Copy its key into a password manager or secure note so you can import it again on
+                    any device.
                   </p>
                   {hexKey ? (
                     <>
                       <div className="space-y-1 rounded-medium border border-default-200 bg-default-50 p-3 text-xs text-default-600">
-                        <p className="font-semibold text-default-600">Quick tips</p>
+                        <p className="font-semibold text-default-600">Backup pointers</p>
                         <ul className="list-disc list-inside space-y-1">
-                          <li>Reveal only when you’re ready to copy.</li>
-                          <li>Paste it into a password manager or secure note.</li>
-                          <li>Importing this key later restores the same identity.</li>
+                          <li>Show the key only when you're ready to copy.</li>
+                          <li>Store it inside an encrypted manager or secure note.</li>
+                          <li>Importing this key later restores this exact identity.</li>
                         </ul>
                       </div>
                       <Button
@@ -167,7 +167,7 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                         variant="flat"
                         onPress={() => setHasAcknowledged(true)}
                       >
-                        {hasAcknowledged ? 'Ready to reveal' : 'I understand, reveal the key'}
+                        {hasAcknowledged ? 'Ready to reveal' : 'I understand, show the key'}
                       </Button>
                       {hasAcknowledged && (
                         <Snippet hideSymbol className="w-full px-3 py-2" codeString={hexKey} size="sm" variant="flat">
@@ -188,8 +188,8 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                   <div className="space-y-2">
                     <p className="font-semibold text-xs uppercase tracking-wide text-default-500">Import a Saved Key</p>
                     <p className="text-[13px] text-default-500">
-                      Paste any previously exported key (they start with <code>0x</code>) and we’ll reconnect you as that
-                      peer. Great for moving identities between browsers.
+                      Paste any exported private key (they start with <code>0x</code>) and we'll sign you back in as that peer.
+                      Perfect for keeping the same persona across browsers.
                     </p>
                     <Textarea
                       isDisabled={rotatingIdentity || importing}
@@ -215,7 +215,7 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                       variant="flat"
                       onPress={handleImport}
                     >
-                      {importing ? 'Importing…' : 'Import Key'}
+                      {importing ? 'Importing...' : 'Import Key'}
                     </Button>
                   </div>
                 </div>
@@ -261,7 +261,7 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                       }
                       onPress={handleConfirm}
                     >
-                      {rotatingIdentity ? 'Processing…' : 'New Identity'}
+                      {rotatingIdentity ? 'Processing...' : 'New Identity'}
                     </Button>
                   </div>
                 </div>

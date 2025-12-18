@@ -1,11 +1,18 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 
-import { PRIMARY_BOOT_PHASES, getBootStatusCopy, getDefaultStatusCopy, type BootStepSnapshot } from '@/lib/boot-status'
+import {
+  PRIMARY_BOOT_PHASES,
+  getBootStatusCopy,
+  getDefaultStatusCopy,
+  type BootStepSnapshot,
+  type BootPhase,
+  type BootPhaseState,
+} from '@/lib/boot-status'
 import { Logo } from './icons'
 
-type BootLogLine = { id: string; text: string }
+type BootLogLine = { id: string; text: string; createdAt: number; phase: BootPhase; state: BootPhaseState }
 
 interface Props {
   error?: string
@@ -13,6 +20,8 @@ interface Props {
   variant?: 'standalone' | 'overlay'
   logLines?: BootLogLine[]
 }
+
+const DISPLAY_HEIGHT = 'h-24'
 
 export function Booting({ error, steps = [], variant = 'standalone', logLines = [] }: Props) {
   const containerClass = clsx(
@@ -28,7 +37,6 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
         continue
       }
 
-      // If this phase finished, keep moving unless it's the final phase we care about.
       if (phase !== PRIMARY_BOOT_PHASES[PRIMARY_BOOT_PHASES.length - 1] && step.state === 'complete') {
         continue
       }
@@ -51,37 +59,114 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
     return getBootStatusCopy(focusedStep.phase, focusedStep.state)
   }, [error, focusedStep])
 
-  const displayLines = useMemo(() => {
-    if (logLines.length > 0) {
-      return logLines.slice(-3)
+  const latestLog = logLines.length > 0 ? logLines[logLines.length - 1] : null
+
+  const fallbackLine = useMemo(() => {
+    if (logLines.length > 0 || !statusMessage) {
+      return null
     }
 
-    return statusMessage ? [{ id: `status-${statusMessage}`, text: statusMessage }] : []
-  }, [logLines, statusMessage])
+    const fallbackPhase = focusedStep?.phase ?? PRIMARY_BOOT_PHASES[0]
+    const fallbackState = focusedStep?.state ?? 'pending'
+
+    return {
+      id: `fallback-${fallbackPhase}-${fallbackState}`,
+      text: statusMessage,
+      createdAt: 0,
+      phase: fallbackPhase,
+      state: fallbackState,
+    }
+  }, [focusedStep?.phase, focusedStep?.state, logLines.length, statusMessage])
+
+  const [readyLine, setReadyLine] = useState<BootLogLine | null>(null)
+
+  useEffect(() => {
+    if (!latestLog || latestLog.phase !== 'waiting-for-peers' || latestLog.state !== 'complete') {
+      setReadyLine(null)
+
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      setReadyLine({
+        id: `boot-ready-${Date.now()}`,
+        text: 'Connections ready. Welcome!',
+        createdAt: Date.now(),
+        phase: latestLog.phase,
+        state: latestLog.state,
+      })
+    }, 1_000)
+
+    return () => clearTimeout(timeout)
+  }, [latestLog])
+
+  const pendingOrActiveStep = useMemo(() => {
+    return steps.find((step) => step.state === 'pending') ?? steps.find((step) => step.state === 'active') ?? null
+  }, [steps])
+
+  const displayLines = useMemo(() => {
+    const base = logLines.length > 0 ? logLines : fallbackLine ? [fallbackLine] : []
+
+    const filteredBase: BootLogLine[] = []
+    const seenStates = new Set<string>()
+
+    for (const line of base) {
+      const key = `${line.phase}-${line.state}`
+
+      if (seenStates.has(key)) {
+        continue
+      }
+
+      seenStates.add(key)
+      filteredBase.push(line)
+    }
+
+    let combined = filteredBase
+
+    if (readyLine) {
+      const readyKey = `${readyLine.phase}-${readyLine.state}`
+      combined = [...filteredBase.filter((line) => `${line.phase}-${line.state}` !== readyKey), readyLine]
+    }
+
+    return combined.slice(-3)
+  }, [fallbackLine, logLines, readyLine])
+
+  const overlayMotionProps =
+    variant === 'overlay'
+      ? {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          transition: { duration: 0.35, ease: 'easeOut' },
+        }
+      : {}
 
   return (
-    <div className={containerClass}>
+    <motion.div className={containerClass} {...overlayMotionProps}>
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 text-center">
-        <Logo size={40} className="text-primary" />
+        <Logo size={64} className="text-primary" />
 
         <div className="w-full max-w-sm px-4">
           <div
-            className="flex h-[1rem] w-full flex-col justify-end gap-0 overflow-hidden font-mono text-center text-sm text-default-600"
+            className={clsx(
+              'flex w-full flex-col justify-end gap-0 overflow-hidden font-mono text-center text-sm text-default-600',
+              DISPLAY_HEIGHT,
+            )}
             aria-live="polite"
           >
             <AnimatePresence mode="popLayout">
               {displayLines.map((line, idx, arr) => {
                 const age = arr.length - 1 - idx
 
-                return <TerminalLine age={age} key={line.id} text={line.text} />
+                return <TerminalLine key={line.id} age={age} text={line.text} />
               })}
             </AnimatePresence>
           </div>
         </div>
 
-        {error ? <p className="max-w-lg break-all leading-0 text-xs text-danger">{error}</p> : null}
+        {error ? <p className="max-w-lg break-all text-xs text-danger">{error}</p> : null}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -95,11 +180,11 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
   return (
     <motion.p
       layout="position"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: targetOpacity, y: targetOffset }}
       exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="flex h-[1.25rem] items-center justify-center text-xs"
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+      className="flex h-4 items-center justify-center text-[11px] leading-none"
     >
       {text}
     </motion.p>

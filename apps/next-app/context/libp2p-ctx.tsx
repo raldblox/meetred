@@ -8,6 +8,7 @@ import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
+import { AnimatePresence } from 'framer-motion'
 
 import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 
@@ -20,6 +21,8 @@ import {
   DEFAULT_BOOT_STEPS,
   PRIMARY_BOOT_PHASES,
   getBootStatusCopy,
+  type BootPhase,
+  type BootPhaseState,
   type BootStepSnapshot,
   type BootStatusUpdate,
 } from '@/lib/boot-status'
@@ -66,10 +69,26 @@ export function Libp2pProvider({ children }: WrapperProps) {
   const [rotatingIdentity, setRotatingIdentity] = useState(false)
   const [bootSteps, setBootSteps] = useState<BootStepSnapshot[]>(() => buildBootSteps())
   const [peerDiscoveryComplete, setPeerDiscoveryComplete] = useState(false)
-  const [bootLogs, setBootLogs] = useState<{ id: string; text: string }[]>([])
+  const [bootLogs, setBootLogs] = useState<{ id: string; text: string; createdAt: number; phase: BootPhase; state: BootPhaseState }[]>([])
   const hasInitialized = useRef(false)
   const bootSequenceRef = useRef(0)
   const bootLogIdRef = useRef(0)
+  const overlayDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearOverlayDismiss = useCallback(() => {
+    if (overlayDismissTimeoutRef.current) {
+      clearTimeout(overlayDismissTimeoutRef.current)
+      overlayDismissTimeoutRef.current = null
+    }
+  }, [])
+
+  const requestOverlayDismiss = useCallback(() => {
+    clearOverlayDismiss()
+    overlayDismissTimeoutRef.current = setTimeout(() => {
+      setPeerDiscoveryComplete(true)
+      overlayDismissTimeoutRef.current = null
+    }, 1_500)
+  }, [clearOverlayDismiss])
 
   const handleBootStatusUpdate = useCallback((update: BootStatusUpdate) => {
     setBootSteps((prev) =>
@@ -85,21 +104,28 @@ export function Libp2pProvider({ children }: WrapperProps) {
         return prev
       }
 
-      const nextLog = { id: `${bootSequenceRef.current}-${bootLogIdRef.current++}`, text: message }
+      const nextLog = {
+        id: `${bootSequenceRef.current}-${bootLogIdRef.current++}`,
+        text: message,
+        createdAt: Date.now(),
+        phase: update.phase,
+        state: update.state,
+      }
 
       return [...prev, nextLog]
     })
 
     if (update.phase === 'waiting-for-peers' && update.state === 'complete') {
-      setPeerDiscoveryComplete(true)
+      requestOverlayDismiss()
     }
-  }, [])
+  }, [requestOverlayDismiss])
 
   const init = useCallback(
     async (options?: StartLibp2pOptions) => {
       const bootId = bootSequenceRef.current + 1
       bootSequenceRef.current = bootId
       setPeerDiscoveryComplete(false)
+      clearOverlayDismiss()
       setBootSteps(buildBootSteps())
       setBootLogs([])
       bootLogIdRef.current = 0
@@ -122,7 +148,7 @@ export function Libp2pProvider({ children }: WrapperProps) {
 
       return node
     },
-    [handleBootStatusUpdate],
+    [clearOverlayDismiss, handleBootStatusUpdate],
   )
 
   const stopCurrentNode = useCallback(async () => {
@@ -136,6 +162,12 @@ export function Libp2pProvider({ children }: WrapperProps) {
       log.error('failed to stop libp2p node %o', e)
     }
   }, [libp2p])
+
+  useEffect(() => {
+    return () => {
+      clearOverlayDismiss()
+    }
+  }, [clearOverlayDismiss])
 
   useEffect(() => {
     if (hasInitialized.current) {
@@ -205,7 +237,11 @@ export function Libp2pProvider({ children }: WrapperProps) {
 
   return (
     <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity }}>
-      {!peerDiscoveryComplete && <Booting error={error} steps={bootSteps} logLines={bootLogs} variant="overlay" />}
+      <AnimatePresence>
+        {!peerDiscoveryComplete ? (
+          <Booting error={error} steps={bootSteps} logLines={bootLogs} variant="overlay" key="boot-overlay" />
+        ) : null}
+      </AnimatePresence>
       <ChatProvider>{children}</ChatProvider>
     </Libp2pContext.Provider>
   )

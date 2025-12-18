@@ -36,38 +36,43 @@ export const PRIMARY_BOOT_PHASES: BootPhase[] = ['starting-libp2p', 'waiting-for
 
 const STATUS_COPY: Record<BootPhase, { active: string; pending: string; complete: string }> = {
   'resolving-relays': {
-    pending: 'Checking the relay weather...',
-    active: 'Consulting the relay oracles...',
-    complete: 'Relays bribed successfully.',
+    pending: 'Getting things ready…',
+    active: 'Finding the best path to connect you…',
+    complete: 'Connection paths ready.',
   },
+
   'loading-identity': {
-    pending: 'Dusting off your secret identity...',
-    active: 'Polishing your alter ego badge...',
-    complete: 'Identity cape secured.',
+    pending: 'Preparing your identity…',
+    active: 'Unlocking your identity securely…',
+    complete: 'Identity ready.',
   },
+
   'starting-libp2p': {
-    pending: 'Fueling up the radio antennas...',
-    active: 'Spinning up the libp2p engines...',
-    complete: 'Engines humming nicely.',
+    pending: 'Setting up your connection…',
+    active: 'Bringing you online…',
+    complete: 'You’re online.',
   },
+
   'subscribing-topics': {
-    pending: 'Sneaking into gossip circles...',
-    active: 'Eavesdropping on the gossip mesh...',
-    complete: 'Now fluent in small talk.',
+    pending: 'Getting the room ready…',
+    active: 'Connecting you to live conversations…',
+    complete: 'You’re connected to the room.',
   },
+
   'reserving-relays': {
-    pending: 'Scouting for VIP relay seats...',
-    active: 'Slipping relays a friendly tip...',
-    complete: 'Reserved a comfy relay couch.',
+    pending: 'Stabilizing your connection…',
+    active: 'Securing a reliable route…',
+    complete: 'Connection secured.',
   },
+
   'waiting-for-peers': {
-    pending: 'Setting the snack table for guests...',
-    active: 'Waiting for friends to pop in...',
-    complete: 'Friend spotted! Scooting over.',
+    pending: 'Almost there…',
+    active: 'Looking for others in the room…',
+    complete: 'You’ve joined the room.',
   },
 }
 
-const DEFAULT_STATUS = 'Preparing the chat floor...'
+const DEFAULT_STATUS = 'Getting Meetred ready…'
 
 export function getBootStatusCopy(phase: BootPhase, state: BootPhaseState): string {
   const phaseCopy = STATUS_COPY[phase]
