@@ -134,10 +134,9 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
   const overlayMotionProps =
     variant === 'overlay'
       ? {
-          initial: { opacity: 0 },
-          animate: { opacity: 1 },
+          initial: false,
           exit: { opacity: 0 },
-          transition: { duration: 0.35, ease: 'easeOut' },
+          transition: { duration: 0.2, ease: 'easeOut' },
         }
       : {}
 
