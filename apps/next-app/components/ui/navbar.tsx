@@ -1,7 +1,6 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button, Link } from '@heroui/react'
-import Image from 'next/image'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
@@ -28,9 +27,9 @@ export const Navbar = () => {
             <NavbarItem key={item.href}>
               <Button
                 as={NextLink}
-                radius="none"
                 className="h-7 hover:bg-primary"
                 href={item.href}
+                radius="none"
                 size="sm"
                 variant="flat"
               >

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { Logo } from './icons'
+
 import {
   PRIMARY_BOOT_PHASES,
   getBootStatusCopy,
@@ -10,7 +12,6 @@ import {
   type BootPhase,
   type BootPhaseState,
 } from '@/lib/boot-status'
-import { Logo } from './icons'
 
 type BootLogLine = { id: string; text: string; createdAt: number; phase: BootPhase; state: BootPhaseState }
 
@@ -26,7 +27,7 @@ const DISPLAY_HEIGHT = 'h-[3rem]'
 export function Booting({ error, steps = [], variant = 'standalone', logLines = [] }: Props) {
   const containerClass = clsx(
     'grid place-items-center px-6',
-    variant === 'overlay' ? 'fixed inset-0 z-50 bg-background/95 backdrop-blur-sm' : 'min-h-screen',
+    variant === 'overlay' ? 'fixed inset-0 z-50 bg-background backdrop-blur-sm' : 'min-h-screen',
   )
 
   const focusedStep = useMemo(() => {
@@ -100,10 +101,6 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
     return () => clearTimeout(timeout)
   }, [latestLog])
 
-  const pendingOrActiveStep = useMemo(() => {
-    return steps.find((step) => step.state === 'pending') ?? steps.find((step) => step.state === 'active') ?? null
-  }, [steps])
-
   const displayLines = useMemo(() => {
     const base = logLines.length > 0 ? logLines : fallbackLine ? [fallbackLine] : []
 
@@ -125,6 +122,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
 
     if (readyLine) {
       const readyKey = `${readyLine.phase}-${readyLine.state}`
+
       combined = [...filteredBase.filter((line) => `${line.phase}-${line.state}` !== readyKey), readyLine]
     }
 
@@ -144,17 +142,17 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
     <motion.div className={containerClass} {...overlayMotionProps}>
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 text-center">
         <div className="flex flex-col items-center justify-center gap-6">
-          <Logo size={64} className="text-primary" />
+          <Logo className="text-primary" size={64} />
           <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You’re joining live.</p>
         </div>
 
         <div className="w-full max-w-sm px-4">
           <div
+            aria-live="polite"
             className={clsx(
               'flex w-full flex-col justify-end gap-0 overflow-hidden font-mono text-center text-sm text-default-600',
               DISPLAY_HEIGHT,
             )}
-            aria-live="polite"
           >
             <AnimatePresence mode="popLayout">
               {displayLines.map((line, idx, arr) => {
@@ -181,12 +179,12 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
 
   return (
     <motion.p
-      layout="position"
-      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: targetOpacity, y: targetOffset }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
       className="flex items-center justify-center text-[11px] leading-none"
+      exit={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: 12 }}
+      layout="position"
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
       {text}
     </motion.p>

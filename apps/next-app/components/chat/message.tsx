@@ -32,6 +32,12 @@ type StreamInvitePayload = {
   createdAt?: number
 }
 
+type AgentInvitePayload = {
+  type: 'agent_invite'
+  agentPeerId: string
+  createdAt?: number
+}
+
 const parseMeetingInvite = (msg: string): MeetingInvitePayload | null => {
   try {
     const parsed = JSON.parse(msg)
@@ -63,6 +69,20 @@ const parseStreamInvite = (msg: string): StreamInvitePayload | null => {
     }
   } catch {
     // ignore invalid payloads
+  }
+
+  return null
+}
+
+const parseAgentInvite = (msg: string): AgentInvitePayload | null => {
+  try {
+    const parsed = JSON.parse(msg)
+
+    if (parsed?.type === 'agent_invite' && typeof parsed.agentPeerId === 'string') {
+      return parsed as AgentInvitePayload
+    }
+  } catch {
+    // ignore
   }
 
   return null
@@ -102,6 +122,7 @@ export const Message = ({
   const meetingInvite = useMemo(() => parseMeetingInvite(msg), [msg])
   const streamInvite = useMemo(() => parseStreamInvite(msg), [msg])
   const streamChatPayload = useMemo(() => parseStreamChatPayload(msg), [msg])
+  const agentInvite = useMemo(() => parseAgentInvite(msg), [msg])
   const isStreamHost = streamInvite ? libp2p.peerId.toString() === streamInvite.hostPeerId : false
   const streamStatus = useStreamLiveStatus(
     streamInvite && !isStreamHost ? streamInvite.hostPeerId : undefined,
@@ -117,7 +138,9 @@ export const Message = ({
   useMarkAsRead(msgId, peerId, read, dm)
 
   const bubbleClasses = clsx(
-    isSelf ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none' : 'bg-default-300 text-default-900 rounded-md rounded-tl-none',
+    isSelf
+      ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none'
+      : 'bg-default-300 text-default-900 rounded-md rounded-tl-none',
     isSelf && isPending && 'opacity-70',
     isSelf && isFailed && 'bg-danger/80 text-danger-foreground',
   )
@@ -174,7 +197,12 @@ export const Message = ({
               </div>
             </div>
             {isSelf && deliveryStatus !== 'sent' && (
-              <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+              <span
+                className={clsx(
+                  'mt-1 text-[10px] uppercase tracking-wide',
+                  isFailed ? 'text-danger' : 'text-default-400',
+                )}
+              >
                 {isPending ? 'Sending...' : 'Failed to send'}
               </span>
             )}
@@ -222,7 +250,9 @@ export const Message = ({
           </StreamProvider>
         </div>
         {isSelf && deliveryStatus !== 'sent' && (
-          <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+          <span
+            className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}
+          >
             {isPending ? 'Sending...' : 'Failed to send'}
           </span>
         )}
@@ -269,7 +299,9 @@ export const Message = ({
           </div>
         </div>
         {isSelf && deliveryStatus !== 'sent' && (
-          <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+          <span
+            className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}
+          >
             {isPending ? 'Sending...' : 'Failed to send'}
           </span>
         )}
@@ -335,7 +367,72 @@ export const Message = ({
             </div>
           </div>
           {isSelf && deliveryStatus !== 'sent' && (
-            <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+            <span
+              className={clsx(
+                'mt-1 text-[10px] uppercase tracking-wide',
+                isFailed ? 'text-danger' : 'text-default-400',
+              )}
+            >
+              {isPending ? 'Sending...' : 'Failed to send'}
+            </span>
+          )}
+        </div>
+      </li>
+    )
+  }
+
+  if (agentInvite) {
+    const agentShortId = agentInvite.agentPeerId.slice(-7)
+
+    return (
+      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+        {showAvatar ? (
+          <div className="mt-5 w-8 h-8">
+            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+          </div>
+        ) : (
+          <div className="w-8" />
+        )}
+        <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+          {showTimestamp && (
+            <div
+              className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
+            >
+              {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
+              <span>{timestamp}</span>
+            </div>
+          )}
+          <div className="w-full max-w-md">
+            <div className="relative w-full overflow-hidden rounded-lg bg-default-100 p-4 shadow transition">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-default-400">Agent invite</p>
+                  <p className="text-lg text-left font-semibold uppercase">LM Studio · {agentShortId}</p>
+                </div>
+                <Button
+                  as={Link}
+                  className="font-semibold !text-sm"
+                  color="primary"
+                  href={`/agent/${agentInvite.agentPeerId}`}
+                  radius="full"
+                  size="md"
+                  variant="solid"
+                >
+                  Connect
+                </Button>
+              </div>
+              <p className="mt-2 text-sm text-left text-default-500">
+                Connect to this peer&apos;s local LM Studio models via WebRTC.
+              </p>
+            </div>
+          </div>
+          {isSelf && deliveryStatus !== 'sent' && (
+            <span
+              className={clsx(
+                'mt-1 text-[10px] uppercase tracking-wide',
+                isFailed ? 'text-danger' : 'text-default-400',
+              )}
+            >
               {isPending ? 'Sending...' : 'Failed to send'}
             </span>
           )}
@@ -374,7 +471,9 @@ export const Message = ({
           )}
         </div>
         {isSelf && deliveryStatus !== 'sent' && (
-          <span className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}>
+          <span
+            className={clsx('mt-1 text-[10px] uppercase tracking-wide', isFailed ? 'text-danger' : 'text-default-400')}
+          >
             {isPending ? 'Sending...' : 'Failed to send'}
           </span>
         )}

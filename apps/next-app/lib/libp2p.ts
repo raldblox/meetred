@@ -1,5 +1,6 @@
 import type { Connection, Message, SignedMessage, PeerId, Libp2p, PrivateKey } from '@libp2p/interface'
 import type { Libp2pType } from '@/context/libp2p-ctx'
+import type { BootPhase, BootPhaseState, BootStatusUpdate } from './boot-status'
 
 import {
   createDelegatedRoutingV1HttpApiClient,
@@ -22,12 +23,17 @@ import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery'
 import { ping } from '@libp2p/ping'
 import first from 'it-first'
 
-import { BOOTSTRAP_PEER_IDS, CHAT_FILE_TOPIC, CHAT_TOPIC, PUBSUB_PEER_DISCOVERY } from '../config/constants'
+import {
+  AGENT_SIGNAL_TOPIC,
+  BOOTSTRAP_PEER_IDS,
+  CHAT_FILE_TOPIC,
+  CHAT_TOPIC,
+  PUBSUB_PEER_DISCOVERY,
+} from '../config/constants'
 
 import { forComponent, enable } from './logger'
 import { directMessage } from './direct-message'
 import { loadOrCreatePrivateKey } from './identity'
-import type { BootPhase, BootPhaseState, BootStatusUpdate } from './boot-status'
 
 const log = forComponent('libp2p')
 
@@ -82,8 +88,7 @@ export interface StartLibp2pOptions {
 }
 
 const setBootStatusFactory =
-  (reporter?: (update: BootStatusUpdate) => void) =>
-  (phase: BootPhase, state: BootPhaseState, message?: string) => {
+  (reporter?: (update: BootStatusUpdate) => void) => (phase: BootPhase, state: BootPhaseState, message?: string) => {
     reporter?.({ phase, state, message })
   }
 
@@ -97,6 +102,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
   const delegatedClient = createDelegatedRoutingV1HttpApiClient('https://delegated-ipfs.dev')
 
   const relayListenAddrs = await resolveRelayListenAddrs(delegatedClient)
+
   setBootStatus(
     'resolving-relays',
     'complete',
@@ -111,6 +117,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
 
   setBootStatus('loading-identity', 'active', 'Loading or creating identity')
   const privateKey = options.privateKey ?? (await loadOrCreatePrivateKey({ forceNew: options.forceNewIdentity }))
+
   setBootStatus('loading-identity', 'complete', 'Identity ready')
 
   setBootStatus('starting-libp2p', 'active', 'Spinning up browser node')
@@ -174,6 +181,7 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
   libp2p.services.pubsub.subscribe(CHAT_TOPIC)
   libp2p.services.pubsub.subscribe(CHAT_FILE_TOPIC)
   libp2p.services.pubsub.subscribe(PUBSUB_PEER_DISCOVERY)
+  libp2p.services.pubsub.subscribe(AGENT_SIGNAL_TOPIC)
   setBootStatus('subscribing-topics', 'complete', 'Subscribed to chat and discovery topics')
 
   libp2p.addEventListener('self:peer:update', ({ detail: { peer } }) => {

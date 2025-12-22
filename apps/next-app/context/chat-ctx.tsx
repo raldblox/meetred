@@ -25,6 +25,10 @@ import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
 
 const log = forComponent('chat-context')
 
+const hasFromPeer = (msg: Message): msg is Message & { from: PeerId } => {
+  return typeof (msg as any)?.from !== 'undefined'
+}
+
 const isStreamSignal = (content: string) => {
   try {
     const parsed = JSON.parse(content)
@@ -126,15 +130,17 @@ export const ChatProvider = ({ children }: any) => {
 
     log(`${topic}: ${msg}`)
 
+    const detail = evt.detail
+
     // Append signed messages, otherwise discard
-    if (evt.detail.type === 'signed') {
+    if (detail.type === 'signed' && hasFromPeer(detail)) {
       setMessageHistory((prev) => [
         ...prev,
         {
           msgId: crypto.randomUUID(),
           msg,
           fileObjectUrl: undefined,
-          peerId: evt.detail.from.toString(),
+          peerId: detail.from.toString(),
           read: false,
           receivedAt: Date.now(),
           status: 'sent',
@@ -149,11 +155,13 @@ export const ChatProvider = ({ children }: any) => {
     }
     const decoded = new TextDecoder().decode(data)
 
+    const detail = evt.detail
+
     // if the message isn't signed, discard it.
-    if (evt.detail.type !== 'signed') {
+    if (detail.type !== 'signed' || !hasFromPeer(detail)) {
       return
     }
-    const senderPeerId = evt.detail.from as any as PeerId
+    const senderPeerId = detail.from
 
     try {
       let meta: { id: string; name?: string; type?: string } = { id: decoded }

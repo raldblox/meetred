@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea, Tooltip, ScrollShadow } from '@heroui/react'
-import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X, ChevronDown } from 'lucide-react'
+import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X, ChevronDown, Bot } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../../context/chat-ctx'
@@ -118,6 +118,7 @@ export default function ChatContainer() {
 
         setDirectMessages((prev) => {
           const existing = prev[targetRoomId]
+
           if (!existing) {
             return prev
           }
@@ -133,6 +134,7 @@ export default function ChatContainer() {
         log.error('failed to send direct message %o', error)
         setDirectMessages((prev) => {
           const existing = prev[targetRoomId]
+
           if (!existing) {
             return prev
           }
@@ -305,6 +307,30 @@ export default function ChatContainer() {
       }
     } catch (error) {
       log.error('failed to send stream invite %o', error)
+    } finally {
+      setSending(false)
+    }
+  }, [libp2p, roomId, sendDirectMessage, sendPublicMessage, sending])
+
+  const handleSendAgentInvite = useCallback(async () => {
+    if (sending) return
+
+    const hostPeerId = libp2p.peerId.toString()
+    const agentInvite = JSON.stringify({
+      type: 'agent_invite',
+      agentPeerId: hostPeerId,
+      createdAt: Date.now(),
+    })
+
+    setSending(true)
+    try {
+      if (roomId === PUBLIC_CHAT_ROOM_ID) {
+        await sendPublicMessage(agentInvite)
+      } else {
+        await sendDirectMessage(agentInvite)
+      }
+    } catch (error) {
+      log.error('failed to send agent invite %o', error)
     } finally {
       setSending(false)
     }
@@ -512,13 +538,13 @@ export default function ChatContainer() {
                       fileObjectUrl={message.fileObjectUrl}
                       msg={message.msg}
                       msgId={message.msgId}
-                    peerId={message.peerId}
-                    read={message.read}
-                    receivedAt={message.receivedAt}
-                    status={message.status}
-                    showAvatar={showAvatar}
-                    showTimestamp={showTimestamp}
-                  />
+                      peerId={message.peerId}
+                      read={message.read}
+                      receivedAt={message.receivedAt}
+                      showAvatar={showAvatar}
+                      showTimestamp={showTimestamp}
+                      status={message.status}
+                    />
                   )
                 })}
               </ul>
@@ -575,6 +601,18 @@ export default function ChatContainer() {
               <div className="flex items-center gap-1">
                 {!input && (
                   <>
+                    <Tooltip color="primary" content="Send agent invite" placement="top" radius="sm">
+                      <Button
+                        isIconOnly
+                        className="border-1 border-default-100"
+                        color="primary"
+                        isDisabled={sending}
+                        variant="ghost"
+                        onPress={handleSendAgentInvite}
+                      >
+                        <Bot size={16} />
+                      </Button>
+                    </Tooltip>
                     <Tooltip color="secondary" content="Send stream invite" placement="top" radius="sm">
                       <Button
                         isIconOnly

@@ -155,7 +155,7 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                       <div className="space-y-1 rounded-medium border border-default-200 bg-default-50 p-3 text-xs text-default-600">
                         <p className="font-semibold text-default-600">Backup pointers</p>
                         <ul className="list-disc list-inside space-y-1">
-                          <li>Show the key only when you're ready to copy.</li>
+                          <li>Show the key only when you&apos;re ready to copy.</li>
                           <li>Store it inside an encrypted manager or secure note.</li>
                           <li>Importing this key later restores this exact identity.</li>
                         </ul>
@@ -188,8 +188,8 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                   <div className="space-y-2">
                     <p className="font-semibold text-xs uppercase tracking-wide text-default-500">Import a Saved Key</p>
                     <p className="text-[13px] text-default-500">
-                      Paste any exported private key (they start with <code>0x</code>) and we'll sign you back in as that peer.
-                      Perfect for keeping the same persona across browsers.
+                      Paste any exported private key (they start with <code>0x</code>) and we&apos;ll sign you back in
+                      as that peer. Perfect for keeping the same persona across browsers.
                     </p>
                     <Textarea
                       isDisabled={rotatingIdentity || importing}
@@ -212,20 +212,20 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
                             <UploadCloud aria-hidden className="h-3.5 w-3.5" strokeWidth={2} />
                           )
                         }
-                      variant="flat"
-                      onPress={handleImport}
-                    >
-                      {importing ? 'Importing...' : 'Import Key'}
-                    </Button>
+                        variant="flat"
+                        onPress={handleImport}
+                      >
+                        {importing ? 'Importing...' : 'Import Key'}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-              <Alert variant="bordered">
-                <p className="text-default-500 text-xs">
-                  Rotating generates a fresh peer ID and disconnects active chats. Export the current key first if you
-                  plan to come back as this persona.
-                </p>
-              </Alert>
+                )}
+                <Alert variant="bordered">
+                  <p className="text-default-500 text-xs">
+                    Rotating generates a fresh peer ID and disconnects active chats. Export the current key first if you
+                    plan to come back as this persona.
+                  </p>
+                </Alert>
               </ModalBody>
               <ModalFooter>
                 <div className="flex w-full justify-between">
