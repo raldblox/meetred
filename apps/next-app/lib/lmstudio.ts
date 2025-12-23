@@ -5,6 +5,7 @@ export interface LMStudioModel {
   object?: string
   owned_by?: string
   description?: string
+  created?: number
 }
 
 export interface LMStudioChatResult {
@@ -15,10 +16,16 @@ export interface LMStudioChatResult {
 
 export interface LMStudioChatOptions {
   baseUrl?: string
+  targetUrl?: string
   modelId: string
   prompt: string
   temperature?: number
   signal?: AbortSignal
+}
+
+interface LMStudioProxyOptions {
+  baseUrl?: string
+  targetUrl?: string
 }
 
 const normalizeBaseUrl = (input?: string) => {
@@ -44,14 +51,26 @@ const stripThinkingSegments = (input: string): string => {
 }
 
 const withAgentError = (baseUrl: string, message: string) => {
-  return `Failed to reach LM Agent at ${baseUrl}: ${message}`
+  return `Failed to reach local agent at ${baseUrl}: ${message}`
 }
 
-export const fetchLMStudioModels = async (baseUrl?: string): Promise<LMStudioModel[]> => {
-  const normalized = normalizeBaseUrl(baseUrl)
+const buildModelsEndpoint = (options?: LMStudioProxyOptions) => {
+  const normalized = normalizeBaseUrl(options?.baseUrl)
+  const target = options?.targetUrl?.trim()
+  const url = new URL(`${normalized}/v1/models`)
+
+  if (target) {
+    url.searchParams.set('target', target)
+  }
+
+  return { normalized, url }
+}
+
+export const fetchLMStudioModels = async (options?: LMStudioProxyOptions): Promise<LMStudioModel[]> => {
+  const { normalized, url } = buildModelsEndpoint(options)
 
   try {
-    const response = await fetch(`${normalized}/v1/models`, {
+    const response = await fetch(url, {
       cache: 'no-store',
       headers: {
         Accept: 'application/json',
@@ -80,6 +99,7 @@ export const fetchLMStudioModels = async (baseUrl?: string): Promise<LMStudioMod
         object: typeof model.object === 'string' ? model.object : undefined,
         owned_by: typeof model.owned_by === 'string' ? model.owned_by : undefined,
         description: typeof model.description === 'string' ? model.description : undefined,
+        created: typeof model.created === 'number' ? model.created : undefined,
       }
     })
 
@@ -91,12 +111,14 @@ export const fetchLMStudioModels = async (baseUrl?: string): Promise<LMStudioMod
 
 export const createLMStudioChatCompletion = async ({
   baseUrl,
+  targetUrl,
   modelId,
   prompt,
   temperature = 0.2,
   signal,
 }: LMStudioChatOptions): Promise<LMStudioChatResult> => {
   const normalized = normalizeBaseUrl(baseUrl)
+  const target = targetUrl?.trim()
 
   try {
     const response = await fetch(`${normalized}/v1/chat/completions`, {
@@ -108,6 +130,7 @@ export const createLMStudioChatCompletion = async ({
         model: modelId,
         stream: false,
         temperature,
+        ...(target ? { target } : {}),
         messages: [
           {
             role: 'user',

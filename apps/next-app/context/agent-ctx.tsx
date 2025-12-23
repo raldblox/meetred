@@ -14,8 +14,10 @@ import {
   AGENT_SIGNAL_WRAPPER,
   CHAT_TOPIC,
   LM_STUDIO_DEFAULT_BASE_URL,
+  LM_STUDIO_DEFAULT_TARGET_URL,
 } from '@/config/constants'
 import { createLMStudioChatCompletion, type LMStudioModel } from '@/lib/lmstudio'
+import { createOpenAIChatCompletion } from '@/lib/openai'
 import { forComponent } from '@/lib/logger'
 import { buildAgentChatPayload, parseAgentChatPayload, type AgentChatPayload } from '@/lib/agent-chat'
 import { AgentManager, createAgentManagerState, type AgentManagerState } from '@/lib/agent-manager'
@@ -63,14 +65,16 @@ export interface AgentContextValue {
   models: LMStudioModel[]
   agentState: AgentManagerState
   lmBaseUrl: string
+  lmTargetUrl: string
   setLmBaseUrl: (url: string) => void
+  setLmTargetUrl: (url: string) => void
   connectLocalAgent: () => Promise<void>
+  connectOpenAIAgent: (apiKey: string) => Promise<void>
   selectAgentModel: (modelId: string | null) => void
   sendPrompt: (prompt: string, options?: { promptId?: string; modelId?: string }) => Promise<void>
   chatHistory: AgentChatMessage[]
   selectedModelId: string | null
   hostEvents: string[]
-  connectedViewers: string[]
 }
 
 const AgentContext = createContext<AgentContextValue | undefined>(undefined)
@@ -105,6 +109,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
   const [chatHistory, setChatHistory] = useState<AgentChatMessage[]>([])
   const [agentState, setAgentState] = useState<AgentManagerState>(() => createAgentManagerState())
   const [lmBaseUrl, setLmBaseUrl] = useState<string>(LM_STUDIO_DEFAULT_BASE_URL)
+  const [lmTargetUrl, setLmTargetUrl] = useState<string>(LM_STUDIO_DEFAULT_TARGET_URL)
   const [hostEvents, setHostEvents] = useState<string[]>([])
   const [connectedViewers, setConnectedViewers] = useState<string[]>([])
   const agentManagerRef = useRef<AgentManager | null>(null)
@@ -224,12 +229,24 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
       await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(JSON.stringify(pendingPayload)))
 
       try {
-        const result = await createLMStudioChatCompletion({
-          baseUrl: lmBaseUrl,
-          modelId,
-          prompt,
-          signal: controller.signal,
-        })
+        const managerState = agentManagerRef.current?.getState()
+        const provider = managerState?.sourceType
+        const usingOpenAI = provider === 'openai'
+        const result = usingOpenAI
+          ? await createOpenAIChatCompletion({
+              baseUrl: lmBaseUrl,
+              modelId,
+              prompt,
+              signal: controller.signal,
+            })
+          : await createLMStudioChatCompletion({
+              baseUrl: lmBaseUrl,
+              targetUrl: managerState?.targetUrl ?? lmTargetUrl,
+              modelId,
+              prompt,
+              signal: controller.signal,
+            })
+        const responseText = result.text
 
         const channel = hostConnectionsRef.current.get(requesterPeerId)?.channel
 
@@ -239,14 +256,14 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
               type: 'chat_response',
               promptId,
               modelId,
-              response: result.text,
+              response: responseText,
             }),
           )
         }
 
         const responsePayload = buildAgentChatPayload({
           agentPeerId: hostPeerId,
-          body: result.text,
+          body: responseText,
           senderPeerId,
           variant: 'model',
           modelId,
@@ -257,6 +274,8 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
         appendChatPayload(responsePayload)
         await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(JSON.stringify(responsePayload)))
       } catch (err: any) {
+        const provider = agentManagerRef.current?.getState().sourceType
+        const providerLabel = provider === 'openai' ? 'OpenAI' : 'LM Studio'
         const channel = hostConnectionsRef.current.get(requesterPeerId)?.channel
 
         if (channel?.readyState === 'open') {
@@ -264,21 +283,21 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
             JSON.stringify({
               type: 'error',
               promptId,
-              message: err?.message ?? 'Failed to run LM Studio completion.',
+              message: err?.message ?? `Failed to run ${providerLabel} completion.`,
             }),
           )
         }
 
         await publishAgentError({
           promptId,
-          message: err?.message ?? 'Failed to run LM Studio completion.',
+          message: err?.message ?? `Failed to run ${providerLabel} completion.`,
           modelId,
         })
       } finally {
         pendingPromptsRef.current.delete(promptId)
       }
     },
-    [appendChatPayload, hostPeerId, libp2p.peerId, libp2p.services.pubsub, lmBaseUrl, publishAgentError],
+    [appendChatPayload, hostPeerId, libp2p.peerId, libp2p.services.pubsub, lmBaseUrl, lmTargetUrl, publishAgentError],
   )
 
   const processPromptQueue = useCallback(() => {
@@ -340,6 +359,18 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     }
   }, [agentState.baseUrl, isHost])
 
+  useEffect(() => {
+    if (!isHost) {
+      return
+    }
+
+    if (agentState.targetUrl) {
+      setLmTargetUrl(agentState.targetUrl)
+    } else if (!agentState.targetUrl) {
+      setLmTargetUrl(LM_STUDIO_DEFAULT_TARGET_URL)
+    }
+  }, [agentState.targetUrl, isHost])
+
   const cleanupViewerConnection = useCallback(() => {
     viewerChannelRef.current?.close()
     viewerPeerConnectionRef.current?.close()
@@ -389,7 +420,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     try {
       setHostStatus('authorizing')
       setError(null)
-      await agentManagerRef.current.connectLocalLMStudio(lmBaseUrl)
+      await agentManagerRef.current.connectLocalLMStudio(lmBaseUrl, lmTargetUrl)
       appendHostEvent('Local LM Studio connected')
       setHostStatus('ready')
       sendHostStatusToViewers('Host connected to LM Studio')
@@ -398,7 +429,42 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
       setError(e?.message ?? 'failed to contact LM Studio')
       setHostStatus('error')
     }
-  }, [appendHostEvent, isHost, lmBaseUrl, sendHostStatusToViewers])
+  }, [appendHostEvent, isHost, lmBaseUrl, lmTargetUrl, sendHostStatusToViewers])
+
+  const connectOpenAIAgent = useCallback(
+    async (apiKey: string) => {
+      if (!isHost) {
+        return
+      }
+
+      const trimmed = apiKey.trim()
+
+      if (!trimmed) {
+        setError('OpenAI API key is required to connect.')
+        setHostStatus('error')
+
+        return
+      }
+
+      if (!agentManagerRef.current) {
+        agentManagerRef.current = new AgentManager()
+      }
+
+      try {
+        setHostStatus('authorizing')
+        setError(null)
+        await agentManagerRef.current.connectOpenAI(lmBaseUrl, trimmed)
+        appendHostEvent('OpenAI connected')
+        setHostStatus('ready')
+        sendHostStatusToViewers('Host connected to OpenAI')
+      } catch (e: any) {
+        log.error('failed to connect OpenAI %o', e)
+        setError(e?.message ?? 'failed to contact OpenAI')
+        setHostStatus('error')
+      }
+    },
+    [appendHostEvent, isHost, lmBaseUrl, sendHostStatusToViewers],
+  )
 
   const selectAgentModel = useCallback(
     (modelId: string | null) => {
@@ -851,6 +917,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
                   models: Array.isArray(nextState.models) ? nextState.models : [],
                   selectedModelId: typeof nextState.selectedModelId === 'string' ? nextState.selectedModelId : null,
                   baseUrl: typeof nextState.baseUrl === 'string' ? nextState.baseUrl : undefined,
+                  targetUrl: typeof nextState.targetUrl === 'string' ? nextState.targetUrl : undefined,
                   error: typeof nextState.error === 'string' ? nextState.error : null,
                 })
               }
@@ -1083,13 +1150,15 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     agentState,
     lmBaseUrl,
     setLmBaseUrl,
+    lmTargetUrl,
+    setLmTargetUrl,
     connectLocalAgent,
+    connectOpenAIAgent,
     selectAgentModel,
     sendPrompt,
     chatHistory,
     selectedModelId,
     hostEvents,
-    connectedViewers,
   }
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>

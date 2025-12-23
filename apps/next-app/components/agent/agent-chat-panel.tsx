@@ -18,6 +18,7 @@ import { buildAgentChatPayload, parseAgentChatPayload } from '@/lib/agent-chat'
 import { forComponent } from '@/lib/logger'
 import { useAgentContext } from '@/context/agent-ctx'
 import { createLMStudioChatCompletion } from '@/lib/lmstudio'
+import { createOpenAIChatCompletion } from '@/lib/openai'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -29,7 +30,8 @@ const textEncoder = new TextEncoder()
 export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
   const { messageHistory, setMessageHistory } = useChatContext()
   const { libp2p } = useLibp2pContext()
-  const { models, selectedModelId, sendPrompt, isHost, authorized, lmBaseUrl } = useAgentContext()
+  const { models, selectedModelId, sendPrompt, isHost, authorized, lmBaseUrl, lmTargetUrl, agentState } =
+    useAgentContext()
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const selfPeerId = libp2p.peerId.toString()
@@ -150,11 +152,20 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
 
         await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(pendingEncoded))
 
-        const completion = await createLMStudioChatCompletion({
-          baseUrl: lmBaseUrl,
-          modelId: resolvedModelId,
-          prompt: trimmed,
-        })
+        const provider = agentState.sourceType === 'openai' ? 'openai' : 'lmstudio'
+        const completion =
+          provider === 'openai'
+            ? await createOpenAIChatCompletion({
+                baseUrl: lmBaseUrl,
+                modelId: resolvedModelId,
+                prompt: trimmed,
+              })
+            : await createLMStudioChatCompletion({
+                baseUrl: lmBaseUrl,
+                targetUrl: lmTargetUrl,
+                modelId: resolvedModelId,
+                prompt: trimmed,
+              })
 
         const responsePayload = buildAgentChatPayload({
           agentPeerId,

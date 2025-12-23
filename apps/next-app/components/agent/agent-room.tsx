@@ -3,7 +3,7 @@
 import type { AgentManagerState } from '@/lib/agent-manager'
 import type { LMStudioModel } from '@/lib/lmstudio'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, CardBody, CardHeader, Chip, Input, ScrollShadow, Snippet } from '@heroui/react'
 import clsx from 'clsx'
 
@@ -30,10 +30,12 @@ export function AgentRoom({ peerId }: { peerId: string }) {
     agentState,
     lmBaseUrl,
     setLmBaseUrl,
+    lmTargetUrl,
+    setLmTargetUrl,
     connectLocalAgent,
+    connectOpenAIAgent,
     selectAgentModel,
     hostEvents,
-    connectedViewers,
   } = useAgentContext()
 
   const activeModel = useMemo(
@@ -115,13 +117,15 @@ export function AgentRoom({ peerId }: { peerId: string }) {
             agentState={agentState}
             authorized={authorized}
             connectLocalAgent={connectLocalAgent}
+            connectOpenAIAgent={connectOpenAIAgent}
             isHost={isHost}
             lmBaseUrl={lmBaseUrl}
+            lmTargetUrl={lmTargetUrl}
             models={models}
             selectAgentModel={selectAgentModel}
             setLmBaseUrl={setLmBaseUrl}
+            setLmTargetUrl={setLmTargetUrl}
           />
-          <ConnectedViewersCard connectedViewers={connectedViewers} />
           <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
         </div>
       </div>
@@ -134,8 +138,11 @@ interface AgentManagerPanelProps {
   agentState: AgentManagerState
   models: LMStudioModel[]
   lmBaseUrl: string
+  lmTargetUrl: string
   setLmBaseUrl: (url: string) => void
+  setLmTargetUrl: (url: string) => void
   connectLocalAgent: () => Promise<void>
+  connectOpenAIAgent: (apiKey: string) => Promise<void>
   selectAgentModel: (modelId: string | null) => void
   authorized: boolean
 }
@@ -146,10 +153,29 @@ function AgentManagerPanel({
   models,
   lmBaseUrl,
   setLmBaseUrl,
+  lmTargetUrl,
+  setLmTargetUrl,
   connectLocalAgent,
+  connectOpenAIAgent,
   selectAgentModel,
   authorized,
 }: AgentManagerPanelProps) {
+  const [providerSelection, setProviderSelection] = useState<'lmstudio-local' | 'openai'>('lmstudio-local')
+  const [openAIKey, setOpenAIKey] = useState('')
+  const [editingOpenAIKey, setEditingOpenAIKey] = useState(true)
+
+  useEffect(() => {
+    if (agentState.sourceType === 'openai' || agentState.sourceType === 'lmstudio-local') {
+      setProviderSelection(agentState.sourceType)
+    }
+
+    if (agentState.sourceType === 'openai' && agentState.status === 'ready') {
+      setEditingOpenAIKey(false)
+    }
+  }, [agentState.sourceType, agentState.status])
+
+  const provider = providerSelection
+
   if (!isHost) {
     return (
       <Card className="border border-default-200 shadow-none">
@@ -178,24 +204,121 @@ function AgentManagerPanel({
         <h2 className="text-lg font-semibold text-default-900">Choose your model</h2>
       </CardHeader>
       <CardBody className="space-y-4">
-        <div className="space-y-2">
-          <Input
-            label="LM Studio base URL"
-            labelPlacement="outside"
-            placeholder="http://127.0.0.1:1234"
-            value={lmBaseUrl}
-            onChange={(event) => setLmBaseUrl(event.target.value)}
-          />
-          <Button className="w-full" color="primary" isLoading={connecting} variant="solid" onPress={connectLocalAgent}>
-            {authorized ? 'Reconnect' : 'Connect to LM Studio'}
+        <div className="flex gap-2">
+          <Button
+            className="flex-1"
+            color={provider === 'lmstudio-local' ? 'primary' : 'default'}
+            variant={provider === 'lmstudio-local' ? 'solid' : 'bordered'}
+            onPress={() => setProviderSelection('lmstudio-local')}
+          >
+            LM Studio
+          </Button>
+          <Button
+            className="flex-1"
+            color={provider === 'openai' ? 'primary' : 'default'}
+            variant={provider === 'openai' ? 'solid' : 'bordered'}
+            onPress={() => {
+              setProviderSelection('openai')
+              setEditingOpenAIKey(true)
+            }}
+          >
+            OpenAI
           </Button>
         </div>
 
+        {provider === 'lmstudio-local' ? (
+          <div className="space-y-2">
+            <Input
+              label="Agent proxy URL"
+              labelPlacement="outside"
+              placeholder="http://127.0.0.1:4312"
+              value={lmBaseUrl}
+              onChange={(event) => setLmBaseUrl(event.target.value)}
+            />
+            <Input
+              label="LM Studio API URL"
+              labelPlacement="outside"
+              placeholder="http://127.0.0.1:1234"
+              value={lmTargetUrl}
+              onChange={(event) => setLmTargetUrl(event.target.value)}
+            />
+            <Button
+              className="w-full"
+              color="primary"
+              isLoading={connecting}
+              variant="solid"
+              onPress={connectLocalAgent}
+            >
+              Grant Access
+            </Button>
+            <p className="text-[11px] text-default-500">
+              Launch the local agent proxy (first field) and point it to your LM Studio HTTP endpoint (second field).
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {agentState.sourceType === 'openai' && agentState.status === 'ready' && !editingOpenAIKey ? (
+              <div className="space-y-2 rounded-2xl border border-success-200 bg-success-50/40 p-3 text-sm text-success-800">
+                <p>OpenAI connected. Model list refreshed from your account.</p>
+                <Button
+                  color="success"
+                  size="sm"
+                  variant="bordered"
+                  onPress={() => {
+                    setEditingOpenAIKey(true)
+                    setOpenAIKey('')
+                  }}
+                >
+                  Change Key
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Input
+                  label="OpenAI API Key"
+                  labelPlacement="outside"
+                  placeholder="sk-..."
+                  type="password"
+                  value={openAIKey}
+                  onChange={(event) => setOpenAIKey(event.target.value)}
+                />
+                <Button
+                  className="w-full"
+                  color="secondary"
+                  isDisabled={!openAIKey.trim()}
+                  isLoading={connecting}
+                  variant="solid"
+                  onPress={async () => {
+                    await connectOpenAIAgent(openAIKey)
+                    setOpenAIKey('')
+                  }}
+                >
+                  Connect
+                </Button>
+                <p className="text-[11px] text-default-500">
+                  Your key is encrypted inside the local agent and never leaves this machine.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-default-400">Detected Models</p>
+          <div className="flex items-center justify-between text-xs text-default-500 uppercase tracking-[0.3em]">
+            <span>Detected Models</span>
+            <span className="text-default-400">
+              {agentState.sourceType === 'openai'
+                ? 'OpenAI'
+                : agentState.sourceType === 'lmstudio-local'
+                  ? 'LM Studio'
+                  : '—'}
+            </span>
+          </div>
           {models.length === 0 ? (
             <p className="text-sm text-default-500">
-              No models found yet. Connect to LM Studio after loading a local model.
+              {agentState.sourceType === 'openai'
+                ? 'No models found yet. Ensure your OpenAI key has access to chat models.'
+                : 'No models found yet. Connect to LM Studio after loading a local model.'}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -221,36 +344,6 @@ function AgentManagerPanel({
             </div>
           )}
         </div>
-      </CardBody>
-    </Card>
-  )
-}
-
-function ConnectedViewersCard({ connectedViewers }: { connectedViewers: string[] }) {
-  return (
-    <Card className="border border-default-200 shadow-none">
-      <CardHeader className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.4em] text-default-400">Viewers</p>
-        <h2 className="text-lg font-semibold text-default-900">Connected peers</h2>
-      </CardHeader>
-      <CardBody>
-        {connectedViewers.length === 0 ? (
-          <p className="text-sm text-default-500">No viewers connected yet.</p>
-        ) : (
-          <ul className="space-y-2 text-sm text-default-800">
-            {connectedViewers.map((viewerId) => (
-              <li
-                key={viewerId}
-                className="flex items-center justify-between rounded-xl border border-default-100 bg-white/80 px-3 py-2"
-              >
-                <span className="font-mono text-xs">{viewerId}</span>
-                <Chip color="success" size="sm" variant="flat">
-                  live
-                </Chip>
-              </li>
-            ))}
-          </ul>
-        )}
       </CardBody>
     </Card>
   )

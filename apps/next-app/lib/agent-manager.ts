@@ -1,6 +1,7 @@
 import { fetchLMStudioModels, type LMStudioModel } from '@/lib/lmstudio'
+import { fetchOpenAIModels, storeOpenAIKey } from '@/lib/openai'
 
-export type AgentSourceType = 'lmstudio-local' | 'api-key' | 'remote-peer'
+export type AgentSourceType = 'lmstudio-local' | 'openai' | 'remote-peer'
 
 export interface AgentManagerState {
   sourceType: AgentSourceType | null
@@ -8,6 +9,7 @@ export interface AgentManagerState {
   models: LMStudioModel[]
   selectedModelId: string | null
   baseUrl?: string
+  targetUrl?: string
   error?: string | null
 }
 
@@ -19,6 +21,7 @@ export const createAgentManagerState = (): AgentManagerState => ({
   models: [],
   selectedModelId: null,
   baseUrl: undefined,
+  targetUrl: undefined,
   error: null,
 })
 
@@ -56,16 +59,17 @@ export class AgentManager {
     })
   }
 
-  async connectLocalLMStudio(baseUrl: string): Promise<void> {
+  async connectLocalLMStudio(baseUrl: string, targetUrl?: string): Promise<void> {
     this.setState({
       sourceType: 'lmstudio-local',
       status: 'connecting',
       baseUrl,
+      targetUrl,
       error: null,
     })
 
     try {
-      const models = await fetchLMStudioModels(baseUrl)
+      const models = await fetchLMStudioModels({ baseUrl, targetUrl })
 
       if (models.length === 0) {
         this.setState({
@@ -82,12 +86,51 @@ export class AgentManager {
         status: 'ready',
         models,
         selectedModelId: models[0]?.id ?? null,
+        targetUrl,
         error: null,
       })
     } catch (error: any) {
       this.setState({
         status: 'error',
         error: error?.message ?? 'Failed to connect to LM Studio',
+      })
+      throw error
+    }
+  }
+
+  async connectOpenAI(baseUrl: string, apiKey: string): Promise<void> {
+    this.setState({
+      sourceType: 'openai',
+      status: 'connecting',
+      baseUrl,
+      error: null,
+    })
+
+    try {
+      await storeOpenAIKey(apiKey, baseUrl)
+      const models = await fetchOpenAIModels(baseUrl)
+
+      if (models.length === 0) {
+        this.setState({
+          status: 'error',
+          models: [],
+          selectedModelId: null,
+          error: 'No OpenAI chat models available for this key.',
+        })
+
+        return
+      }
+
+      this.setState({
+        status: 'ready',
+        models,
+        selectedModelId: models[0]?.id ?? null,
+        error: null,
+      })
+    } catch (error: any) {
+      this.setState({
+        status: 'error',
+        error: error?.message ?? 'Failed to connect to OpenAI',
       })
       throw error
     }
