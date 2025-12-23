@@ -55,6 +55,7 @@ export default function ChatContainer() {
         read: true,
         receivedAt: Date.now(),
         status: 'pending',
+        channel: 'public',
       }
 
       setMessageHistory((prev) => [...prev, pendingMessage])
@@ -191,6 +192,7 @@ export default function ChatContainer() {
         read: true,
         receivedAt: Date.now(),
         status: 'sent',
+        channel: 'public',
       }
 
       setMessageHistory((prev) => [...prev, msg])
@@ -338,7 +340,7 @@ export default function ChatContainer() {
 
   const handleBackToPublic = () => {
     setRoomId(PUBLIC_CHAT_ROOM_ID)
-    setMessages(messageHistory)
+    setMessages(messageHistory.filter((msg) => !msg.channel || msg.channel === 'public'))
   }
 
   const toggleMobilePeerList = () => {
@@ -371,7 +373,7 @@ export default function ChatContainer() {
   useEffect(() => {
     // assumes a chat room is a peerId thus a direct message
     if (roomId === PUBLIC_CHAT_ROOM_ID) {
-      setMessages(messageHistory)
+      setMessages(messageHistory.filter((msg) => !msg.channel || msg.channel === 'public'))
     } else {
       setMessages(directMessages[roomId] || [])
     }

@@ -63,6 +63,7 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
         peerId: senderPeerId,
         read: true,
         receivedAt: Date.now(),
+        channel: 'stream',
       }
 
       setMessageHistory((prev) => [...prev, optimisticMessage])

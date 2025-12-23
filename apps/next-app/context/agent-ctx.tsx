@@ -131,6 +131,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
           read: true,
           receivedAt: Date.now(),
           status: 'sent',
+          channel: 'agent',
         },
       ])
 

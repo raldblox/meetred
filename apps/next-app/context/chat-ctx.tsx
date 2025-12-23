@@ -39,6 +39,24 @@ const isStreamSignal = (content: string) => {
   }
 }
 
+const detectMessageChannel = (content: string): ChatMessage['channel'] => {
+  try {
+    const parsed = JSON.parse(content)
+
+    if (parsed?.type === 'agent_chat') {
+      return 'agent'
+    }
+
+    if (parsed?.type === 'stream_chat') {
+      return 'stream'
+    }
+  } catch {
+    // ignore invalid JSON
+  }
+
+  return 'public'
+}
+
 export interface ChatMessage {
   msgId: string
   msg: string
@@ -49,6 +67,7 @@ export interface ChatMessage {
   read: boolean
   receivedAt: number
   status?: 'pending' | 'sent' | 'failed'
+  channel?: 'public' | 'agent' | 'stream'
 }
 
 export interface ChatFile {
@@ -131,6 +150,7 @@ export const ChatProvider = ({ children }: any) => {
     log(`${topic}: ${msg}`)
 
     const detail = evt.detail
+    const channel = detectMessageChannel(msg)
 
     // Append signed messages, otherwise discard
     if (detail.type === 'signed' && hasFromPeer(detail)) {
@@ -144,6 +164,7 @@ export const ChatProvider = ({ children }: any) => {
           read: false,
           receivedAt: Date.now(),
           status: 'sent',
+          channel,
         },
       ])
     }
@@ -196,6 +217,7 @@ export const ChatProvider = ({ children }: any) => {
               peerId: senderPeerId.toString(),
               read: false,
               receivedAt: Date.now(),
+              channel: 'public',
             }
 
             setMessageHistory((prev) => [...prev, { ...msg, status: 'sent' }])

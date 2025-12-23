@@ -49,6 +49,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
           read: true,
           receivedAt: Date.now(),
           status: 'sent',
+          channel: 'agent',
         },
       ])
 
