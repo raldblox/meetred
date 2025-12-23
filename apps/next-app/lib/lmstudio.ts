@@ -31,6 +31,18 @@ const normalizeBaseUrl = (input?: string) => {
   return trimmed.replace(/\/+$/, '')
 }
 
+const stripThinkingSegments = (input: string): string => {
+  if (!input.includes('<think')) {
+    return input
+  }
+
+  const removedBlocks = input.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '')
+
+  const normalized = removedBlocks.trim()
+
+  return normalized.length > 0 ? normalized : input
+}
+
 const withAgentError = (baseUrl: string, message: string) => {
   return `Failed to reach LM Agent at ${baseUrl}: ${message}`
 }
@@ -117,8 +129,10 @@ export const createLMStudioChatCompletion = async ({
       throw new Error('LM Studio response missing content')
     }
 
+    const cleaned = stripThinkingSegments(message)
+
     return {
-      text: message,
+      text: cleaned,
       modelId,
       raw: payload,
     }
