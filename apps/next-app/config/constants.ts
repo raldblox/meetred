@@ -8,7 +8,7 @@ export const STREAM_SIGNAL_APP_ID = 'metered'
 export const AGENT_SIGNAL_WRAPPER = 'agent-signal'
 export const AGENT_SIGNAL_APP_ID = 'metered-agent'
 export const AGENT_SIGNAL_TOPIC = 'universal-connectivity-agent-signal'
-export const LM_STUDIO_DEFAULT_BASE_URL = 'http://127.0.0.1:1234'
+export const LM_STUDIO_DEFAULT_BASE_URL = 'http://127.0.0.1:4312'
 
 export const CIRCUIT_RELAY_CODE = 290
 

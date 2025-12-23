@@ -31,40 +31,50 @@ const normalizeBaseUrl = (input?: string) => {
   return trimmed.replace(/\/+$/, '')
 }
 
+const withAgentError = (baseUrl: string, message: string) => {
+  return `Failed to reach LM Agent at ${baseUrl}: ${message}`
+}
+
 export const fetchLMStudioModels = async (baseUrl?: string): Promise<LMStudioModel[]> => {
-  const search = baseUrl ? `?baseUrl=${encodeURIComponent(normalizeBaseUrl(baseUrl))}` : ''
-  const response = await fetch(`/api/lmstudio/models${search}`, {
-    cache: 'no-store',
-  })
+  const normalized = normalizeBaseUrl(baseUrl)
 
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}))
+  try {
+    const response = await fetch(`${normalized}/v1/models`, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
 
-    throw new Error(payload?.error ?? `LM Studio responded with ${response.status}`)
+    if (!response.ok) {
+      throw new Error(`LM Studio responded with ${response.status}`)
+    }
+
+    const payload = await response.json()
+    const list = Array.isArray(payload?.data) ? payload.data : []
+    const normalizedList: Array<LMStudioModel | null> = list.map((model: any): LMStudioModel | null => {
+      if (!model || typeof model !== 'object') {
+        return null
+      }
+
+      const id = typeof model.id === 'string' ? model.id : typeof model.name === 'string' ? model.name : null
+
+      if (!id) {
+        return null
+      }
+
+      return {
+        id,
+        object: typeof model.object === 'string' ? model.object : undefined,
+        owned_by: typeof model.owned_by === 'string' ? model.owned_by : undefined,
+        description: typeof model.description === 'string' ? model.description : undefined,
+      }
+    })
+
+    return normalizedList.filter((entry): entry is LMStudioModel => Boolean(entry))
+  } catch (error: any) {
+    throw new Error(withAgentError(normalized, error?.message ?? 'Unknown error'))
   }
-
-  const payload = await response.json()
-  const list = Array.isArray(payload?.data) ? payload.data : []
-  const normalized: Array<LMStudioModel | null> = list.map((model: any): LMStudioModel | null => {
-    if (!model || typeof model !== 'object') {
-      return null
-    }
-
-    const id = typeof model.id === 'string' ? model.id : typeof model.name === 'string' ? model.name : null
-
-    if (!id) {
-      return null
-    }
-
-    return {
-      id,
-      object: typeof model.object === 'string' ? model.object : undefined,
-      owned_by: typeof model.owned_by === 'string' ? model.owned_by : undefined,
-      description: typeof model.description === 'string' ? model.description : undefined,
-    }
-  })
-
-  return normalized.filter((entry): entry is LMStudioModel => Boolean(entry))
 }
 
 export const createLMStudioChatCompletion = async ({
@@ -74,36 +84,45 @@ export const createLMStudioChatCompletion = async ({
   temperature = 0.2,
   signal,
 }: LMStudioChatOptions): Promise<LMStudioChatResult> => {
-  const response = await fetch(`/api/lmstudio/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      baseUrl: baseUrl ? normalizeBaseUrl(baseUrl) : undefined,
+  const normalized = normalizeBaseUrl(baseUrl)
+
+  try {
+    const response = await fetch(`${normalized}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        stream: false,
+        temperature,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      }),
+      signal,
+    })
+
+    if (!response.ok) {
+      throw new Error(`LM Studio responded with ${response.status}`)
+    }
+
+    const payload = await response.json()
+    const message = payload?.choices?.[0]?.message?.content
+
+    if (typeof message !== 'string') {
+      throw new Error('LM Studio response missing content')
+    }
+
+    return {
+      text: message,
       modelId,
-      prompt,
-      temperature,
-    }),
-    signal,
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}))
-
-    throw new Error(payload?.error ?? `LM Studio responded with ${response.status}`)
-  }
-
-  const payload = await response.json()
-  const message = payload?.choices?.[0]?.message?.content
-
-  if (typeof message !== 'string') {
-    throw new Error('LM Studio response missing content')
-  }
-
-  return {
-    text: message,
-    modelId,
-    raw: payload,
+      raw: payload,
+    }
+  } catch (error: any) {
+    throw new Error(withAgentError(normalized, error?.message ?? 'Unknown error'))
   }
 }

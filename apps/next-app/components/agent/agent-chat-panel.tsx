@@ -243,7 +243,6 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
-              
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
                 handleSend()
