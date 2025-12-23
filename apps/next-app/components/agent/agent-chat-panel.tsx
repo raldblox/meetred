@@ -237,12 +237,13 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
           <Input
             placeholder={
               authorized
-                ? 'Ask the connected model anything...'
-                : 'Host is connecting their model, prompts will send once ready...'
+                ? 'Ask the connected model anything.'
+                : 'Host is connecting their model, prompts will send once ready.'
             }
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
+              
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
                 handleSend()
