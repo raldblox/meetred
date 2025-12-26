@@ -430,17 +430,17 @@ export default function ChatContainer() {
   }, [])
 
   return (
-    <div className="w-full relative mx-auto container h-screen min-h-0 overflow-hidden border-x border-default-100 grid grid-cols-1 lg:grid-cols-6">
-      <div className="hidden h-full lg:block border-r border-default-100">
+    <div className="w-full relative mx-auto gap-1.5 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6">
+      <div className="hidden rounded-sm h-full lg:block">
         <ChatPeerList />
       </div>
       <div
-        className={`col-span-1 lg:col-span-5 flex flex-col min-h-0 h-full overflow-hidden ${
+        className={`col-span-1 rounded-sm border border-default-100 lg:col-span-4 flex flex-col min-h-0 h-full overflow-hidden ${
           roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-100/20' : ''
         }`}
       >
         <div
-          className={`relative h-10 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800`}
+          className={`relative h-12 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800`}
         >
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>

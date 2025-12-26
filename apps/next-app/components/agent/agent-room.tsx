@@ -1,12 +1,24 @@
 'use client'
 
+import type { Selection } from '@react-types/shared'
 import type { AgentManagerState } from '@/lib/agent-manager'
 import type { LMStudioModel } from '@/lib/lmstudio'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, CardBody, CardHeader, Chip, Input, ScrollShadow, Snippet } from '@heroui/react'
-import clsx from 'clsx'
-
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Chip,
+  Input,
+  ScrollShadow,
+  Select,
+  SelectItem,
+  Snippet,
+  Tab,
+  Tabs,
+} from '@heroui/react'
 import { useAgentContext } from '@/context/agent-ctx'
 import { AgentChatPanel } from '@/components/agent/agent-chat-panel'
 
@@ -176,6 +188,47 @@ function AgentManagerPanel({
 
   const provider = providerSelection
 
+  const handleProviderChange = useCallback((key: React.Key) => {
+    const next = key === 'openai' ? 'openai' : 'lmstudio-local'
+
+    setProviderSelection(next)
+
+    if (next === 'openai') {
+      setEditingOpenAIKey(true)
+    }
+  }, [])
+
+  const handleModelSelection = useCallback(
+    (keys: Selection) => {
+      const first = Array.from(keys)[0]
+
+      if (typeof first === 'string') {
+        selectAgentModel(first)
+      }
+    },
+    [selectAgentModel],
+  )
+
+  const formatModelDetails = useCallback((model: LMStudioModel) => {
+    if (model.description) {
+      return model.description
+    }
+
+    if (typeof model.created === 'number') {
+      try {
+        return `Created ${new Date(model.created * 1000).toLocaleDateString()}`
+      } catch {
+        return `Created ${model.created}`
+      }
+    }
+
+    if (model.owned_by) {
+      return `By ${model.owned_by}`
+    }
+
+    return 'Chat model'
+  }, [])
+
   if (!isHost) {
     return (
       <Card className="border border-default-200 shadow-none">
@@ -204,37 +257,19 @@ function AgentManagerPanel({
         <h2 className="text-lg font-semibold text-default-900">Choose your model</h2>
       </CardHeader>
       <CardBody className="space-y-4">
-        <div className="flex gap-2">
-          <Button
-            className="flex-1"
-            color={provider === 'lmstudio-local' ? 'primary' : 'default'}
-            variant={provider === 'lmstudio-local' ? 'solid' : 'bordered'}
-            onPress={() => setProviderSelection('lmstudio-local')}
-          >
-            LM Studio
-          </Button>
-          <Button
-            className="flex-1"
-            color={provider === 'openai' ? 'primary' : 'default'}
-            variant={provider === 'openai' ? 'solid' : 'bordered'}
-            onPress={() => {
-              setProviderSelection('openai')
-              setEditingOpenAIKey(true)
-            }}
-          >
-            OpenAI
-          </Button>
-        </div>
+        <Tabs
+          fullWidth
+          selectedKey={provider}
+          variant="bordered"
+          color="primary"
+          onSelectionChange={handleProviderChange}
+        >
+          <Tab key="lmstudio-local" title="LM Studio" />
+          <Tab key="openai" title="OpenAI" />
+        </Tabs>
 
         {provider === 'lmstudio-local' ? (
           <div className="space-y-2">
-            <Input
-              label="Agent proxy URL"
-              labelPlacement="outside"
-              placeholder="http://127.0.0.1:4312"
-              value={lmBaseUrl}
-              onChange={(event) => setLmBaseUrl(event.target.value)}
-            />
             <Input
               label="LM Studio API URL"
               labelPlacement="outside"
@@ -311,7 +346,7 @@ function AgentManagerPanel({
                 ? 'OpenAI'
                 : agentState.sourceType === 'lmstudio-local'
                   ? 'LM Studio'
-                  : '—'}
+                  : 'Waiting'}
             </span>
           </div>
           {models.length === 0 ? (
@@ -321,27 +356,24 @@ function AgentManagerPanel({
                 : 'No models found yet. Connect to LM Studio after loading a local model.'}
             </p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <Select
+              aria-label="Detected models"
+              disallowEmptySelection
+              label="Choose a model"
+              labelPlacement="outside"
+              selectedKeys={activeModelId ? new Set([activeModelId]) : new Set<string>()}
+              selectionMode="single"
+              onSelectionChange={handleModelSelection}
+            >
               {models.map((model) => (
-                <button
-                  key={model.id}
-                  className={clsx(
-                    'flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition',
-                    model.id === activeModelId
-                      ? 'border-primary-200 bg-primary-50 text-primary-800'
-                      : 'border-default-200 bg-default-50 text-default-700 hover:border-primary-200',
-                  )}
-                  onClick={() => selectAgentModel(model.id)}
-                >
-                  <span>{model.id}</span>
-                  {model.id === activeModelId ? (
-                    <Chip color="success" size="sm" variant="flat">
-                      active
-                    </Chip>
-                  ) : null}
-                </button>
+                <SelectItem key={model.id} textValue={model.id}>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-default-800">{model.id}</span>
+                    <span className="text-xs text-default-400">{formatModelDetails(model)}</span>
+                  </div>
+                </SelectItem>
               ))}
-            </div>
+            </Select>
           )}
         </div>
       </CardBody>

@@ -3,11 +3,11 @@ import * as React from 'react'
 import { IconSvgProps } from '@/types'
 
 export const Logo: React.FC<IconSvgProps> = ({ size = 18, width, height, ...props }) => (
-  <svg fill="none" height={size || height} viewBox="0 0 633 633" width={size || width} {...props}>
-    <rect fill="currentColor" height="198" width="198" y="435" />
-    <path d="M217 217H415V633H217V217Z" fill="currentColor" />
-    <rect fill="currentColor" fillOpacity="0.618" height="416" width="198" />
-    <rect fill="currentColor" height="633" width="198" x="435" />
+  <svg fill="none" height={size || height} viewBox="0 0 125 125" width={size || width} {...props}>
+    <rect x="2" y="87.9004" width="35.0995" height="35.0995" stroke="currentColor" strokeWidth="4" />
+    <path d="M79.9512 44.8516V123H44.8516V44.8516H79.9512Z" stroke="currentColor" strokeWidth="4" />
+    <rect x="2" y="2" width="35.0995" height="78.1485" stroke="currentColor" strokeWidth="4" />
+    <rect x="87.9004" y="2" width="35.0995" height="121" stroke="currentColor" strokeWidth="4" />
   </svg>
 )
 

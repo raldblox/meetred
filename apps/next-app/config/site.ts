@@ -5,24 +5,20 @@ export const siteConfig = {
   description: 'Hang out, meet, and stream without switching apps',
   navItems: [
     {
-      label: 'Public Chat',
+      label: 'Chat',
       href: '/',
     },
     {
-      label: 'Docs',
-      href: '/docs',
+      label: 'Stream',
+      href: '/dm',
     },
     {
-      label: 'Pricing',
+      label: 'Meet',
       href: '/pricing',
     },
     {
-      label: 'Blog',
+      label: 'Agent',
       href: '/blog',
-    },
-    {
-      label: 'About',
-      href: '/about',
     },
   ],
   navMenuItems: [

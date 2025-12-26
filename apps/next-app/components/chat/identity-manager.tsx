@@ -105,13 +105,14 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
     <>
       <Button
         aria-label="Manage identity"
-        className={`h-7 font-normal bg-default-100 ${buttonIsIconOnly ? 'text-default-600' : 'text-sm text-default-600'}`}
+        className={`h-12 !text-tiny px-6 rounded-sm font-normal text-background`}
         isDisabled={rotatingIdentity}
         isIconOnly={buttonIsIconOnly}
-        radius="none"
+        radius="sm"
         size="sm"
-        startContent={buttonIsIconOnly ? undefined : buttonStartContent}
-        variant="flat"
+        color="primary"
+        // startContent={buttonIsIconOnly ? undefined : buttonStartContent}
+        variant="solid"
         onPress={onOpen}
       >
         {buttonIsIconOnly ? iconOnlyContent : 'Identity'}
