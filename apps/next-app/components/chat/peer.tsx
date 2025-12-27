@@ -70,9 +70,10 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
 
   return (
     <div className="flex items-center h-10 text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
-      <Badge color="success" content="" placement="bottom-right" shape="circle" size="sm">
-        <Blockies className="rounded h-8" scale={3} seed={peer.toString()} size={12} />
-      </Badge>
+      <Blockies className="h-4" scale={10} seed={peer.toString()} size={8} />
+      {/* <Badge color="success" content="" placement="bottom-right" shape="rectangle" size="sm">
+        <Blockies className="rounded-sm h-5" scale={3} seed={peer.toString()} size={12} />
+      </Badge> */}
 
       {withName && (
         <div className="w-full">
