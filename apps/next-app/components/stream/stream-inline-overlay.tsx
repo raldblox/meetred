@@ -19,13 +19,13 @@ export function StreamInlineOverlay({ open, onClose, streamId, children }: Strea
 
   return (
     <Modal
-      isDismissable
       hideCloseButton
+      isDismissable
       isOpen={open}
       placement="center"
+      radius="sm"
       scrollBehavior="inside"
       size="4xl"
-      radius="sm"
       onOpenChange={(isOpen) => {
         if (!isOpen) {
           onClose()
@@ -51,10 +51,10 @@ export function StreamInlineOverlay({ open, onClose, streamId, children }: Strea
               <div className="flex items-center gap-2">
                 <Button
                   as={Link}
-                  href={`/stream/${streamId}`}
-                  size="sm"
                   color="primary"
+                  href={`/stream/${streamId}`}
                   radius="full"
+                  size="sm"
                   variant="solid"
                   onPress={onClose}
                 >

@@ -84,9 +84,7 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
       <div className="flex items-center justify-between pb-3 border-b border-default-200">
         <div>
           <p className="text-sm font-semibold text-default-700">{STREAM_ROOM_COPY.chat.title}</p>
-          <p className="text-[11px] uppercase tracking-wide text-default-400">
-            {STREAM_ROOM_COPY.chat.audienceLabel}
-          </p>
+          <p className="text-[11px] uppercase tracking-wide text-default-400">{STREAM_ROOM_COPY.chat.audienceLabel}</p>
         </div>
       </div>
       <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-3 py-3 pr-1">
