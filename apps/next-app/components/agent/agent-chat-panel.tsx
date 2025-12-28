@@ -20,6 +20,7 @@ import { useAgentContext } from '@/context/agent-ctx'
 import { createLMStudioChatCompletion } from '@/lib/lmstudio'
 import { createOpenAIChatCompletion } from '@/lib/openai'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
+import { AI_ROOM_COPY } from '@/config/copy'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -36,6 +37,11 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const selfPeerId = libp2p.peerId.toString()
+  const chatTitle = authorized ? AI_ROOM_COPY.chatPanel.titleReady : AI_ROOM_COPY.chatPanel.titleWaiting
+  const chatSubtitle = authorized ? AI_ROOM_COPY.chatPanel.subtitleReady : AI_ROOM_COPY.chatPanel.subtitleWaiting
+  const inputPlaceholder = authorized
+    ? AI_ROOM_COPY.chatPanel.inputPlaceholderReady
+    : AI_ROOM_COPY.chatPanel.inputPlaceholderDisabled
 
   const appendLocalChatPayload = useCallback(
     (payload: AgentChatPayload) => {
@@ -208,10 +214,8 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
   return (
     <div className="flex h-full flex-col rounded-2xl bg-default-50 p-4 shadow-sm">
       <div className="flex flex-col gap-1 border-b border-default-200 pb-3">
-        <p className="text-sm font-semibold text-default-700">Agent Chat</p>
-        <p className="text-[11px] uppercase tracking-wide text-default-400">
-          {authorized ? 'Responses stream from the host model' : 'Waiting for host model'}
-        </p>
+        <p className="text-sm font-semibold text-default-700">{chatTitle}</p>
+        <p className="text-[11px] uppercase tracking-wide text-default-400">{chatSubtitle}</p>
         <p className="text-xs text-default-500">
           {selectedModelId ? `Active model - ${selectedModelId}` : 'No model selected yet'}
         </p>
@@ -219,7 +223,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
 
       <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-3 py-3 pr-1">
         {chats.length === 0 ? (
-          <p className="text-xs text-default-500 text-center">No chat messages yet.</p>
+          <p className="text-xs text-default-500 text-center">{AI_ROOM_COPY.chatPanel.empty}</p>
         ) : (
           chats.map(({ payload, original }) => (
             <div key={original.msgId} className="flex items-start gap-3">
@@ -248,11 +252,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
       <div className="border-t border-default-200 pt-3">
         <div className="flex items-center gap-2">
           <Input
-            placeholder={
-              authorized
-                ? 'Ask the connected model anything.'
-                : 'Host is connecting their model, prompts will send once ready.'
-            }
+            placeholder={inputPlaceholder}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {

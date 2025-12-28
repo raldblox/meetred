@@ -14,6 +14,7 @@ import { CHAT_TOPIC } from '@/config/constants'
 import { buildStreamChatPayload, parseStreamChatPayload } from '@/lib/stream-chat'
 import { forComponent } from '@/lib/logger'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
+import { STREAM_ROOM_COPY } from '@/config/copy'
 
 interface StreamChatPanelProps {
   streamId: string
@@ -82,13 +83,15 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
     <div className="rounded-2xl bg-default-50 p-4 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between pb-3 border-b border-default-200">
         <div>
-          <p className="text-sm font-semibold text-default-700">Stream Chat</p>
-          <p className="text-[11px] uppercase tracking-wide text-default-400">Connected audience</p>
+          <p className="text-sm font-semibold text-default-700">{STREAM_ROOM_COPY.chat.title}</p>
+          <p className="text-[11px] uppercase tracking-wide text-default-400">
+            {STREAM_ROOM_COPY.chat.audienceLabel}
+          </p>
         </div>
       </div>
       <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-3 py-3 pr-1">
         {chats.length === 0 ? (
-          <p className="text-xs text-default-500 text-center">No chat activity yet</p>
+          <p className="text-xs text-default-500 text-center">{STREAM_ROOM_COPY.chat.empty}</p>
         ) : (
           chats.map(({ payload, original }) => (
             <div key={original.msgId} className="flex items-start gap-3">
@@ -112,7 +115,7 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
         <div className="flex items-center gap-2">
           <Input
             disabled={sending}
-            placeholder="Send a message..."
+            placeholder={STREAM_ROOM_COPY.chat.placeholder}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
@@ -124,7 +127,7 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
           />
           <Button
             isIconOnly
-            aria-label="Send stream chat"
+            aria-label={STREAM_ROOM_COPY.chat.send}
             disabled={!input.trim() || sending}
             radius="full"
             onPress={handleSend}

@@ -73,7 +73,7 @@ export function StreamInvitePreview({
           {indicatorLabel}
         </span>
         <div className="absolute top-4 right-4">
-          <Blockies className="h-5 w-5 rounded-sm" scale={10} seed={hostPeerId} size={8} />
+          <Blockies className="h-5 w-5 rounded-sm" scale={4} seed={hostPeerId} size={8} />
         </div>
         <div className="absolute inset-x-4 bottom-6 flex flex-col gap-4 drop-shadow-xl">
           <div>
@@ -84,7 +84,7 @@ export function StreamInvitePreview({
           <p className="text-sm text-left text-foreground/50">{description}</p>
 
           <div className="pt-2">
-            <span className="inline-flex hover:invert gap-2 bg-foreground text-background items-center justify-center rounded-full px-3 py-2 text-sm font-semibold shadow-lg transition">
+            <span className="inline-flex gap-2 bg-primary text-primary-foreground items-center justify-center rounded-full px-3 py-2 text-sm font-semibold shadow-lg transition hover:brightness-110">
               <Play size={14} />
               {ctaLabel}
             </span>

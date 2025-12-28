@@ -13,6 +13,7 @@ import { ThemeSwitch } from '../ui/theme-switch'
 import { StreamChatPanel } from './stream-chat-panel'
 
 import { useStreamContext } from '@/context/stream-ctx'
+import { INVITE_CARD_COPY, STREAM_ROOM_COPY } from '@/config/copy'
 import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-room')
@@ -115,7 +116,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
     }
   }, [isHost, stopViewing])
 
-  const viewerWaitingMessage = 'Waiting for the host to go live.'
+  const viewerWaitingMessage = INVITE_CARD_COPY.stream.waiting.body
 
   const statusDescription = isHost
     ? status === 'live'
@@ -124,10 +125,10 @@ export function StreamRoom({ streamId }: { streamId: string }) {
         ? 'Allow your browser to use the camera and microphone to go live.'
         : status === 'error'
           ? 'Resolve the error below to restart your stream.'
-          : 'You are the host. Start streaming when you are ready.'
+          : STREAM_ROOM_COPY.controls.hostHint
     : status === 'live'
       ? 'Enjoy the live stream.'
-      : 'Waiting for the host to go live.'
+      : viewerWaitingMessage
 
   return (
     <div className="flex flex-col h-screen bg-default-50/50">
@@ -136,7 +137,8 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           <Link className="flex justify-start items-center gap-2" href="/">
             <Image alt="metered logo" className={`text-foreground`} height="16" src="/metered.svg" width="16" />
             <h1 className="font-semibold text-sm uppercase text-default-500">
-              Stream: <span className="font-medium">{streamId.slice(-7)}</span>
+              {STREAM_ROOM_COPY.header.titlePrefix}:{' '}
+              <span className="font-medium">{streamId.slice(-7)}</span>
             </h1>
           </Link>
         </div>
@@ -148,12 +150,12 @@ export function StreamRoom({ streamId }: { streamId: string }) {
         <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
           <aside className="order-2 lg:order-none rounded-2xl bg-default-50 p-4 text-xs text-default-500 flex flex-col min-h-0">
             <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
-              <p className="text-sm font-semibold text-default-700">Activity Log</p>
+              <p className="text-sm font-semibold text-default-700">{STREAM_ROOM_COPY.activity.title}</p>
               <span className="text-[10px] uppercase tracking-wider opacity-60">Live Updates</span>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
               {roomLogs.length === 0 ? (
-                <p className="text-center py-4 opacity-50 italic">No activity yet</p>
+                <p className="text-center py-4 opacity-50 italic">{STREAM_ROOM_COPY.activity.empty}</p>
               ) : (
                 roomLogs.map((entry) => (
                   <div key={entry.id} className="flex gap-2 items-start">
@@ -180,12 +182,8 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                   <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-contain" />
                 ) : (
                   <div className="flex flex-col gap-3 justify-center items-center mx-auto max-w-md text-center">
-                    <p className="text-xl ">You&apos;re about to go live</p>
-                    <p className="text-xs text-default-500">
-                      When you start streaming, a link to this room will appear in the public room and people will see a
-                      preview card there. Chat messages from here can also echo to the public room to help others
-                      discover you.
-                    </p>
+                    <p className="text-xl ">{STREAM_ROOM_COPY.centerEmptyHost.title}</p>
+                    <p className="text-xs text-default-500">{STREAM_ROOM_COPY.centerEmptyHost.body}</p>
                   </div>
                 )
               ) : remoteStream ? (
@@ -224,7 +222,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           <div className="order-3 lg:order-none flex flex-col gap-4 min-h-0">
             <div className="rounded-2xl bg-default-50 shadow-sm p-5 flex flex-col gap-4">
               <div>
-                <p className="text-sm font-semibold text-default-700">Stream Controls</p>
+                <p className="text-sm font-semibold text-default-700">{STREAM_ROOM_COPY.controls.title}</p>
                 <p className="text-xs text-default-500">{statusDescription}</p>
               </div>
               {isHost ? (
@@ -236,7 +234,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                     startContent={status === 'live' ? <LucideCircleStop /> : <PlaySquareIcon />}
                     onPress={status === 'live' ? stopHosting : startHosting}
                   >
-                    {status === 'live' ? 'Stop Stream' : 'Start stream'}
+                    {status === 'live' ? STREAM_ROOM_COPY.controls.stop : STREAM_ROOM_COPY.controls.start}
                   </Button>
 
                   <Button
@@ -246,7 +244,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                     startContent={isScreenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
                     onPress={toggleScreenShare}
                   >
-                    {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+                    {isScreenSharing ? 'Stop sharing' : STREAM_ROOM_COPY.controls.shareScreen}
                   </Button>
 
                   {/* <Button

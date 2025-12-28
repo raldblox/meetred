@@ -16,6 +16,7 @@ import { ChatMessage } from '@/context/chat-ctx'
 import { useMarkAsRead } from '@/hooks/useMarkAsRead'
 import { useStreamLiveStatus } from '@/hooks/useStreamLiveStatus'
 import { parseStreamChatPayload } from '@/lib/stream-chat'
+import { INVITE_CARD_COPY, type InviteStatus } from '@/config/copy'
 
 type MeetingInvitePayload = {
   type: 'meeting_invite'
@@ -144,15 +145,18 @@ export const Message = ({
     isSelf && isPending && 'opacity-70',
     isSelf && isFailed && 'bg-danger/80 text-danger-foreground',
   )
+  const inviteShellClass = 'w-full min-w-[280px] max-w-xl'
+  const inviteCardClass =
+    'relative w-full overflow-hidden rounded-xl bg-default-100 border border-default-200 p-4 shadow-sm'
 
   if (streamInvite) {
     const hostShortId = streamInvite.hostPeerId.slice(-7)
+    const streamStatusKey: InviteStatus = streamStatus.state === 'live' ? 'live' : isStreamHost ? 'ready' : 'waiting'
+    const streamCopy = INVITE_CARD_COPY.stream[streamStatusKey]
 
     if (isStreamHost) {
       return (
-        <li
-          className={`flex items-start min-w-[250px] gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}
-        >
+        <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
           {showAvatar ? (
             <div className="mt-5 w-8 h-8">
               <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -169,32 +173,33 @@ export const Message = ({
                 {showTimestamp && <span>{timestamp}</span>}
               </div>
             )}
-            <div className="min-w-[250px] md:min-w-md">
-              <div className="relative w-full overflow-hidden rounded-lg bg-default-100 p-4 shadow transition">
+            <div className={inviteShellClass}>
+              <div className={inviteCardClass}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-default-400">Stream invite</p>
-                    <p className="text-lg uppercase text-left font-semibold">{hostShortId}</p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-default-400">{streamCopy.label}</p>
+                    <p className="text-lg uppercase text-left font-semibold">{streamCopy.title(hostShortId)}</p>
                   </div>
                   <Button
                     as={Link}
                     className="font-semibold !text-sm"
-                    color="success"
+                    color="primary"
                     href={`/stream/${streamInvite.hostPeerId}`}
                     radius="full"
                     size="md"
                     variant="solid"
                   >
-                    Start
+                    {streamCopy.cta}
                   </Button>
                 </div>
-                <p className="mt-3 text-sm text-left text-default-500">This is a public stream invite.</p>
+                <p className="mt-3 text-sm text-left text-default-500">{streamCopy.body}</p>
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
                   <span className="flex items-center gap-1">
                     Host
                     <Blockies className="h-4 w-4 rounded-sm" scale={10} seed={streamInvite.hostPeerId} size={8} />
                     {hostShortId}
                   </span>
+                  {streamCopy.meta && <span className="text-default-400">{streamCopy.meta}</span>}
                 </div>
               </div>
             </div>
@@ -222,7 +227,7 @@ export const Message = ({
         ) : (
           <div className="w-8" />
         )}
-        <div className={`flex flex-col min-w-[250px] max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`flex flex-col ${inviteShellClass} ${isSelf ? 'items-end' : 'items-start'}`}>
           {showTimestamp && (
             <div
               className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
@@ -239,13 +244,13 @@ export const Message = ({
             >
               <StreamInlineViewer />
             </StreamInlineOverlay>
-            <div className="w-full max-w-xl space-y-3">
+            <div className="w-full">
               <StreamInvitePreview
-                ctaLabel="Watch Now"
-                description="This is a public stream invite."
+                ctaLabel={streamCopy.cta}
+                description={streamCopy.body}
                 hostPeerId={streamInvite.hostPeerId}
                 status={streamStatus.state}
-                title={hostShortId}
+                title={streamCopy.title(hostShortId)}
                 onClick={() => setViewerOpen(true)}
               />
             </div>
@@ -313,9 +318,10 @@ export const Message = ({
 
   if (meetingInvite) {
     const hostShortId = meetingInvite.hostPeerId.slice(-7)
+    const callCopy = INVITE_CARD_COPY.call.ready
 
     return (
-      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <li className={`flex text-left items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : ''}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -323,7 +329,7 @@ export const Message = ({
         ) : (
           <div className="w-8" />
         )}
-        <div className={`flex flex-col max-w-2xl ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`flex text-left flex-col ${inviteShellClass} ${isSelf ? 'items-end' : 'items-start'}`}>
           {showTimestamp && (
             <div
               className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
@@ -332,25 +338,20 @@ export const Message = ({
               {showTimestamp && <span>{timestamp}</span>}
             </div>
           )}
-          <div className="w-full max-w-xl">
-            <div
-              className={`relative min-w-xs shadow overflow-hidden rounded-lg  transition  ${isSelf ? 'bg-default-100' : 'bg-default-100'} `}
-            >
-              <div className="flex items-start gap-3 p-4">
-                <div className="flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">
-                      Private call
-                      {/* {`Meeting with ${isSelf ? 'you' : hostShortId}`} */}
-                    </span>
-                    {/* <span className="text-[11px] font-medium text-default-500">{meetingTimeLabel}</span> */}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-default-400 text-[11px] flex gap-1 uppercase">
-                      Hosted by{' '}
+          <div className="w-full">
+            <div className={inviteCardClass}>
+              <div className="flex items-start gap-3">
+                <div className="flex-1 space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-default-400">{callCopy.label}</p>
+                  <p className="text-lg font-semibold uppercase text-foreground">{callCopy.title(hostShortId)}</p>
+                  <p className="text-sm text-default-600">{callCopy.body}</p>
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
+                    <span className="flex items-center gap-1">
+                      Hosted by
                       <Blockies className="h-4 w-4 rounded-sm" scale={10} seed={meetingInvite.hostPeerId} size={8} />
                       {hostShortId}
                     </span>
+                    {callCopy.meta && <span className="text-default-400">{callCopy.meta}</span>}
                   </div>
                 </div>
 
@@ -363,7 +364,7 @@ export const Message = ({
                   size="md"
                   variant="solid"
                 >
-                  Join
+                  {callCopy.cta}
                 </Button>
               </div>
             </div>
@@ -385,9 +386,10 @@ export const Message = ({
 
   if (agentInvite) {
     const agentShortId = agentInvite.agentPeerId.slice(-7)
+    const aiCopy = INVITE_CARD_COPY.ai.ready
 
     return (
-      <li className={`flex min-w-[250px] items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -395,7 +397,7 @@ export const Message = ({
         ) : (
           <div className="w-8" />
         )}
-        <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`flex flex-col ${inviteShellClass} ${isSelf ? 'items-end' : 'items-start'}`}>
           {showTimestamp && (
             <div
               className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-ends' : ''}`}
@@ -404,28 +406,27 @@ export const Message = ({
               <span>{timestamp}</span>
             </div>
           )}
-          <div className="w-full max-w-md">
-            <div className="relative w-full overflow-hidden rounded-lg bg-default-100 p-4 shadow transition">
+          <div className="w-full">
+            <div className={inviteCardClass}>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] text-left uppercase tracking-[0.3em] text-default-400">Agent invite</p>
-                  <p className="text-lg text-left font-semibold uppercase">LM Studio · {agentShortId}</p>
+                  <p className="text-[11px] text-left uppercase tracking-[0.3em] text-default-400">{aiCopy.label}</p>
+                  <p className="text-lg text-left font-semibold uppercase">{aiCopy.title(agentShortId)}</p>
                 </div>
                 <Button
                   as={Link}
                   className="font-semibold !text-sm"
-                  color="primary"
+                  color="secondary"
                   href={`/agent/${agentInvite.agentPeerId}`}
                   radius="full"
                   size="md"
                   variant="solid"
                 >
-                  Connect
+                  {aiCopy.cta}
                 </Button>
               </div>
-              <p className="mt-2 text-sm text-left text-default-500">
-                Connect to this peer&apos;s local LM Studio models via WebRTC.
-              </p>
+              <p className="mt-2 text-sm text-left text-default-500">{aiCopy.body}</p>
+              {aiCopy.meta && <p className="text-[11px] uppercase text-default-400 mt-2">{aiCopy.meta}</p>}
             </div>
           </div>
           {isSelf && deliveryStatus !== 'sent' && (

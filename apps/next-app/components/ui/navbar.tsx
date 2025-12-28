@@ -9,6 +9,7 @@ import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
 
 import { ThemeSwitch } from '@/components/ui/theme-switch'
+import { UI_COPY } from '@/config/copy'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 export const Navbar = () => {
@@ -16,9 +17,9 @@ export const Navbar = () => {
   const selfId = libp2p.peerId?.toString() ?? ''
 
   const navLinks = [
-    { label: 'Chat', href: '/' },
-    { label: 'Stream', href: selfId ? `/stream/${selfId}` : '/stream' },
-    { label: 'Meet', href: selfId ? `/room/${selfId}` : '/room' },
+    { label: UI_COPY.nav.chat, href: '/' },
+    { label: UI_COPY.nav.stream, href: selfId ? `/stream/${selfId}` : '/stream' },
+    { label: UI_COPY.nav.meet, href: selfId ? `/room/${selfId}` : '/room' },
   ]
 
   return (

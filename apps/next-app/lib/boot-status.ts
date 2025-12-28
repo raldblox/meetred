@@ -1,11 +1,6 @@
-export type BootPhase =
-  | 'resolving-relays'
-  | 'loading-identity'
-  | 'starting-libp2p'
-  | 'subscribing-topics'
-  | 'reserving-relays'
-  | 'waiting-for-peers'
+import { BOOT_COPY, DEFAULT_STATUS, type BootPhase } from '@/config/copy'
 
+export type { BootPhase }
 export type BootPhaseState = 'pending' | 'active' | 'complete' | 'error'
 
 export interface BootStatusUpdate {
@@ -34,48 +29,8 @@ export const DEFAULT_BOOT_STEPS: BootStepDefinition[] = [
 
 export const PRIMARY_BOOT_PHASES: BootPhase[] = ['starting-libp2p', 'waiting-for-peers']
 
-const STATUS_COPY: Record<BootPhase, { active: string; pending: string; complete: string }> = {
-  'resolving-relays': {
-    pending: 'Getting things ready…',
-    active: 'Finding the best path to connect you…',
-    complete: 'Connection paths ready.',
-  },
-
-  'loading-identity': {
-    pending: 'Preparing your identity…',
-    active: 'Unlocking your identity securely…',
-    complete: 'Identity ready.',
-  },
-
-  'starting-libp2p': {
-    pending: 'Setting up your connection…',
-    active: 'Bringing you online…',
-    complete: 'You’re online.',
-  },
-
-  'subscribing-topics': {
-    pending: 'Getting the room ready…',
-    active: 'Connecting you to live conversations…',
-    complete: 'You’re connected to the room.',
-  },
-
-  'reserving-relays': {
-    pending: 'Stabilizing your connection…',
-    active: 'Securing a reliable route…',
-    complete: 'Connection secured.',
-  },
-
-  'waiting-for-peers': {
-    pending: 'Almost there…',
-    active: 'Looking for others in the room…',
-    complete: 'You’ve joined the room.',
-  },
-}
-
-const DEFAULT_STATUS = 'Getting Meetred ready…'
-
 export function getBootStatusCopy(phase: BootPhase, state: BootPhaseState): string {
-  const phaseCopy = STATUS_COPY[phase]
+  const phaseCopy = BOOT_COPY[phase]
 
   if (!phaseCopy) {
     return DEFAULT_STATUS

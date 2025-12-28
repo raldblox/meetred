@@ -26,6 +26,7 @@ import { useMemo } from 'react'
 import { useRoomController } from '../../hooks/useRoomController'
 
 import { ThemeSwitch } from '@/components/ui/theme-switch'
+import { CALL_ROOM_COPY } from '@/config/copy'
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const {
@@ -427,7 +428,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             size="lg"
             onPress={joinRoom}
           >
-            Join room
+            {CALL_ROOM_COPY.preJoin.join}
           </Button>
         )}
 

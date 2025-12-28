@@ -5,6 +5,7 @@ import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Snipp
 import { Check, Copy, UserPlus2 } from 'lucide-react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { UI_COPY } from '@/config/copy'
 
 export function InviteButton() {
   const { libp2p } = useLibp2pContext()
@@ -49,7 +50,7 @@ export function InviteButton() {
         // startContent={<UserPlus2 className="h-3.5 w-3.5" />}
         variant="solid"
       >
-        Invite
+        {UI_COPY.actions.invite}
       </Button>
 
       <Modal
@@ -85,7 +86,7 @@ export function InviteButton() {
                   variant="flat"
                   onPress={handleCopy}
                 >
-                  {copied ? 'Copied' : 'Copy Link'}
+                  {copied ? UI_COPY.toasts.linkCopied : UI_COPY.actions.copyLink}
                 </Button>
               </ModalFooter>
             </>

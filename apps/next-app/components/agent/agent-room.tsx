@@ -22,6 +22,7 @@ import {
 
 import { useAgentContext } from '@/context/agent-ctx'
 import { AgentChatPanel } from '@/components/agent/agent-chat-panel'
+import { AI_ROOM_COPY } from '@/config/copy'
 
 const statusColorMap: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'default'> = {
   idle: 'default',
@@ -55,21 +56,23 @@ export function AgentRoom({ peerId }: { peerId: string }) {
     () => models.find((model) => model.id === agentState.selectedModelId),
     [agentState.selectedModelId, models],
   )
+  const chatTitle = authorized ? AI_ROOM_COPY.chatPanel.titleReady : AI_ROOM_COPY.chatPanel.titleWaiting
+  const chatSubtitle = authorized ? AI_ROOM_COPY.chatPanel.subtitleReady : AI_ROOM_COPY.chatPanel.subtitleWaiting
+  const modelStatus = authorized
+    ? activeModel
+      ? `Model - ${activeModel.id}`
+      : AI_ROOM_COPY.setupPanel.local.statusWaiting
+    : ''
 
   if (!isHost) {
     return (
       <div className="mx-auto flex h-full max-w-4xl flex-col gap-4 p-4">
         <Card className="border border-default-200 shadow-none">
           <CardHeader className="flex flex-col gap-1 pb-1">
-            <p className="text-xs uppercase tracking-[0.4em] text-default-400">Live chat</p>
-            <h2 className="text-lg font-semibold text-default-900">Chat with the host agent</h2>
-            <p className="text-xs text-default-500">
-              {authorized
-                ? activeModel
-                  ? `Model - ${activeModel.id}`
-                  : 'Host has not selected a model yet.'
-                : 'Host is still connecting a model. Prompts will send once ready.'}
-            </p>
+            <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
+            <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
+            <p className="text-xs text-default-500">{chatSubtitle}</p>
+            {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
           </CardHeader>
           <CardBody className="px-0 py-0">
             <AgentChatPanel agentPeerId={hostPeerId} />
@@ -108,17 +111,10 @@ export function AgentRoom({ peerId }: { peerId: string }) {
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card className="border border-default-200 shadow-none">
           <CardHeader className="flex flex-col gap-1 pb-1">
-            <p className="text-xs uppercase tracking-[0.4em] text-default-400">Live chat</p>
-            <h2 className="text-lg font-semibold text-default-900">
-              {authorized ? 'Connected to host agent' : 'Waiting for host to connect'}
-            </h2>
-            <p className="text-xs text-default-500">
-              {authorized
-                ? activeModel
-                  ? `Model - ${activeModel.id}`
-                  : 'Host has not selected a model yet.'
-                : 'Once the host connects their model everyone can chat in real time.'}
-            </p>
+            <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
+            <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
+            <p className="text-xs text-default-500">{chatSubtitle}</p>
+            {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
           </CardHeader>
           <CardBody className="px-0 py-0">
             <AgentChatPanel agentPeerId={hostPeerId} />
@@ -265,16 +261,16 @@ function AgentManagerPanel({
           variant="bordered"
           onSelectionChange={handleProviderChange}
         >
-          <Tab key="lmstudio-local" title="LM Studio" />
-          <Tab key="openai" title="OpenAI" />
+          <Tab key="lmstudio-local" title={AI_ROOM_COPY.setupPanel.tabs.local} />
+          <Tab key="openai" title={AI_ROOM_COPY.setupPanel.tabs.openai} />
         </Tabs>
 
         {provider === 'lmstudio-local' ? (
           <div className="space-y-2">
             <Input
-              label="LM Studio API URL"
+              label={AI_ROOM_COPY.setupPanel.local.urlLabel}
               labelPlacement="outside"
-              placeholder="http://127.0.0.1:1234"
+              placeholder={AI_ROOM_COPY.setupPanel.local.urlPlaceholder}
               value={lmTargetUrl}
               onChange={(event) => setLmTargetUrl(event.target.value)}
             />
@@ -285,11 +281,9 @@ function AgentManagerPanel({
               variant="solid"
               onPress={connectLocalAgent}
             >
-              Grant Access
+              {connecting ? AI_ROOM_COPY.setupPanel.local.buttonConnecting : AI_ROOM_COPY.setupPanel.local.button}
             </Button>
-            <p className="text-[11px] text-default-500">
-              Launch the local agent proxy (first field) and point it to your LM Studio HTTP endpoint (second field).
-            </p>
+            <p className="text-[11px] text-default-500">{AI_ROOM_COPY.setupPanel.local.urlHelper}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -311,9 +305,9 @@ function AgentManagerPanel({
             ) : (
               <>
                 <Input
-                  label="OpenAI API Key"
+                  label={AI_ROOM_COPY.setupPanel.openai.keyLabel}
                   labelPlacement="outside"
-                  placeholder="sk-..."
+                  placeholder={AI_ROOM_COPY.setupPanel.openai.keyPlaceholder}
                   type="password"
                   value={openAIKey}
                   onChange={(event) => setOpenAIKey(event.target.value)}
@@ -329,11 +323,9 @@ function AgentManagerPanel({
                     setOpenAIKey('')
                   }}
                 >
-                  Connect
+                  {connecting ? AI_ROOM_COPY.setupPanel.openai.buttonConnecting : AI_ROOM_COPY.setupPanel.openai.button}
                 </Button>
-                <p className="text-[11px] text-default-500">
-                  Your key is encrypted inside the local agent and never leaves this machine.
-                </p>
+                <p className="text-[11px] text-default-500">{AI_ROOM_COPY.setupPanel.openai.keyHelper}</p>
               </>
             )}
           </div>
@@ -341,7 +333,7 @@ function AgentManagerPanel({
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-default-500 uppercase tracking-[0.3em]">
-            <span>Detected Models</span>
+            <span>{AI_ROOM_COPY.setupPanel.local.detectedTitle}</span>
             <span className="text-default-400">
               {agentState.sourceType === 'openai'
                 ? 'OpenAI'
@@ -351,11 +343,7 @@ function AgentManagerPanel({
             </span>
           </div>
           {models.length === 0 ? (
-            <p className="text-sm text-default-500">
-              {agentState.sourceType === 'openai'
-                ? 'No models found yet. Ensure your OpenAI key has access to chat models.'
-                : 'No models found yet. Connect to LM Studio after loading a local model.'}
-            </p>
+            <p className="text-sm text-default-500">{AI_ROOM_COPY.setupPanel.local.detectedEmpty}</p>
           ) : (
             <Select
               disallowEmptySelection
@@ -386,13 +374,13 @@ function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPe
   return (
     <Card className="border border-default-200 shadow-none">
       <CardHeader className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.4em] text-default-400">Activity</p>
-        <h2 className="text-lg font-semibold text-default-900">Agent log</h2>
+        <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.logPanel.title}</p>
+        <h2 className="text-lg font-semibold text-default-900">{AI_ROOM_COPY.logPanel.title}</h2>
       </CardHeader>
       <CardBody>
         <div className="rounded-2xl border border-default-100 bg-default-50 p-3">
           {hostEvents.length === 0 ? (
-            <p className="text-sm text-default-500">No activity yet.</p>
+            <p className="text-sm text-default-500">{AI_ROOM_COPY.logPanel.empty}</p>
           ) : (
             <ScrollShadow className="max-h-[280px] pr-2">
               <ul className="space-y-2 text-sm text-default-800">

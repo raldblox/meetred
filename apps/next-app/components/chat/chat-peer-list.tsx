@@ -115,7 +115,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
             return (
               <div
                 key={p}
-                className={`transition-all flex py-0 items-center select-none ${isSelected ? 'border-primary bg-primary/20 border-l-2 px-3' : 'hover:pl-3 border-primary/50 hover:border-l-2'}`}
+                className={`transition-all flex py-0 items-center select-none ${isSelected ? 'border-primary bg-primary/20 border-l-2 px-2' : 'hover:pl-2 border-primary/50 hover:border-l-2'}`}
               >
                 <PeerWrapper peer={id} self={false} withName={true} withUnread={true} />
               </div>

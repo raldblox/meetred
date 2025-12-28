@@ -143,7 +143,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 text-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <Logo className="text-primary" size={64} />
-          <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You’re joining live.</p>
+          <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You&apos;re joining live.</p>
         </div>
 
         <div className="w-full max-w-sm px-4">

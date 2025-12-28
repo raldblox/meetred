@@ -15,6 +15,7 @@ import { Message } from './message'
 
 import { forComponent } from '@/lib/logger'
 import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/config/constants'
+import { PUBLIC_ROOM_COPY, UI_COPY } from '@/config/copy'
 import { wrapMeteredMessage } from '@/lib/metered-envelope'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 
@@ -37,6 +38,7 @@ export default function ChatContainer() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const composerPlaceholder = roomId === PUBLIC_CHAT_ROOM_ID ? PUBLIC_ROOM_COPY.composer.placeholder : 'Message'
 
   // Send message to public chat over gossipsub
   const sendPublicMessage = useCallback(
@@ -576,7 +578,7 @@ export default function ChatContainer() {
               />
               <Tooltip
                 color="default"
-                content={roomId === PUBLIC_CHAT_ROOM_ID ? 'Upload a file' : "Unavailable in DM's"}
+                content={roomId === PUBLIC_CHAT_ROOM_ID ? UI_COPY.tooltips.upload : 'Unavailable in DMs'}
                 placement="top"
                 radius="sm"
               >
@@ -595,7 +597,7 @@ export default function ChatContainer() {
                 classNames={{ inputWrapper: '!bg-transparent shadow-none' }}
                 minRows={1}
                 name="message"
-                placeholder="Message"
+                placeholder={composerPlaceholder}
                 type="text"
                 value={input}
                 variant="flat"
@@ -605,11 +607,11 @@ export default function ChatContainer() {
               <div className="flex items-center gap-1">
                 {!input && (
                   <>
-                    <Tooltip color="primary" content="Send agent invite" placement="top" radius="sm">
+                    <Tooltip color="secondary" content={UI_COPY.actions.startAiRoom} placement="top" radius="sm">
                       <Button
                         isIconOnly
                         className="border-1 border-default-100"
-                        color="primary"
+                        color="secondary"
                         isDisabled={sending}
                         variant="ghost"
                         onPress={handleSendAgentInvite}
@@ -617,11 +619,11 @@ export default function ChatContainer() {
                         <Bot size={16} />
                       </Button>
                     </Tooltip>
-                    <Tooltip color="secondary" content="Send stream invite" placement="top" radius="sm">
+                    <Tooltip color="primary" content={UI_COPY.actions.goLive} placement="top" radius="sm">
                       <Button
                         isIconOnly
                         className="border-1 border-default-100"
-                        color="secondary"
+                        color="primary"
                         isDisabled={sending}
                         variant="ghost"
                         onPress={handleSendStreamInvite}
@@ -629,7 +631,7 @@ export default function ChatContainer() {
                         <Cast size={16} />
                       </Button>
                     </Tooltip>
-                    <Tooltip color="success" content="Send meeting invite" placement="top" radius="sm">
+                    <Tooltip color="success" content={UI_COPY.actions.startCall} placement="top" radius="sm">
                       <Button
                         isIconOnly
                         className="border-1 border-default-100"
@@ -644,7 +646,7 @@ export default function ChatContainer() {
                   </>
                 )}
 
-                <Tooltip color={input ? 'primary' : 'default'} content="Send message" placement="top" radius="sm">
+                <Tooltip color={input ? 'primary' : 'default'} content={UI_COPY.tooltips.send} placement="top" radius="sm">
                   <Button
                     isIconOnly
                     className="border-1 border-default-100"
