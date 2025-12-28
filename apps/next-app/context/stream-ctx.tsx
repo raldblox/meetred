@@ -9,6 +9,7 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
+import { encodeZeroWidth, decodeZeroWidth } from '@/lib/metered-envelope'
 
 const log = forComponent('stream-context')
 
@@ -269,7 +270,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       log('publishing signal on topic %s %o', topic, envelope)
 
       try {
-        await libp2p.services.pubsub.publish(topic, uint8ArrayFromString(JSON.stringify(envelope)))
+        await libp2p.services.pubsub.publish(topic, uint8ArrayFromString(encodeZeroWidth(JSON.stringify(envelope))))
       } catch (e: any) {
         log.error('failed to publish signal %o', e)
         setError(e?.message ?? 'failed to publish signal')
@@ -547,7 +548,8 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       let parsed: StreamSignalMessage
 
       try {
-        const envelope = JSON.parse(uint8ArrayToString(evt.detail.data)) as StreamSignalEnvelope
+        const decoded = decodeZeroWidth(uint8ArrayToString(evt.detail.data)) ?? uint8ArrayToString(evt.detail.data)
+        const envelope = JSON.parse(decoded) as StreamSignalEnvelope
 
         if (envelope?.type !== STREAM_SIGNAL_WRAPPER || envelope?.app !== STREAM_SIGNAL_APP_ID || !envelope.payload) {
           return

@@ -6,6 +6,7 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
+import { encodeZeroWidth, decodeZeroWidth } from '@/lib/metered-envelope'
 
 type StreamLiveState = 'checking' | 'live' | 'offline'
 
@@ -38,7 +39,9 @@ export const useStreamLiveStatus = (streamId?: string, enabled: boolean = true) 
       let envelope: any
 
       try {
-        envelope = JSON.parse(uint8ArrayToString(event.detail.data))
+        const decoded = decodeZeroWidth(uint8ArrayToString(event.detail.data)) ?? uint8ArrayToString(event.detail.data)
+
+        envelope = JSON.parse(decoded)
       } catch {
         return
       }
@@ -88,7 +91,10 @@ export const useStreamLiveStatus = (streamId?: string, enabled: boolean = true) 
           },
         }
 
-        await libp2p.services.pubsub.publish(STREAM_SIGNAL_TOPIC, uint8ArrayFromString(JSON.stringify(envelope)))
+        await libp2p.services.pubsub.publish(
+          STREAM_SIGNAL_TOPIC,
+          uint8ArrayFromString(encodeZeroWidth(JSON.stringify(envelope))),
+        )
       } catch {
         setState('offline')
       }
