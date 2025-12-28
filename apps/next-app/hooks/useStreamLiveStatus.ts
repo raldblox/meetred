@@ -5,7 +5,7 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC, STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
+import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 
 type StreamLiveState = 'checking' | 'live' | 'offline'
 
@@ -31,7 +31,7 @@ export const useStreamLiveStatus = (streamId?: string, enabled: boolean = true) 
     }
 
     const handleSignal = (event: CustomEvent<any>) => {
-      if (event.detail.topic !== CHAT_TOPIC || event.detail.type !== 'signed') {
+      if (event.detail.topic !== STREAM_SIGNAL_TOPIC || event.detail.type !== 'signed') {
         return
       }
 
@@ -88,7 +88,7 @@ export const useStreamLiveStatus = (streamId?: string, enabled: boolean = true) 
           },
         }
 
-        await libp2p.services.pubsub.publish(CHAT_TOPIC, uint8ArrayFromString(JSON.stringify(envelope)))
+        await libp2p.services.pubsub.publish(STREAM_SIGNAL_TOPIC, uint8ArrayFromString(JSON.stringify(envelope)))
       } catch {
         setState('offline')
       }

@@ -9,10 +9,10 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
 import {
+  AGENT_CHAT_TOPIC,
   AGENT_SIGNAL_APP_ID,
   AGENT_SIGNAL_TOPIC,
   AGENT_SIGNAL_WRAPPER,
-  CHAT_TOPIC,
   LM_STUDIO_DEFAULT_BASE_URL,
   LM_STUDIO_DEFAULT_TARGET_URL,
 } from '@/config/constants'
@@ -21,6 +21,7 @@ import { createOpenAIChatCompletion } from '@/lib/openai'
 import { forComponent } from '@/lib/logger'
 import { buildAgentChatPayload, parseAgentChatPayload, type AgentChatPayload } from '@/lib/agent-chat'
 import { AgentManager, createAgentManagerState, type AgentManagerState } from '@/lib/agent-manager'
+import { encodeZeroWidth } from '@/lib/metered-envelope'
 
 const textEncoder = new TextEncoder()
 
@@ -166,7 +167,10 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
       })
 
       appendChatPayload(errorPayload)
-      await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(JSON.stringify(errorPayload)))
+      await libp2p.services.pubsub.publish(
+        AGENT_CHAT_TOPIC,
+        textEncoder.encode(encodeZeroWidth(JSON.stringify(errorPayload))),
+      )
     },
     [appendChatPayload, hostPeerId, libp2p.peerId, libp2p.services.pubsub],
   )
@@ -226,7 +230,10 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
       })
 
       appendChatPayload(pendingPayload)
-      await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(JSON.stringify(pendingPayload)))
+      await libp2p.services.pubsub.publish(
+        AGENT_CHAT_TOPIC,
+        textEncoder.encode(encodeZeroWidth(JSON.stringify(pendingPayload))),
+      )
 
       try {
         const managerState = agentManagerRef.current?.getState()
@@ -272,7 +279,10 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
         })
 
         appendChatPayload(responsePayload)
-        await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(JSON.stringify(responsePayload)))
+        await libp2p.services.pubsub.publish(
+          AGENT_CHAT_TOPIC,
+          textEncoder.encode(encodeZeroWidth(JSON.stringify(responsePayload))),
+        )
       } catch (err: any) {
         const provider = agentManagerRef.current?.getState().sourceType
         const providerLabel = provider === 'openai' ? 'OpenAI' : 'LM Studio'

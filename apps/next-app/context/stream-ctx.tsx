@@ -7,7 +7,7 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC, STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
+import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-context')
@@ -217,7 +217,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
   const pendingViewerIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
   const presenceLoggedRef = useRef(false)
   const hostWentLiveRef = useRef(false)
-  const topic = CHAT_TOPIC
+  const topic = STREAM_SIGNAL_TOPIC
 
   const selfPeerId = useMemo(() => libp2p.peerId?.toString() ?? null, [libp2p])
   const hostPeerId = streamId

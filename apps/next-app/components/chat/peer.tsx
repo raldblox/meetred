@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
-import { Badge } from '@heroui/react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'

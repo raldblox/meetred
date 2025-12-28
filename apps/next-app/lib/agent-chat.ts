@@ -1,5 +1,8 @@
+import { AGENT_SIGNAL_APP_ID } from '@/config/constants'
+
 export type AgentChatPayload = {
   type: 'agent_chat'
+  app: typeof AGENT_SIGNAL_APP_ID
   agentPeerId: string
   body: string
   senderPeerId: string
@@ -30,6 +33,7 @@ export const buildAgentChatPayload = ({
   promptId,
 }: AgentChatPayloadInput): AgentChatPayload => ({
   type: 'agent_chat',
+  app: AGENT_SIGNAL_APP_ID,
   agentPeerId,
   body,
   senderPeerId,
@@ -46,12 +50,14 @@ export const parseAgentChatPayload = (msg: string): AgentChatPayload | null => {
 
     if (
       parsed?.type === 'agent_chat' &&
+      parsed?.app === AGENT_SIGNAL_APP_ID &&
       typeof parsed.agentPeerId === 'string' &&
       typeof parsed.body === 'string' &&
       (parsed.variant === 'user' || parsed.variant === 'model')
     ) {
       return {
         type: 'agent_chat',
+        app: AGENT_SIGNAL_APP_ID,
         agentPeerId: parsed.agentPeerId,
         body: parsed.body,
         senderPeerId: typeof parsed.senderPeerId === 'string' ? parsed.senderPeerId : '',

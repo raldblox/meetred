@@ -12,16 +12,21 @@ import * as lp from 'it-length-prefixed'
 import { useLibp2pContext } from './libp2p-ctx'
 
 import {
+  AGENT_CHAT_TOPIC,
   CHAT_FILE_TOPIC,
   CHAT_TOPIC,
   FILE_EXCHANGE_PROTOCOL,
   MIME_TEXT_PLAIN,
   PUBSUB_PEER_DISCOVERY,
+  STREAM_CHAT_TOPIC,
   STREAM_SIGNAL_APP_ID,
   STREAM_SIGNAL_WRAPPER,
 } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
+import { decodeZeroWidth, unwrapMeteredMessage } from '@/lib/metered-envelope'
+import { parseStreamChatPayload } from '@/lib/stream-chat'
+import { parseAgentChatPayload } from '@/lib/agent-chat'
 
 const log = forComponent('chat-context')
 
@@ -39,22 +44,8 @@ const isStreamSignal = (content: string) => {
   }
 }
 
-const detectMessageChannel = (content: string): ChatMessage['channel'] => {
-  try {
-    const parsed = JSON.parse(content)
-
-    if (parsed?.type === 'agent_chat') {
-      return 'agent'
-    }
-
-    if (parsed?.type === 'stream_chat') {
-      return 'stream'
-    }
-  } catch {
-    // ignore invalid JSON
-  }
-
-  return 'public'
+const unwrapPublicMessage = (raw: string): string | null => {
+  return unwrapMeteredMessage(raw)
 }
 
 export interface ChatMessage {
@@ -123,7 +114,9 @@ export const ChatProvider = ({ children }: any) => {
     const { topic, data } = evt.detail
 
     switch (topic) {
-      case CHAT_TOPIC: {
+      case CHAT_TOPIC:
+      case STREAM_CHAT_TOPIC:
+      case AGENT_CHAT_TOPIC: {
         chatMessageCB(evt, topic, data)
         break
       }
@@ -141,16 +134,45 @@ export const ChatProvider = ({ children }: any) => {
   }
 
   const chatMessageCB = (evt: CustomEvent<Message>, topic: string, data: Uint8Array) => {
-    const msg = new TextDecoder().decode(data)
+    const raw = new TextDecoder().decode(data)
 
-    if (isStreamSignal(msg)) {
+    if (topic === CHAT_TOPIC && isStreamSignal(raw)) {
       return
     }
 
-    log(`${topic}: ${msg}`)
+    let parsedMessage: string | null = null
+    let channel: ChatMessage['channel'] = 'public'
+
+    if (topic === CHAT_TOPIC) {
+      parsedMessage = unwrapPublicMessage(raw)
+
+      if (!parsedMessage) {
+        return
+      }
+    } else if (topic === STREAM_CHAT_TOPIC) {
+      const payload = parseStreamChatPayload(decodeZeroWidth(raw) ?? raw)
+
+      if (!payload) {
+        return
+      }
+
+      parsedMessage = JSON.stringify(payload)
+      channel = 'stream'
+    } else if (topic === AGENT_CHAT_TOPIC) {
+      const payload = parseAgentChatPayload(decodeZeroWidth(raw) ?? raw)
+
+      if (!payload) {
+        return
+      }
+
+      parsedMessage = JSON.stringify(payload)
+      channel = 'agent'
+    } else {
+      return
+    }
 
     const detail = evt.detail
-    const channel = detectMessageChannel(msg)
+    const msg = parsedMessage
 
     // Append signed messages, otherwise discard
     if (detail.type === 'signed' && hasFromPeer(detail)) {

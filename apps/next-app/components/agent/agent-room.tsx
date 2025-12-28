@@ -19,6 +19,7 @@ import {
   Tab,
   Tabs,
 } from '@heroui/react'
+
 import { useAgentContext } from '@/context/agent-ctx'
 import { AgentChatPanel } from '@/components/agent/agent-chat-panel'
 
@@ -259,9 +260,9 @@ function AgentManagerPanel({
       <CardBody className="space-y-4">
         <Tabs
           fullWidth
+          color="primary"
           selectedKey={provider}
           variant="bordered"
-          color="primary"
           onSelectionChange={handleProviderChange}
         >
           <Tab key="lmstudio-local" title="LM Studio" />
@@ -357,8 +358,8 @@ function AgentManagerPanel({
             </p>
           ) : (
             <Select
-              aria-label="Detected models"
               disallowEmptySelection
+              aria-label="Detected models"
               label="Choose a model"
               labelPlacement="outside"
               selectedKeys={activeModelId ? new Set([activeModelId]) : new Set<string>()}

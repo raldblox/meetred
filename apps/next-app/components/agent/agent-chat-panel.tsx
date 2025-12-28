@@ -13,12 +13,13 @@ import remarkGfm from 'remark-gfm'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC } from '@/config/constants'
+import { AGENT_CHAT_TOPIC } from '@/config/constants'
 import { buildAgentChatPayload, parseAgentChatPayload } from '@/lib/agent-chat'
 import { forComponent } from '@/lib/logger'
 import { useAgentContext } from '@/context/agent-ctx'
 import { createLMStudioChatCompletion } from '@/lib/lmstudio'
 import { createOpenAIChatCompletion } from '@/lib/openai'
+import { encodeZeroWidth } from '@/lib/metered-envelope'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -119,7 +120,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
       })
       const encoded = appendLocalChatPayload(payload)
 
-      await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(encoded))
+      await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(encoded)))
       setInput('')
 
       if (isHost) {
@@ -134,7 +135,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
           })
           const errorEncoded = appendLocalChatPayload(errorPayload)
 
-          await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(errorEncoded))
+          await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(errorEncoded)))
 
           return
         }
@@ -150,7 +151,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         })
         const pendingEncoded = appendLocalChatPayload(pendingPayload)
 
-        await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(pendingEncoded))
+        await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(pendingEncoded)))
 
         const provider = agentState.sourceType === 'openai' ? 'openai' : 'lmstudio'
         const completion =
@@ -178,7 +179,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         })
         const responseEncoded = appendLocalChatPayload(responsePayload)
 
-        await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(responseEncoded))
+        await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(responseEncoded)))
       } else {
         const promptOptions = resolvedModelId ? { promptId, modelId: resolvedModelId } : { promptId }
 
@@ -198,7 +199,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
       })
       const responseEncoded = appendLocalChatPayload(responsePayload)
 
-      await libp2p.services.pubsub.publish(CHAT_TOPIC, textEncoder.encode(responseEncoded))
+      await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(responseEncoded)))
     } finally {
       setSending(false)
     }

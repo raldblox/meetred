@@ -10,9 +10,10 @@ import { Button, Input, ScrollShadow } from '@heroui/react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC } from '@/config/constants'
+import { STREAM_CHAT_TOPIC } from '@/config/constants'
 import { buildStreamChatPayload, parseStreamChatPayload } from '@/lib/stream-chat'
 import { forComponent } from '@/lib/logger'
+import { encodeZeroWidth } from '@/lib/metered-envelope'
 
 interface StreamChatPanelProps {
   streamId: string
@@ -53,8 +54,9 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
       const senderPeerId = libp2p.peerId.toString()
       const payload = buildStreamChatPayload(streamId, streamId, trimmed, senderPeerId)
       const encoded = JSON.stringify(payload)
+      const obfuscated = encodeZeroWidth(encoded)
 
-      await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(encoded))
+      await libp2p.services.pubsub.publish(STREAM_CHAT_TOPIC, new TextEncoder().encode(obfuscated))
 
       const optimisticMessage: ChatMessage = {
         msgId: crypto.randomUUID(),

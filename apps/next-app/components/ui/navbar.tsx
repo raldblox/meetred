@@ -1,14 +1,13 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
-import { Button, Link } from '@heroui/react'
+import { Button } from '@heroui/react'
+import { Earth } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
 
 import { siteConfig } from '@/config/site'
 import { ThemeSwitch } from '@/components/ui/theme-switch'
-import { GithubIcon, Logo } from '@/components/ui/icons'
-import { Earth } from 'lucide-react'
 
 export const Navbar = () => {
   return (
@@ -56,11 +55,11 @@ export const Navbar = () => {
               <Button
                 as={NextLink}
                 className="!p-3 h-10 !text-tiny text-foreground bg-default-50 rounded-sm hover:bg-primary"
+                color="primary"
                 href={item.href}
                 radius="lg"
                 size="sm"
                 variant="flat"
-                color="primary"
               >
                 {item.label}
               </Button>

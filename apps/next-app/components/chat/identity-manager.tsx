@@ -110,10 +110,10 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
         isIconOnly={buttonIsIconOnly}
         radius="sm"
         size="sm"
+        onPress={onOpen}
         color="primary"
         // startContent={buttonIsIconOnly ? undefined : buttonStartContent}
         variant="solid"
-        onPress={onOpen}
       >
         {buttonIsIconOnly ? iconOnlyContent : 'Identity'}
       </Button>

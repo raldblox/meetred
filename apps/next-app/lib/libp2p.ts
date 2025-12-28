@@ -24,11 +24,14 @@ import { ping } from '@libp2p/ping'
 import first from 'it-first'
 
 import {
+  AGENT_CHAT_TOPIC,
   AGENT_SIGNAL_TOPIC,
   BOOTSTRAP_PEER_IDS,
   CHAT_FILE_TOPIC,
   CHAT_TOPIC,
   PUBSUB_PEER_DISCOVERY,
+  STREAM_CHAT_TOPIC,
+  STREAM_SIGNAL_TOPIC,
 } from '../config/constants'
 
 import { forComponent, enable } from './logger'
@@ -178,10 +181,18 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
   setBootStatus('starting-libp2p', 'complete', `Node ready as ${libp2p.peerId.toString()}`)
 
   setBootStatus('subscribing-topics', 'active', 'Joining pubsub topics')
-  libp2p.services.pubsub.subscribe(CHAT_TOPIC)
-  libp2p.services.pubsub.subscribe(CHAT_FILE_TOPIC)
-  libp2p.services.pubsub.subscribe(PUBSUB_PEER_DISCOVERY)
-  libp2p.services.pubsub.subscribe(AGENT_SIGNAL_TOPIC)
+  const topics = [
+    CHAT_TOPIC,
+    CHAT_FILE_TOPIC,
+    PUBSUB_PEER_DISCOVERY,
+    STREAM_SIGNAL_TOPIC,
+    STREAM_CHAT_TOPIC,
+    AGENT_SIGNAL_TOPIC,
+    AGENT_CHAT_TOPIC,
+  ]
+  const uniqueTopics = Array.from(new Set(topics))
+
+  uniqueTopics.forEach((topic) => libp2p.services.pubsub.subscribe(topic))
   setBootStatus('subscribing-topics', 'complete', 'Subscribed to chat and discovery topics')
 
   libp2p.addEventListener('self:peer:update', ({ detail: { peer } }) => {

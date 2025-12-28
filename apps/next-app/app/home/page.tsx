@@ -3,9 +3,6 @@
 import { useState } from 'react'
 
 import ChatContainer from '@/components/chat/chat-room'
-import ConnectionInfoButton from '@/components/chat/connection-info-button'
-import ConnectionPanel from '@/components/chat/connection-panel'
-import { Navbar } from '@/components/ui/navbar'
 import { ChatPeerList } from '@/components/chat/chat-peer-list'
 
 export default function Home() {
