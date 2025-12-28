@@ -1,3 +1,5 @@
+'use client'
+
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button } from '@heroui/react'
@@ -6,10 +8,19 @@ import { Earth } from 'lucide-react'
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
 
-import { siteConfig } from '@/config/site'
 import { ThemeSwitch } from '@/components/ui/theme-switch'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 export const Navbar = () => {
+  const { libp2p } = useLibp2pContext()
+  const selfId = libp2p.peerId?.toString() ?? ''
+
+  const navLinks = [
+    { label: 'Chat', href: '/' },
+    { label: 'Stream', href: selfId ? `/stream/${selfId}` : '/stream' },
+    { label: 'Meet', href: selfId ? `/room/${selfId}` : '/room' },
+  ]
+
   return (
     <HeroUINavbar
       classNames={{ base: '!p-6', wrapper: 'container !p-0 h-fit', content: '' }}
@@ -50,7 +61,7 @@ export const Navbar = () => {
 
       <NavbarContent className="hidden items-center sm:flex basis-1/5 gap-1.5 sm:basis-full" justify="end">
         <ul className="hidden h-12 lg:flex gap-1 bg-default-100 p-1.5 rounded-sm justify-start items-center ml-2">
-          {siteConfig.navItems.map((item) => (
+          {navLinks.map((item) => (
             <NavbarItem key={item.href}>
               <Button
                 as={NextLink}
