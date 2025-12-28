@@ -77,11 +77,12 @@ export function StreamInlineViewer() {
     return 'Waiting for host'
   }, [remoteStream, status])
 
-  const badgeTone = remoteStream && status === 'live' ? 'bg-rose-500/90 text-white' : 'bg-default-900/80 text-white/80'
+  const badgeTone =
+    remoteStream && status === 'live' ? 'bg-rose-500/90 text-foreground' : 'bg-default-100/80 text-foreground/80'
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative w-full overflow-hidden rounded-3xl bg-black" style={{ aspectRatio }}>
+      <div className="relative w-full overflow-hidden rounded-sm bg-black" style={{ aspectRatio }}>
         {remoteStream ? (
           <video ref={videoRef} autoPlay playsInline className="h-full w-full object-contain bg-black">
             <track
@@ -93,15 +94,15 @@ export function StreamInlineViewer() {
             />
           </video>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-sm text-white/70">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-white/70" />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-sm text-foreground/70">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-foreground/70" />
             {status === 'error' ? 'Unable to load the stream yet.' : 'Waiting for the host to go live.'}
           </div>
         )}
         <span
           className={`absolute left-4 top-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${badgeTone}`}
         >
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-default-800" />
           {statusLabel}
         </span>
       </div>
