@@ -10,7 +10,7 @@ import { Button, Input, ScrollShadow } from '@heroui/react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { STREAM_CHAT_TOPIC } from '@/config/constants'
+import { CHAT_TOPIC } from '@/config/constants'
 import { buildStreamChatPayload, parseStreamChatPayload } from '@/lib/stream-chat'
 import { forComponent } from '@/lib/logger'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
@@ -56,7 +56,8 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
       const encoded = JSON.stringify(payload)
       const obfuscated = encodeZeroWidth(encoded)
 
-      await libp2p.services.pubsub.publish(STREAM_CHAT_TOPIC, new TextEncoder().encode(obfuscated))
+      // Publish to the shared UC topic so discovery keeps working even if peers only subscribe there.
+      await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(obfuscated))
 
       const optimisticMessage: ChatMessage = {
         msgId: crypto.randomUUID(),
@@ -91,7 +92,7 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
         ) : (
           chats.map(({ payload, original }) => (
             <div key={original.msgId} className="flex items-start gap-3">
-              <Blockies className="rounded" scale={3} seed={payload.senderPeerId || original.peerId} size={8} />
+              <Blockies className="rounded" scale={10} seed={payload.senderPeerId || original.peerId} size={8} />
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-default-400">
                   <span className="font-mono text-default-500">

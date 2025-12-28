@@ -400,7 +400,7 @@ function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPe
                   .slice()
                   .reverse()
                   .map((entry, idx) => (
-                    <li key={`${entry}-${idx}`} className="rounded-xl bg-white/70 px-3 py-2 shadow-sm">
+                    <li key={`${entry}-${idx}`} className="rounded-xl bg-default-100 px-3 py-2 shadow-sm">
                       {entry}
                     </li>
                   ))}

@@ -73,7 +73,7 @@ export function StreamInvitePreview({
           {indicatorLabel}
         </span>
         <div className="absolute top-4 right-4">
-          <Blockies className="h-5 w-5 rounded-sm" scale={3} seed={hostPeerId} size={10} />
+          <Blockies className="h-5 w-5 rounded-sm" scale={10} seed={hostPeerId} size={8} />
         </div>
         <div className="absolute inset-x-4 bottom-6 flex flex-col gap-4 drop-shadow-xl">
           <div>

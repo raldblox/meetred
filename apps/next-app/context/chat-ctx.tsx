@@ -143,14 +143,34 @@ export const ChatProvider = ({ children }: any) => {
     let parsedMessage: string | null = null
     let channel: ChatMessage['channel'] = 'public'
 
+    const decodedRaw = decodeZeroWidth(raw) ?? raw
+
     if (topic === CHAT_TOPIC) {
-      parsedMessage = unwrapPublicMessage(raw)
+      // stream/agent chats can also ride on the shared topic; try them first
+      const streamPayload = parseStreamChatPayload(decodedRaw)
+
+      if (streamPayload) {
+        parsedMessage = JSON.stringify(streamPayload)
+        channel = 'stream'
+      }
 
       if (!parsedMessage) {
-        return
+        const agentPayload = parseAgentChatPayload(decodedRaw)
+
+        if (agentPayload) {
+          parsedMessage = JSON.stringify(agentPayload)
+          channel = 'agent'
+        }
+      }
+
+      if (!parsedMessage) {
+        parsedMessage = unwrapPublicMessage(raw)
+        if (!parsedMessage) {
+          return
+        }
       }
     } else if (topic === STREAM_CHAT_TOPIC) {
-      const payload = parseStreamChatPayload(decodeZeroWidth(raw) ?? raw)
+      const payload = parseStreamChatPayload(decodedRaw)
 
       if (!payload) {
         return
@@ -159,7 +179,7 @@ export const ChatProvider = ({ children }: any) => {
       parsedMessage = JSON.stringify(payload)
       channel = 'stream'
     } else if (topic === AGENT_CHAT_TOPIC) {
-      const payload = parseAgentChatPayload(decodeZeroWidth(raw) ?? raw)
+      const payload = parseAgentChatPayload(decodedRaw)
 
       if (!payload) {
         return

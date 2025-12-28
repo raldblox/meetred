@@ -462,7 +462,7 @@ export default function ChatContainer() {
           )}
           {roomId !== PUBLIC_CHAT_ROOM_ID && (
             <>
-              <Blockies className="rounded mr-2 h-6" scale={3} seed={roomId} size={12} />
+              <Blockies className="rounded mr-2 h-6" scale={10} seed={roomId} size={8} />
               <span className="text-default-500 uppercase flex">{roomId.toString().slice(-7)}</span>
               <div className="flex items-center ml-auto gap-1">
                 <Button

@@ -223,7 +223,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         ) : (
           chats.map(({ payload, original }) => (
             <div key={original.msgId} className="flex items-start gap-3">
-              <Blockies className="rounded" scale={3} seed={payload.senderPeerId || original.peerId} size={8} />
+              <Blockies className="rounded-sm h-8" scale={10} seed={payload.senderPeerId || original.peerId} size={8} />
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-default-400">
                   <span className="font-mono text-default-500">

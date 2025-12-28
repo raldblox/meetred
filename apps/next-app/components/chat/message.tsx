@@ -150,7 +150,9 @@ export const Message = ({
 
     if (isStreamHost) {
       return (
-        <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+        <li
+          className={`flex items-start min-w-[250px] gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}
+        >
           {showAvatar ? (
             <div className="mt-5 w-8 h-8">
               <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -190,7 +192,7 @@ export const Message = ({
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
                   <span className="flex items-center gap-1">
                     Host
-                    <Blockies className="h-4 w-4 rounded-sm" scale={3} seed={streamInvite.hostPeerId} size={10} />
+                    <Blockies className="h-4 w-4 rounded-sm" scale={10} seed={streamInvite.hostPeerId} size={8} />
                     {hostShortId}
                   </span>
                 </div>
@@ -346,7 +348,7 @@ export const Message = ({
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-default-400 text-[11px] flex gap-1 uppercase">
                       Hosted by{' '}
-                      <Blockies className="h-4 w-4 rounded-sm" scale={3} seed={meetingInvite.hostPeerId} size={10} />
+                      <Blockies className="h-4 w-4 rounded-sm" scale={10} seed={meetingInvite.hostPeerId} size={8} />
                       {hostShortId}
                     </span>
                   </div>
@@ -385,7 +387,7 @@ export const Message = ({
     const agentShortId = agentInvite.agentPeerId.slice(-7)
 
     return (
-      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <li className={`flex min-w-[250px] items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -396,7 +398,7 @@ export const Message = ({
         <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
           {showTimestamp && (
             <div
-              className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
+              className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-ends' : ''}`}
             >
               {!isSelf && <span className="text-default-500">{peerId.slice(-7)}</span>}
               <span>{timestamp}</span>
@@ -406,7 +408,7 @@ export const Message = ({
             <div className="relative w-full overflow-hidden rounded-lg bg-default-100 p-4 shadow transition">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.3em] text-default-400">Agent invite</p>
+                  <p className="text-[11px] text-left uppercase tracking-[0.3em] text-default-400">Agent invite</p>
                   <p className="text-lg text-left font-semibold uppercase">LM Studio · {agentShortId}</p>
                 </div>
                 <Button
