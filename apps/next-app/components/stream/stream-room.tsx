@@ -137,8 +137,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           <Link className="flex justify-start items-center gap-2" href="/">
             <Image alt="metered logo" className={`text-foreground`} height="16" src="/metered.svg" width="16" />
             <h1 className="font-semibold text-sm uppercase text-default-500">
-              {STREAM_ROOM_COPY.header.titlePrefix}:{' '}
-              <span className="font-medium">{streamId.slice(-7)}</span>
+              {STREAM_ROOM_COPY.header.titlePrefix}: <span className="font-medium">{streamId.slice(-7)}</span>
             </h1>
           </Link>
         </div>

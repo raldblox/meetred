@@ -164,7 +164,7 @@ export const Message = ({
           ) : (
             <div className="w-8" />
           )}
-          <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+          <div className={`flex flex-col text-left ${isSelf ? 'items-end' : 'items-start'}`}>
             {showTimestamp && (
               <div
                 className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
