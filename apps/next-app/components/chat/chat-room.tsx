@@ -432,7 +432,7 @@ export default function ChatContainer() {
   }, [])
 
   return (
-    <div className="w-full relative mx-auto gap-1.5 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6">
+    <div className="w-full relative mx-auto gap-6 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6">
       <div className="hidden rounded-sm h-full lg:block">
         <ChatPeerList />
       </div>

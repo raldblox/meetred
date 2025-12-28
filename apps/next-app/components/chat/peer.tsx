@@ -68,7 +68,7 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
   const { directMessages } = useChatContext()
 
   return (
-    <div className="flex items-center h-10 text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
+    <div className="flex h-10 items-center text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
       <Blockies className="h-4" scale={10} seed={peer.toString()} size={8} />
       {/* <Badge color="success" content="" placement="bottom-right" shape="rectangle" size="sm">
         <Blockies className="rounded-sm h-5" scale={3} seed={peer.toString()} size={12} />

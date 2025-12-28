@@ -97,12 +97,12 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     <div className="lg:col-span-1 h-full">
       {!hideHeader && <h2 className="text-lg h-12 flex items-center font-semibold text-default-800">Peers</h2>}
 
-      <div className="overflow-auto space-y-0.5 h-full">
+      <div className="overflow-auto space-y-2 h-full">
         <div className="hover:translate-x-1.5 transition-all flex items-center select-none">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
-        {peerIds.length === 0 && <div className="px-3 py-1 text-xs text-default-500">No peers connected yet.</div>}
+        {peerIds.length === 0 && <div className="px-3 text-xs text-default-500">No peers connected yet.</div>}
         {peerIds.map((p) => {
           if (BOOTSTRAP_PEER_IDS.includes(p) || p === libp2p.peerId.toString()) {
             return null
@@ -115,7 +115,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
             return (
               <div
                 key={p}
-                className={`transition-all flex items-center select-none ${isSelected ? 'bg-primary/50 px-3' : 'hover:translate-x-1.5 '}`}
+                className={`transition-all flex py-0 items-center select-none ${isSelected ? 'border-primary bg-primary/20 border-l-2 px-3' : 'hover:pl-3 border-primary/50 hover:border-l-2'}`}
               >
                 <PeerWrapper peer={id} self={false} withName={true} withUnread={true} />
               </div>
