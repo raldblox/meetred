@@ -1,4 +1,5 @@
 import { StreamRoom } from '@/components/stream/stream-room'
+import { Navbar } from '@/components/ui/navbar'
 import { StreamProvider } from '@/context/stream-ctx'
 
 export default async function StreamPage({ params }: { params: Promise<{ streamId: string }> }) {
@@ -6,7 +7,16 @@ export default async function StreamPage({ params }: { params: Promise<{ streamI
 
   return (
     <StreamProvider streamId={streamId}>
-      <StreamRoom streamId={streamId} />
+      <div className="relative text-foreground bg-background flex flex-col h-screen overflow-y-scroll">
+        <Navbar />
+        <main className="px-6 bg-background border-default-100 w-full flex flex-col flex-grow min-h-0">
+          <StreamRoom streamId={streamId} />
+        </main>
+
+        <footer className="w-full border-primary !p-6 bg-background flex items-center justify-between">
+          <div className="text-xs">Metered</div>
+        </footer>
+      </div>
     </StreamProvider>
   )
 }

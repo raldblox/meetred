@@ -15,6 +15,7 @@ import { StreamChatPanel } from './stream-chat-panel'
 import { useStreamContext } from '@/context/stream-ctx'
 import { INVITE_CARD_COPY, STREAM_ROOM_COPY } from '@/config/copy'
 import { forComponent } from '@/lib/logger'
+import { Logo } from '../ui/icons'
 
 const log = forComponent('stream-room')
 
@@ -131,23 +132,19 @@ export function StreamRoom({ streamId }: { streamId: string }) {
       : viewerWaitingMessage
 
   return (
-    <div className="flex flex-col h-screen bg-default-50/50">
-      <nav className="flex items-center justify-between w-full px-3 h-10 border-b border-default-100">
+    <div className="flex flex-col h-full">
+      <nav className="flex items-center justify-between w-full h-12">
         <div className="flex items-center gap-3">
-          <Link className="flex justify-start items-center gap-2" href="/">
-            <Image alt="metered logo" className={`text-foreground`} height="16" src="/metered.svg" width="16" />
-            <h1 className="font-semibold text-sm uppercase text-default-500">
-              {STREAM_ROOM_COPY.header.titlePrefix}: <span className="font-medium">{streamId.slice(-7)}</span>
-            </h1>
-          </Link>
+          <h1 className="text-lg flex items-center font-semibold text-default-800 gap-2">
+            {STREAM_ROOM_COPY.header.titlePrefix}: <span className="font-medium uppercase">{streamId.slice(-7)}</span>
+          </h1>
         </div>
-
         <ThemeSwitch />
       </nav>
-      <div className="h-10 bg-default-50 w-full border-b border-default-100" />
-      <div className="flex-1 mx-auto container flex flex-col min-h-0 p-4 pb-4">
-        <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
-          <aside className="order-2 lg:order-none rounded-2xl bg-default-50 p-4 text-xs text-default-500 flex flex-col min-h-0">
+
+      <div className="flex-1 w-full flex flex-col min-h-0 py-0">
+        <div className="grid flex-1 min-h-0 !gap-6 lg:grid-cols-6">
+          <aside className="order-1 lg:grid-cols-1 rounded-2xl bg-default-50 p-4 text-xs text-default-500 flex flex-col min-h-0">
             <div className="flex items-center justify-between pb-2 border-b border-default-200/50 mb-2">
               <p className="text-sm font-semibold text-default-700">{STREAM_ROOM_COPY.activity.title}</p>
               <span className="text-[10px] uppercase tracking-wider opacity-60">Live Updates</span>
@@ -174,7 +171,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
             </div>
           </aside>
 
-          <section className="order-1 lg:order-none relative rounded-3xl border border-default-100 bg-default-900/5 min-h-[360px] flex flex-col">
+          <section className="order-2 lg:col-span-4 relative rounded-3xl border border-default-100 bg-default-900/5 min-h-[360px] flex flex-col">
             <div className="relative flex-1 min-h-0 flex items-center justify-center rounded-3xl bg-default-950/5 overflow-hidden">
               {isHost ? (
                 localStream ? (
@@ -218,7 +215,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
             )}
           </section>
 
-          <div className="order-3 lg:order-none flex flex-col gap-4 min-h-0">
+          <div className="order-3 flex flex-col gap-4 min-h-0">
             <div className="rounded-2xl bg-default-50 shadow-sm p-5 flex flex-col gap-4">
               <div>
                 <p className="text-sm font-semibold text-default-700">{STREAM_ROOM_COPY.controls.title}</p>
