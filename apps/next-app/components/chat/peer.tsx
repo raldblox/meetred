@@ -83,9 +83,7 @@ export function Peer({ peer, self, withName, withUnread, syncing = false }: Peer
               {peer.toString().slice(-7)}
               {self && ' (You)'}
             </span>
-            {syncing && (
-              <Loader2 aria-label="Syncing history" className="h-3.5 w-3.5 animate-spin text-primary" />
-            )}
+            {syncing && <Loader2 aria-label="Syncing history" className="h-3.5 w-3.5 animate-spin text-success" />}
           </div>
           {withUnread && (
             <div className="ml-2 text-xs text-success-600">
