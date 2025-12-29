@@ -15,7 +15,7 @@ export default async function Room({ params }: { params: Promise<{ roomId: strin
         <RoomPage roomId={roomId} />
       </main>
 
-      <footer className="w-full border-primary !p-6 bg-background flex items-center justify-between">
+      <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between">
         <div className="text-xs">Metered</div>
       </footer>
     </div>

@@ -13,7 +13,7 @@ export default async function StreamPage({ params }: { params: Promise<{ streamI
           <StreamRoom streamId={streamId} />
         </main>
 
-        <footer className="w-full border-primary !p-6 bg-background flex items-center justify-between">
+        <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between">
           <div className="text-xs">Metered</div>
         </footer>
       </div>
