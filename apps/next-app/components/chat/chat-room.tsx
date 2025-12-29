@@ -5,7 +5,18 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea, Tooltip, ScrollShadow } from '@heroui/react'
-import { ChevronLeftIcon, Earth, SendIcon, Share, UsersIcon, Cast, Video, X, ChevronDown, Bot } from 'lucide-react'
+import {
+  ChevronLeftIcon,
+  Earth,
+  UsersIcon,
+  Video,
+  X,
+  ChevronDown,
+  Bot,
+  Paperclip,
+  Radio,
+  SendHorizontal,
+} from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../../context/chat-ctx'
@@ -38,7 +49,7 @@ export default function ChatContainer() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const composerPlaceholder = roomId === PUBLIC_CHAT_ROOM_ID ? PUBLIC_ROOM_COPY.composer.placeholder : 'Message'
+  const composerPlaceholder = UI_COPY.composer.placeholder
 
   // Send message to public chat over gossipsub
   const sendPublicMessage = useCallback(
@@ -439,19 +450,21 @@ export default function ChatContainer() {
         <ChatPeerList />
       </div>
       <div
-        className={`col-span-1 rounded-sm border border-default-100 lg:col-span-4 flex flex-col min-h-0 h-full overflow-hidden ${
-          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-100/20' : ''
+        className={`col-span-1 lg:col-span-4 flex rounded-2xl flex-col min-h-0 h-full overflow-hidden ${
+          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-50/50' : ''
         }`}
       >
         <div
-          className={`relative h-12 flex items-center text-sm font-semibold py-2 px-3 border-b border-default-100 text-default-800`}
+          className={`relative h-12 p-3 flex items-center text-sm font-semibold text-default-800 ${
+            roomId !== PUBLIC_CHAT_ROOM_ID ? 'border-b border-default-100' : ''
+          }`}
         >
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
-              <span className="flex font-bold items-center gap-2">
-                <Earth className="h-7" />
+              {/* <span className="flex text-lg font-semibold text-default-800 items-center gap-2">
+                <Earth className="h-5" /> 
                 {PUBLIC_CHAT_ROOM_NAME}
-              </span>
+              </span> */}
               <button
                 aria-label="Toggle peer list"
                 className="ml-auto lg:hidden flex items-center text-default-500 hover:text-default-700"
@@ -481,7 +494,7 @@ export default function ChatContainer() {
                   className="h-7 flex items-center"
                   size="sm"
                   variant="solid"
-                  color="primary"
+                  color="default"
                   onPress={handleBackToPublic}
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -507,7 +520,7 @@ export default function ChatContainer() {
               isIconOnly
               aria-label="Close peer list"
               className="h-7"
-              color="danger"
+              color="default"
               size="sm"
               variant="light"
               onPress={toggleMobilePeerList}
@@ -518,7 +531,7 @@ export default function ChatContainer() {
           <ChatPeerList hideHeader={true} />
         </div>
 
-        <div className={`flex flex-col min-h-0 flex-1 `}>
+        <div className={`flex flex-col transition-all min-h-0 flex-1 ${roomId !== PUBLIC_CHAT_ROOM_ID ? 'p-2' : ''}`}>
           <div className="relative flex-1 min-h-0">
             <ScrollShadow
               ref={messageListRef}
@@ -527,7 +540,7 @@ export default function ChatContainer() {
               offset={24}
               onScroll={handleMessageScroll}
             >
-              <ul className="p-3 space-y-1">
+              <ul className="space-y-1">
                 {messages.map((message: ChatMessage, index: number) => {
                   const previousMessage = index > 0 ? messages[index - 1] : undefined
                   const sameSender = previousMessage ? previousMessage.peerId === message.peerId : false
@@ -535,7 +548,6 @@ export default function ChatContainer() {
                     ? message.receivedAt - previousMessage.receivedAt <= 2 * 60 * 1000
                     : false
                   const showTimestamp = !previousMessage || !sameSender || !withinTwoMinutes
-
                   const showAvatar = !previousMessage || !sameSender
 
                   return (
@@ -560,42 +572,31 @@ export default function ChatContainer() {
               <Button
                 isIconOnly
                 aria-label="Scroll to latest messages"
-                className="absolute bottom-4 right-1.5 flex items-center gap-2 rounded-full bg-foreground/30 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
-                size="md"
+                className="absolute bottom-4 right-0 flex items-center gap-2 rounded-full bg-foreground/30 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
+                size="sm"
                 onPress={() => scrollMessagesToBottom('smooth')}
               >
                 <ChevronDown size={16} />
               </Button>
             )}
           </div>
-          <div className="w-full h-fit p-2">
-            <div className="flex rounded-xl bg-default-100 p-2 items-end justify-between w-full">
-              <Input
-                ref={fileRef}
-                className="hidden"
-                disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
-                type="file"
-                onChange={handleFileInput}
-              />
-              <Tooltip
-                color="default"
-                content={roomId === PUBLIC_CHAT_ROOM_ID ? UI_COPY.tooltips.upload : 'Unavailable in DMs'}
-                placement="top"
-                radius="sm"
-              >
-                <Button
-                  isIconOnly
-                  className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} border-1 border-default-100 p-0`}
-                  disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
-                  variant="ghost"
-                  onPress={handleFileSend}
-                >
-                  <Share size={16} />
-                </Button>
-              </Tooltip>
-
+          <div className="w-full h-fit">
+            {roomId === PUBLIC_CHAT_ROOM_ID ? (
+              <div className="flex w-full items-start justify-between p-2">
+                <div className="flex flex-col">
+                  {/* <span className="text-xs font-semibold text-default-700">{UI_COPY.composer.label}</span> */}
+                  <span className="text-tiny text-default-500">{UI_COPY.composer.helper}</span>
+                </div>
+                {/* <span className="hidden text-tiny text-default-400 sm:inline">{UI_COPY.composer.tip}</span> */}
+              </div>
+            ) : null}
+            <div className="rounded-medium pt-1 bg-default-100 hover:bg-default-200/70 flex w-full flex-col items-start transition-colors">
               <Textarea
-                classNames={{ inputWrapper: '!bg-transparent shadow-none' }}
+                classNames={{
+                  inputWrapper: 'bg-transparent! shadow-none',
+                  innerWrapper: 'relative',
+                  input: 'pt-1 pl-2 pb-6 pr-10! text-medium',
+                }}
                 minRows={1}
                 name="message"
                 placeholder={composerPlaceholder}
@@ -604,67 +605,94 @@ export default function ChatContainer() {
                 variant="flat"
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
-              />
-              <div className="flex items-center gap-1">
-                {!input && (
-                  <>
-                    <Tooltip color="secondary" content={UI_COPY.actions.startAiRoom} placement="top" radius="sm">
+                endContent={
+                  <div className="flex items-center gap-1">
+                    <Tooltip
+                      color={input ? 'primary' : 'default'}
+                      content={UI_COPY.tooltips.composer.send}
+                      placement="top"
+                      radius="sm"
+                    >
                       <Button
                         isIconOnly
                         className="border-1 border-default-100"
+                        color={input ? 'primary' : 'default'}
+                        isDisabled={sending}
+                        type="submit"
+                        variant="solid"
+                        onPress={handleSend}
+                      >
+                        {sending ? <Spinner size="sm" /> : <SendHorizontal size={16} />}
+                      </Button>
+                    </Tooltip>
+                  </div>
+                }
+              />
+              <div className="flex w-full items-center justify-between gap-2 overflow-auto px-4 pb-4">
+                <div className="flex w-full gap-1 md:gap-3">
+                  <>
+                    <Input
+                      ref={fileRef}
+                      className="hidden"
+                      disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
+                      type="file"
+                      onChange={handleFileInput}
+                    />
+                    <Tooltip
+                      color="default"
+                      content={roomId === PUBLIC_CHAT_ROOM_ID ? UI_COPY.tooltips.composer.attach : 'Unavailable in DMs'}
+                      placement="top"
+                      radius="sm"
+                    >
+                      <Button
+                        className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} gap-1`}
+                        disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
+                        startContent={<Paperclip size={16} />}
+                        variant="flat"
+                        onPress={handleFileSend}
+                      >
+                        <span className="hidden sm:inline">{UI_COPY.actions.attach}</span>
+                      </Button>
+                    </Tooltip>
+                    <Tooltip color="secondary" content={UI_COPY.tooltips.composer.aiRoom} placement="top" radius="sm">
+                      <Button
+                        className="border-1 border-default-100 gap-1"
                         color="secondary"
                         isDisabled={sending}
-                        variant="ghost"
+                        startContent={<Bot size={16} />}
+                        variant="flat"
                         onPress={handleSendAgentInvite}
                       >
-                        <Bot size={16} />
+                        <span className="hidden sm:inline">{UI_COPY.actions.aiRoom}</span>
                       </Button>
                     </Tooltip>
-                    <Tooltip color="primary" content={UI_COPY.actions.goLive} placement="top" radius="sm">
+                    <Tooltip color="primary" content={UI_COPY.tooltips.composer.stream} placement="top" radius="sm">
                       <Button
-                        isIconOnly
-                        className="border-1 border-default-100"
+                        className="border-1 border-default-100 gap-1"
                         color="primary"
                         isDisabled={sending}
-                        variant="ghost"
+                        startContent={<Radio size={16} />}
+                        variant="flat"
                         onPress={handleSendStreamInvite}
                       >
-                        <Cast size={16} />
+                        <span className="hidden sm:inline">{UI_COPY.actions.stream}</span>
                       </Button>
                     </Tooltip>
-                    <Tooltip color="success" content={UI_COPY.actions.startCall} placement="top" radius="sm">
+                    <Tooltip color="success" content={UI_COPY.tooltips.composer.call} placement="top" radius="sm">
                       <Button
-                        isIconOnly
-                        className="border-1 border-default-100"
+                        className="border-1 border-default-100 gap-1"
                         color="success"
                         isDisabled={sending}
-                        variant="ghost"
+                        startContent={<Video size={16} />}
+                        variant="flat"
                         onPress={handleSendMeetingInvite}
                       >
-                        <Video size={16} />
+                        <span className="hidden sm:inline">{UI_COPY.actions.call}</span>
                       </Button>
                     </Tooltip>
                   </>
-                )}
-
-                <Tooltip
-                  color={input ? 'primary' : 'default'}
-                  content={UI_COPY.tooltips.send}
-                  placement="top"
-                  radius="sm"
-                >
-                  <Button
-                    isIconOnly
-                    className="border-1 border-default-100"
-                    color={input ? 'primary' : 'default'}
-                    isDisabled={sending}
-                    type="submit"
-                    variant="solid"
-                    onPress={handleSend}
-                  >
-                    {sending ? <Spinner size="sm" /> : <SendIcon size={16} />}
-                  </Button>
-                </Tooltip>
+                </div>
+                <p className="text-tiny text-default-400 py-1">{input.length}/2000</p>
               </div>
             </div>
           </div>

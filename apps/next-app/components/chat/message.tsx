@@ -140,12 +140,12 @@ export const Message = ({
 
   const bubbleClasses = clsx(
     isSelf
-      ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none'
-      : 'bg-default-300 text-default-900 rounded-md rounded-tl-none',
+      ? 'bg-primary text-primary-foreground rounded-md rounded-tr-none !ml-6'
+      : 'bg-default-300 text-default-900 rounded-md rounded-tl-none !mr-6',
     isSelf && isPending && 'opacity-70',
     isSelf && isFailed && 'bg-danger/80 text-danger-foreground',
   )
-  const inviteShellClass = 'w-full min-w-[280px] max-w-xl'
+  const inviteShellClass = 'w-full min-w-[280px] max-w-xl '
   const inviteCardClass =
     'relative w-full overflow-hidden rounded-xl bg-default-100 border border-default-200 p-4 shadow-sm'
 
@@ -164,7 +164,7 @@ export const Message = ({
           ) : (
             <div className="w-8" />
           )}
-          <div className={`flex flex-col text-left ${isSelf ? 'items-end' : 'items-start'}`}>
+          <div className={`flex flex-col text-left ${isSelf ? 'items-end ' : 'items-start'}`}>
             {showTimestamp && (
               <div
                 className={`flex h-6 items-center gap-2 text-[10px] uppercase tracking-wide text-default-400 ${isSelf ? 'justify-end' : ''}`}
@@ -219,7 +219,7 @@ export const Message = ({
     }
 
     return (
-      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -271,7 +271,9 @@ export const Message = ({
     const hostShortId = streamChatPayload.hostPeerId.slice(-7)
 
     return (
-      <li className={`flex items-start min-w-[250px]  gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <li
+        className={`flex items-start min-w-[250px]  gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}
+      >
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -321,7 +323,7 @@ export const Message = ({
     const callCopy = INVITE_CARD_COPY.call.ready
 
     return (
-      <li className={`flex text-left items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : ''}`}>
+      <li className={`flex text-left items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'mr-10'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -389,7 +391,7 @@ export const Message = ({
     const aiCopy = INVITE_CARD_COPY.ai.ready
 
     return (
-      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
+      <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
             <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
@@ -445,7 +447,7 @@ export const Message = ({
   }
 
   return (
-    <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left  mr-10'}`}>
+    <li className={`flex items-start gap-x-2 text-left ${isSelf ? 'flex-row-reverse ml-10' : 'mr-10'}`}>
       {showAvatar ? (
         <div className="mt-5 w-8 h-8">
           <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />

@@ -274,42 +274,45 @@ export const CALL_ROOM_COPY = {
  */
 export const UI_COPY = {
   nav: {
-    publicChat: 'Public chat',
-    docs: 'Docs',
-    pricing: 'Pricing',
-    blog: 'Blog',
-    about: 'About',
-    invite: 'Invite',
-    identity: 'Identity',
     chat: 'Chat',
     stream: 'Stream',
-    meet: 'Meet',
+    call: 'Call',
     ai: 'AI',
+    invite: 'Invite',
+    identity: 'Identity',
+  },
+
+  composer: {
+    label: 'Message',
+    helper: 'Public room · Visible to everyone',
+    placeholder: 'Say hi… or share a room link',
+    tip: 'Tip: Use Stream, Call, or AI to post a room card here.',
   },
 
   actions: {
-    goLive: 'Go live',
-    startCall: 'Start a call',
-    startAiRoom: 'Start an AI room',
-    invite: 'Invite',
-    copyLink: 'Copy link',
-    share: 'Share',
-  },
-
-  toasts: {
-    linkCopied: 'Link copied.',
-    inviteCopied: 'Invite link copied.',
-    failed: 'Something went wrong. Please try again.',
+    attach: 'Attach',
+    aiRoom: 'AI room',
+    stream: 'Stream',
+    call: 'Call',
+    send: 'Send',
   },
 
   tooltips: {
-    goLive: 'Start a stream room',
-    startCall: 'Start a private call',
-    startAiRoom: 'Start an AI chat room',
-    invite: 'Invite someone to Meetred',
-    identity: 'Manage your identity',
-    upload: 'Share a file',
-    send: 'Send message',
+    nav: {
+      chat: 'Go to the public room',
+      stream: 'Open your stream room',
+      call: 'Open your call room',
+      ai: 'Open your AI room',
+      invite: 'Share a link to Meetred',
+      identity: 'Back up or switch identity',
+    },
+    composer: {
+      attach: 'Share a file in the public room',
+      aiRoom: 'Post your AI room to the public room',
+      stream: 'Post your stream room to the public room',
+      call: 'Post your call room to the public room',
+      send: 'Send message',
+    },
   },
 } as const
 

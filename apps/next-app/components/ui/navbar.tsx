@@ -2,8 +2,8 @@
 
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
-import { Button } from '@heroui/react'
-import { Earth } from 'lucide-react'
+import { Button, Tooltip } from '@heroui/react'
+import { Earth, MessagesSquare, Radio, Video, Bot, UserPlus, IdCard } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
@@ -17,10 +17,25 @@ export const Navbar = () => {
   const selfId = libp2p.peerId?.toString() ?? ''
 
   const navLinks = [
-    { label: UI_COPY.nav.chat, href: '/' },
-    { label: UI_COPY.nav.stream, href: selfId ? `/stream/${selfId}` : '/stream' },
-    { label: UI_COPY.nav.meet, href: selfId ? `/room/${selfId}` : '/room' },
-    { label: UI_COPY.nav.ai, href: selfId ? `/agent/${selfId}` : '/agent' },
+    { label: UI_COPY.nav.chat, href: '/', icon: MessagesSquare, tooltip: UI_COPY.tooltips.nav.chat },
+    {
+      label: UI_COPY.nav.stream,
+      href: selfId ? `/stream/${selfId}` : '/stream',
+      icon: Radio,
+      tooltip: UI_COPY.tooltips.nav.stream,
+    },
+    {
+      label: UI_COPY.nav.call,
+      href: selfId ? `/room/${selfId}` : '/room',
+      icon: Video,
+      tooltip: UI_COPY.tooltips.nav.call,
+    },
+    {
+      label: UI_COPY.nav.ai,
+      href: selfId ? `/agent/${selfId}` : '/agent',
+      icon: Bot,
+      tooltip: UI_COPY.tooltips.nav.ai,
+    },
   ]
 
   return (
@@ -65,21 +80,28 @@ export const Navbar = () => {
         <ul className="hidden h-12 lg:flex gap-1 bg-default-100 p-1.5 rounded-sm justify-start items-center ml-2">
           {navLinks.map((item) => (
             <NavbarItem key={item.href}>
-              <Button
-                as={NextLink}
-                className="!p-3 h-10 !text-tiny text-foreground bg-default-50 rounded-sm hover:bg-primary"
-                color="primary"
-                href={item.href}
-                radius="lg"
-                size="sm"
-                variant="flat"
-              >
-                {item.label}
-              </Button>
+              <Tooltip content={item.tooltip} placement="bottom" radius="sm">
+                <Button
+                  as={NextLink}
+                  className="!p-3 h-10 !text-tiny text-foreground bg-default-50 rounded-sm hover:bg-primary"
+                  color="primary"
+                  href={item.href}
+                  radius="lg"
+                  size="sm"
+                  startContent={<item.icon className="h-4 w-4" />}
+                  variant="flat"
+                >
+                  {item.label}
+                </Button>
+              </Tooltip>
             </NavbarItem>
           ))}
           <NavbarItem className="hidden md:flex">
-            <InviteButton />
+            <Tooltip content={UI_COPY.tooltips.nav.invite} placement="bottom" radius="sm">
+              <div>
+                <InviteButton />
+              </div>
+            </Tooltip>
           </NavbarItem>
         </ul>
         {/* <NavbarItem className="hidden sm:flex gap-2">
@@ -93,7 +115,11 @@ export const Navbar = () => {
           <InviteButton />
         </NavbarItem> */}
         <NavbarItem className="hidden md:flex">
-          <NewIdentityButton />
+          <Tooltip content={UI_COPY.tooltips.nav.identity} placement="bottom" radius="sm">
+            <div>
+              <NewIdentityButton />
+            </div>
+          </Tooltip>
         </NavbarItem>
       </NavbarContent>
 

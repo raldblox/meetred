@@ -50,7 +50,7 @@ export function InviteButton() {
         // startContent={<UserPlus2 className="h-3.5 w-3.5" />}
         variant="solid"
       >
-        {UI_COPY.actions.invite}
+        {UI_COPY.nav.invite}
       </Button>
 
       <Modal
@@ -78,15 +78,6 @@ export function InviteButton() {
               <ModalFooter>
                 <Button className="text-default-500" size="sm" variant="light" onPress={onClose}>
                   Close
-                </Button>
-                <Button
-                  color="primary"
-                  size="sm"
-                  startContent={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  variant="flat"
-                  onPress={handleCopy}
-                >
-                  {copied ? UI_COPY.toasts.linkCopied : UI_COPY.actions.copyLink}
                 </Button>
               </ModalFooter>
             </>
