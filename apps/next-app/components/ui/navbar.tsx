@@ -20,6 +20,7 @@ export const Navbar = () => {
     { label: UI_COPY.nav.chat, href: '/' },
     { label: UI_COPY.nav.stream, href: selfId ? `/stream/${selfId}` : '/stream' },
     { label: UI_COPY.nav.meet, href: selfId ? `/room/${selfId}` : '/room' },
+    { label: UI_COPY.nav.ai, href: selfId ? `/agent/${selfId}` : '/agent' },
   ]
 
   return (

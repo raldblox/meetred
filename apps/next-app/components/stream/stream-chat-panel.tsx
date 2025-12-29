@@ -93,9 +93,9 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
         ) : (
           chats.map(({ payload, original }) => (
             <div key={original.msgId} className="flex items-start gap-3">
-              <Blockies className="rounded" scale={10} seed={payload.senderPeerId || original.peerId} size={8} />
+              <Blockies className="rounded h-7" scale={10} seed={payload.senderPeerId || original.peerId} size={8} />
               <div className="flex-1">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-default-400">
+                <div className="flex items-center leading-none gap-2 text-[10px] uppercase tracking-wide text-default-400">
                   <span className="font-mono text-default-500">
                     {(payload.senderPeerId || original.peerId).slice(-7)}
                   </span>
@@ -103,7 +103,7 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
                     {new Date(original.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <p className="text-sm text-default-800 break-words">{payload.body}</p>
+                <p className="text-sm text-default-800 pt-0.5 break-words">{payload.body}</p>
               </div>
             </div>
           ))

@@ -478,13 +478,14 @@ export default function ChatContainer() {
                   <span className="ml-1 text-sm">Peers</span>
                 </Button>
                 <Button
-                  className="text-default-500 h-7 flex items-center"
+                  className="h-7 flex items-center"
                   size="sm"
-                  variant="flat"
+                  variant="solid"
+                  color="primary"
                   onPress={handleBackToPublic}
                 >
-                  <ChevronLeftIcon className="w-4 h-4 text-default-500" />
-                  <span className="hidden text-sm sm:inline">Back to Public Chat</span>
+                  <ChevronLeftIcon className="w-4 h-4" />
+                  <span className="hidden text-sm sm:inline">Public Chat</span>
                   <span className="sm:hidden">Back</span>
                 </Button>
               </div>

@@ -1,4 +1,3 @@
-// app/room/[roomId]/page.tsx
 'use client'
 
 import { Button, Chip, Modal, ModalBody, ModalContent, ModalHeader, Snippet, useDisclosure } from '@heroui/react'
@@ -110,7 +109,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     : isScreenSharing
       ? 'You - Screen'
       : 'Screen share idle'
-  const baseCallAreaClass = 'relative flex-1 w-full min-h-[360px] md:min-h-[70vh]'
+  const baseCallAreaClass = 'relative flex-1 w-full min-h-[360px]'
   const gridScaffoldClass = 'grid grid-cols-1 gap-3 auto-rows-[minmax(0,1fr)] items-stretch'
 
   const renderLocalTile = (extraClasses = '', compact = false) => (
@@ -332,7 +331,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   )
 
   return (
-    <main className="flex flex-1 flex-col w-full gap-3 p-3 min-h-screen">
+    <main className="flex flex-1 flex-col w-full gap-3 p-3 h-full">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio ref={ringtoneRef} loop preload="auto" src="/skype_caller_tone.mp3" />
       {!isFullscreen && (

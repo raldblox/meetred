@@ -284,6 +284,7 @@ export const UI_COPY = {
     chat: 'Chat',
     stream: 'Stream',
     meet: 'Meet',
+    ai: 'AI',
   },
 
   actions: {
