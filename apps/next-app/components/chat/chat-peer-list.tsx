@@ -17,7 +17,7 @@ interface ChatPeerListProps {
 
 export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   const { libp2p } = useLibp2pContext()
-  const { roomId } = useChatContext()
+  const { roomId, historySyncingPeerIds } = useChatContext()
   const [subscribers, setSubscribers] = useState<string[]>([])
   const [connectedPeers, setConnectedPeers] = useState<string[]>([])
   const [seenPeers, setSeenPeers] = useState<string[]>([])
@@ -117,7 +117,13 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
                 key={p}
                 className={`transition-all flex py-0 items-center select-none ${isSelected ? 'border-primary bg-primary/20 border-l-2 px-2' : 'hover:pl-2 border-primary/50 hover:border-l-2'}`}
               >
-                <PeerWrapper peer={id} self={false} withName={true} withUnread={true} />
+                <PeerWrapper
+                  peer={id}
+                  self={false}
+                  syncing={historySyncingPeerIds.includes(p)}
+                  withName={true}
+                  withUnread={true}
+                />
               </div>
             )
           } catch {

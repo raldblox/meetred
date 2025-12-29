@@ -2,7 +2,7 @@
 
 import type { PeerId, Message } from '@libp2p/interface'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { pipe } from 'it-pipe'
@@ -24,7 +24,7 @@ import {
 } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
-import { decodeZeroWidth, unwrapMeteredMessage } from '@/lib/metered-envelope'
+import { decodeZeroWidth, unwrapMeteredMessage, wrapMeteredMessage } from '@/lib/metered-envelope'
 import { parseStreamChatPayload } from '@/lib/stream-chat'
 import { parseAgentChatPayload } from '@/lib/agent-chat'
 
@@ -46,6 +46,29 @@ const isStreamSignal = (content: string) => {
 
 const unwrapPublicMessage = (raw: string): string | null => {
   return unwrapMeteredMessage(raw)
+}
+
+const parseHistoryControlMessage = (content: string): HistoryControlMessage | null => {
+  try {
+    const parsed = JSON.parse(content)
+
+    if (parsed?.kind === 'history_request' || parsed?.kind === 'history_response') {
+      return parsed
+    }
+  } catch {
+    // fall through for non-control messages
+  }
+
+  return null
+}
+
+const historySignature = (
+  message: Pick<ChatMessage, 'peerId' | 'channel' | 'msg' | 'receivedAt'> & { msgId?: string },
+) => {
+  const channel = message.channel ?? 'public'
+  const bucketedTime = Math.round(message.receivedAt / 1000) // coarse time bucket to help dedupe
+
+  return `${message.peerId}-${channel}-${bucketedTime}-${message.msg}`
 }
 
 export interface ChatMessage {
@@ -75,6 +98,25 @@ export interface DirectMessages {
 
 type Chatroom = string
 
+type HistoryRequest = {
+  kind: 'history_request'
+  since?: number
+  limit?: number
+  requester?: string
+  via?: 'dm' | 'pubsub'
+}
+
+type HistorySnapshotMessage = Pick<ChatMessage, 'msgId' | 'msg' | 'peerId' | 'receivedAt' | 'channel'>
+
+type HistoryResponse = {
+  kind: 'history_response'
+  target?: string
+  via?: 'dm' | 'pubsub'
+  messages: HistorySnapshotMessage[]
+}
+
+type HistoryControlMessage = HistoryRequest | HistoryResponse
+
 export interface ChatContextInterface {
   messageHistory: ChatMessage[]
   setMessageHistory: (messageHistory: ChatMessage[] | ((prevMessages: ChatMessage[]) => ChatMessage[])) => void
@@ -84,6 +126,7 @@ export interface ChatContextInterface {
   setRoomId: (chatRoom: Chatroom) => void
   files: Map<string, ChatFile>
   setFiles: (files: Map<string, ChatFile>) => void
+  historySyncingPeerIds: string[]
 }
 
 export const ChatContext = createContext<ChatContextInterface>({
@@ -95,6 +138,7 @@ export const ChatContext = createContext<ChatContextInterface>({
   setRoomId: () => {},
   files: new Map<string, ChatFile>(),
   setFiles: () => {},
+  historySyncingPeerIds: [],
 })
 
 export const useChatContext = () => {
@@ -106,8 +150,220 @@ export const ChatProvider = ({ children }: any) => {
   const [directMessages, setDirectMessages] = useState<DirectMessages>({})
   const [files, setFiles] = useState<Map<string, ChatFile>>(new Map<string, ChatFile>())
   const [roomId, setRoomId] = useState<Chatroom>('')
+  const [historySyncingPeerIds, setHistorySyncingPeerIds] = useState<string[]>([])
+  const messageHistoryRef = useRef<ChatMessage[]>([])
+  const requestedHistoryPeers = useRef<Set<string>>(new Set())
+  const historyRequestAttempts = useRef(0)
+  const historyRetryTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const { libp2p } = useLibp2pContext()
+
+  useEffect(() => {
+    messageHistoryRef.current = messageHistory
+  }, [messageHistory])
+
+  const addSyncingPeer = useCallback((peerId: string) => {
+    setHistorySyncingPeerIds((prev) => (prev.includes(peerId) ? prev : [...prev, peerId]))
+  }, [])
+
+  const removeSyncingPeer = useCallback((peerId: string) => {
+    setHistorySyncingPeerIds((prev) => prev.filter((p) => p !== peerId))
+  }, [])
+
+  const mergeHistoryMessages = (incoming: HistorySnapshotMessage[]) => {
+    setMessageHistory((prev) => {
+      const existingIds = new Set(prev.map((m) => m.msgId))
+      const existingSignatures = new Set(prev.map((m) => historySignature(m)))
+
+      const toAdd: ChatMessage[] = incoming
+        .filter((m) => !existingIds.has(m.msgId) && !existingSignatures.has(historySignature(m)))
+        .map((m) => ({
+          msgId: m.msgId,
+          msg: m.msg,
+          peerId: m.peerId,
+          receivedAt: m.receivedAt,
+          channel: m.channel ?? 'public',
+          fileObjectUrl: undefined,
+          read: false,
+          status: 'sent',
+        }))
+
+      if (toAdd.length === 0) {
+        return prev
+      }
+
+      const merged = [...prev, ...toAdd].sort((a, b) => a.receivedAt - b.receivedAt)
+
+      return merged
+    })
+  }
+
+  const sendHistoryResponseDM = useCallback(
+    async (peerId: PeerId, request: HistoryRequest) => {
+      const limit = request.limit ?? 50
+      const since = request.since
+      const eligible = messageHistoryRef.current
+        .filter((m) => !m.channel || m.channel === 'public')
+        .filter((m) => (since ? m.receivedAt > since : true))
+
+      const payload: HistoryResponse = {
+        kind: 'history_response',
+        target: request.requester,
+        via: 'dm',
+        messages: eligible.slice(-limit).map((m) => ({
+          msgId: m.msgId,
+          msg: m.msg,
+          peerId: m.peerId,
+          receivedAt: m.receivedAt,
+          channel: m.channel ?? 'public',
+        })),
+      }
+
+      try {
+        await libp2p.services.directMessage.send(peerId, JSON.stringify(payload))
+      } catch (e) {
+        log.error('failed to send history response to %s %o', peerId.toString(), e)
+      }
+    },
+    [libp2p.services.directMessage],
+  )
+
+  const sendHistoryResponsePubsub = useCallback(
+    async (targetPeerId: string, request: HistoryRequest) => {
+      const limit = request.limit ?? 50
+      const since = request.since
+      const eligible = messageHistoryRef.current
+        .filter((m) => !m.channel || m.channel === 'public')
+        .filter((m) => (since ? m.receivedAt > since : true))
+
+      const payload: HistoryResponse = {
+        kind: 'history_response',
+        target: targetPeerId,
+        via: 'pubsub',
+        messages: eligible.slice(-limit).map((m) => ({
+          msgId: m.msgId,
+          msg: m.msg,
+          peerId: m.peerId,
+          receivedAt: m.receivedAt,
+          channel: m.channel ?? 'public',
+        })),
+      }
+
+      try {
+        const encoded = wrapMeteredMessage(JSON.stringify(payload))
+
+        await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(encoded))
+      } catch (e) {
+        log.error('failed to publish history response to %s %o', targetPeerId, e)
+      }
+    },
+    [libp2p.services.pubsub],
+  )
+
+  const requestHistoryFromPeer = useCallback(
+    async (peerId: PeerId) => {
+      const id = peerId.toString()
+
+      if (requestedHistoryPeers.current.has(id)) {
+        return
+      }
+
+      requestedHistoryPeers.current.add(id)
+      addSyncingPeer(id)
+
+      const payload: HistoryRequest = {
+        kind: 'history_request',
+        limit: 50,
+        requester: libp2p.peerId.toString(),
+        via: 'dm',
+      }
+
+      try {
+        await libp2p.services.directMessage.send(peerId, JSON.stringify(payload))
+      } catch (e) {
+        log.error('failed to request history from %s %o', id, e)
+        requestedHistoryPeers.current.delete(id)
+        removeSyncingPeer(id)
+      }
+    },
+    [addSyncingPeer, libp2p.peerId, libp2p.services.directMessage, removeSyncingPeer],
+  )
+
+  const broadcastHistoryRequest = useCallback(async () => {
+    const payload: HistoryRequest = {
+      kind: 'history_request',
+      requester: libp2p.peerId.toString(),
+      limit: 50,
+      via: 'pubsub',
+    }
+
+    try {
+      const encoded = wrapMeteredMessage(JSON.stringify(payload))
+
+      await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(encoded))
+    } catch (e) {
+      log.error('failed to broadcast history request %o', e)
+    }
+  }, [libp2p.peerId, libp2p.services.pubsub])
+
+  const attemptHistoryRequests = useCallback(() => {
+    if (messageHistoryRef.current.length > 0) {
+      return true
+    }
+
+    historyRequestAttempts.current += 1
+
+    void broadcastHistoryRequest()
+
+    const conns = libp2p.getConnections?.() ?? []
+
+    conns.forEach((conn: any) => {
+      if (conn?.remotePeer) {
+        void requestHistoryFromPeer(conn.remotePeer as PeerId)
+      }
+    })
+
+    return historyRequestAttempts.current >= 3
+  }, [broadcastHistoryRequest, libp2p, requestHistoryFromPeer])
+
+  const handleHistoryControl = useCallback(
+    async (control: HistoryControlMessage, senderPeerId?: PeerId | string) => {
+      const selfId = libp2p.peerId.toString()
+      const senderId = typeof senderPeerId === 'string' ? senderPeerId : senderPeerId?.toString()
+
+      if (control.kind === 'history_request') {
+        const requester =
+          control.requester ?? (typeof senderPeerId === 'string' ? senderPeerId : senderPeerId?.toString())
+
+        if (!requester || requester === selfId) {
+          return
+        }
+
+        if (control.via === 'pubsub') {
+          await sendHistoryResponsePubsub(requester, control)
+        } else if (senderPeerId && typeof senderPeerId !== 'string') {
+          await sendHistoryResponseDM(senderPeerId, control)
+        } else {
+          await sendHistoryResponsePubsub(requester, control)
+        }
+
+        return
+      }
+
+      if (control.kind === 'history_response') {
+        if (control.target && control.target !== selfId) {
+          return
+        }
+
+        if (senderId) {
+          removeSyncingPeer(senderId)
+        }
+
+        mergeHistoryMessages(control.messages)
+      }
+    },
+    [libp2p.peerId, mergeHistoryMessages, removeSyncingPeer, sendHistoryResponseDM, sendHistoryResponsePubsub],
+  )
 
   const messageCB = (evt: CustomEvent<Message>) => {
     // FIXME: Why does 'from' not exist on type 'Message'?
@@ -144,6 +400,15 @@ export const ChatProvider = ({ children }: any) => {
     let channel: ChatMessage['channel'] = 'public'
 
     const decodedRaw = decodeZeroWidth(raw) ?? raw
+    const control = parseHistoryControlMessage(decodedRaw)
+
+    if (control) {
+      if (evt.detail.type === 'signed' && hasFromPeer(evt.detail)) {
+        void handleHistoryControl(control, evt.detail.from)
+      }
+
+      return
+    }
 
     if (topic === CHAT_TOPIC) {
       // stream/agent chats can also ride on the shared topic; try them first
@@ -189,6 +454,18 @@ export const ChatProvider = ({ children }: any) => {
       channel = 'agent'
     } else {
       return
+    }
+
+    if (parsedMessage) {
+      const controlFromParsed = parseHistoryControlMessage(parsedMessage)
+
+      if (controlFromParsed) {
+        if (evt.detail.type === 'signed' && hasFromPeer(evt.detail)) {
+          void handleHistoryControl(controlFromParsed, evt.detail.from)
+        }
+
+        return
+      }
     }
 
     const detail = evt.detail
@@ -273,11 +550,21 @@ export const ChatProvider = ({ children }: any) => {
 
   useEffect(() => {
     const handleDirectMessage = (evt: CustomEvent<DirectMessageEvent>) => {
-      const peerId = evt.detail.connection.remotePeer.toString()
+      const peer = evt.detail.connection.remotePeer
+      const peerId = peer.toString()
 
       if (evt.detail.type !== MIME_TEXT_PLAIN) {
         throw new Error(`unexpected message type: ${evt.detail.type}`)
       }
+
+      const control = parseHistoryControlMessage(evt.detail.content)
+
+      if (control) {
+        void handleHistoryControl(control, peer)
+
+        return
+      }
+
       if (isStreamSignal(evt.detail.content)) {
         return
       }
@@ -308,7 +595,87 @@ export const ChatProvider = ({ children }: any) => {
     return () => {
       libp2p.services.directMessage.removeEventListener(directMessageEvent, handleDirectMessage)
     }
-  }, [libp2p.services.directMessage, setDirectMessages])
+  }, [handleHistoryControl, libp2p.services.directMessage, setDirectMessages])
+
+  useEffect(() => {
+    const handlePeerConnect = ({ detail }: any) => {
+      const peerId: PeerId | undefined = detail?.remotePeer ?? detail
+
+      if (peerId) {
+        void requestHistoryFromPeer(peerId)
+      }
+    }
+
+    const existingConnections = libp2p.getConnections?.() ?? []
+
+    existingConnections.forEach((conn: any) => {
+      if (conn?.remotePeer) {
+        void requestHistoryFromPeer(conn.remotePeer as PeerId)
+      }
+    })
+
+    libp2p.addEventListener('peer:connect', handlePeerConnect)
+
+    return () => {
+      libp2p.removeEventListener('peer:connect', handlePeerConnect)
+    }
+  }, [libp2p, requestHistoryFromPeer])
+
+  useEffect(() => {
+    const maxAttempts = 3
+    const intervalMs = 4_000
+
+    if (messageHistory.length > 0) {
+      historyRequestAttempts.current = 0
+
+      if (historyRetryTimer.current) {
+        clearInterval(historyRetryTimer.current)
+        historyRetryTimer.current = null
+      }
+
+      setHistorySyncingPeerIds([])
+
+      return
+    }
+
+    const stopAfterFirst = attemptHistoryRequests()
+
+    if (stopAfterFirst) {
+      return
+    }
+
+    const timer = setInterval(() => {
+      if (messageHistoryRef.current.length > 0) {
+        clearInterval(timer)
+        historyRetryTimer.current = null
+        setHistorySyncingPeerIds([])
+
+        return
+      }
+
+      if (historyRequestAttempts.current >= maxAttempts) {
+        clearInterval(timer)
+        historyRetryTimer.current = null
+        setHistorySyncingPeerIds([])
+
+        return
+      }
+
+      const stop = attemptHistoryRequests()
+
+      if (stop) {
+        clearInterval(timer)
+        historyRetryTimer.current = null
+      }
+    }, intervalMs)
+
+    historyRetryTimer.current = timer
+
+    return () => {
+      clearInterval(timer)
+      historyRetryTimer.current = null
+    }
+  }, [attemptHistoryRequests, messageHistory.length])
 
   useEffect(() => {
     libp2p.services.pubsub.addEventListener('message', messageCB)
@@ -355,6 +722,7 @@ export const ChatProvider = ({ children }: any) => {
         setDirectMessages,
         files,
         setFiles,
+        historySyncingPeerIds,
       }}
     >
       {children}

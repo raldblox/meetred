@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
+import { Loader2 } from 'lucide-react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
@@ -13,9 +14,10 @@ export interface PeerProps {
   self: boolean
   withName: boolean
   withUnread: boolean
+  syncing?: boolean
 }
 
-export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
+export function PeerWrapper({ peer, self, withName, withUnread, syncing = false }: PeerProps) {
   const { libp2p } = useLibp2pContext()
   const [identified, setIdentified] = useState(false)
   const { setRoomId } = useChatContext()
@@ -42,7 +44,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
     init()
   }, [libp2p.peerStore, peer])
 
-  const body = <Peer peer={peer} self={self} withName={withName} withUnread={withUnread} />
+  const body = <Peer peer={peer} self={self} syncing={syncing} withName={withName} withUnread={withUnread} />
   const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
 
   const clickableBody = (
@@ -64,7 +66,7 @@ export function PeerWrapper({ peer, self, withName, withUnread }: PeerProps) {
   return clickableBody
 }
 
-export function Peer({ peer, self, withName, withUnread }: PeerProps) {
+export function Peer({ peer, self, withName, withUnread, syncing = false }: PeerProps) {
   const { directMessages } = useChatContext()
 
   return (
@@ -76,11 +78,14 @@ export function Peer({ peer, self, withName, withUnread }: PeerProps) {
 
       {withName && (
         <div className="w-full">
-          <div className="flex">
+          <div className="flex items-center gap-1">
             <span className={`block ml-2 uppercase font-semibold ${self ? 'text-primary' : 'text-default-600'}`}>
               {peer.toString().slice(-7)}
               {self && ' (You)'}
             </span>
+            {syncing && (
+              <Loader2 aria-label="Syncing history" className="h-3.5 w-3.5 animate-spin text-primary" />
+            )}
           </div>
           {withUnread && (
             <div className="ml-2 text-xs text-success-600">
