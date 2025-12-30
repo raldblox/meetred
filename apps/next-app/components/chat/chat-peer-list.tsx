@@ -99,7 +99,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
       {!hideHeader && <h2 className="text-lg h-12 flex items-center font-semibold text-default-800">Peers</h2>}
 
       <div className="overflow-auto space-y-2 h-full select-none">
-        <div className="hover:translate-x-1.5 transition-all flex items-center select-none">
+        <div className="transition-all flex items-center select-none">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
@@ -116,7 +116,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
             return (
               <div
                 key={p}
-                className={`transition-all flex py-0 items-center select-none ${isSelected ? 'border-primary border-l-4 px-2' : 'hover:pl-2 border-primary/50 hover:border-l-4'}`}
+                className={`transition-all rounded-sm flex py-1.5 hover:bg-default-100 items-center hover:pl-3 select-none ${isSelected ? 'border-primary px-3 bg-default-100/50' : 'border-primary/50'}`}
               >
                 <PeerWrapper
                   peer={id}
