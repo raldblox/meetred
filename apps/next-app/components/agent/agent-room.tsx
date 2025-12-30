@@ -16,7 +16,6 @@ import {
   ScrollShadow,
   Select,
   SelectItem,
-  Snippet,
   Tab,
   Tabs,
 } from '@heroui/react'
@@ -255,9 +254,9 @@ function AgentManagerPanel({
       <CardBody className="space-y-4">
         <Tabs
           fullWidth
-          size="lg"
           color="primary"
           selectedKey={provider}
+          size="lg"
           variant="bordered"
           onSelectionChange={handleProviderChange}
         >

@@ -277,7 +277,7 @@ export const ChatProvider = ({ children }: any) => {
       msg: m.msg,
       peerId: m.peerId,
       receivedAt: m.receivedAt,
-      channel: scope === 'dm' ? 'dm' : m.channel ?? 'public',
+      channel: scope === 'dm' ? 'dm' : (m.channel ?? 'public'),
     }))
 
   const sendHistoryResponseDM = useCallback(
@@ -814,11 +814,13 @@ export const ChatProvider = ({ children }: any) => {
       dmConnectedPeersRef.current.add(peer.toString())
       const id = peer.toString()
       const existingTimer = dmPurgeTimers.current.get(id)
+
       if (existingTimer) {
         clearTimeout(existingTimer)
         dmPurgeTimers.current.delete(id)
       }
       const existingInterval = dmPurgeIntervals.current.get(id)
+
       if (existingInterval) {
         clearInterval(existingInterval)
         dmPurgeIntervals.current.delete(id)
@@ -832,18 +834,21 @@ export const ChatProvider = ({ children }: any) => {
       if (!peer) return
 
       const peerIdStr = peer.toString()
+
       dmConnectedPeersRef.current.delete(peerIdStr)
       const intervalMs = 30_000
       const maxAttempts = 3
 
       const scheduleCheck = () => {
         const attempt = (dmPurgeAttempts.current.get(peerIdStr) ?? 0) + 1
+
         dmPurgeAttempts.current.set(peerIdStr, attempt)
 
         const stillConnected = isPeerConnected(peerIdStr)
 
         if (stillConnected) {
           const int = dmPurgeIntervals.current.get(peerIdStr)
+
           if (int) clearInterval(int)
           dmPurgeIntervals.current.delete(peerIdStr)
           dmPurgeAttempts.current.delete(peerIdStr)
@@ -861,6 +866,7 @@ export const ChatProvider = ({ children }: any) => {
           })
 
           const int = dmPurgeIntervals.current.get(peerIdStr)
+
           if (int) clearInterval(int)
           dmPurgeIntervals.current.delete(peerIdStr)
           dmPurgeAttempts.current.delete(peerIdStr)
@@ -869,16 +875,21 @@ export const ChatProvider = ({ children }: any) => {
 
       // Start periodic checks; first check after interval to allow reconnects
       const intervalId = setInterval(scheduleCheck, intervalMs)
+
       dmPurgeIntervals.current.set(peerIdStr, intervalId)
 
       // Also set a longstop timeout to ensure interval is cleared eventually
-      const purgeTimer = setTimeout(() => {
-        const int = dmPurgeIntervals.current.get(peerIdStr)
-        if (int) clearInterval(int)
-        dmPurgeIntervals.current.delete(peerIdStr)
-        dmPurgeAttempts.current.delete(peerIdStr)
-        dmPurgeTimers.current.delete(peerIdStr)
-      }, intervalMs * maxAttempts + 5_000)
+      const purgeTimer = setTimeout(
+        () => {
+          const int = dmPurgeIntervals.current.get(peerIdStr)
+
+          if (int) clearInterval(int)
+          dmPurgeIntervals.current.delete(peerIdStr)
+          dmPurgeAttempts.current.delete(peerIdStr)
+          dmPurgeTimers.current.delete(peerIdStr)
+        },
+        intervalMs * maxAttempts + 5_000,
+      )
 
       dmPurgeTimers.current.set(peerIdStr, purgeTimer)
     }

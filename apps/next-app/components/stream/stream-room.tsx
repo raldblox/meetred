@@ -3,8 +3,6 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
 import { Alert, Button, Chip } from '@heroui/react'
 import { Gift, LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, X } from 'lucide-react'
 
@@ -15,7 +13,6 @@ import { StreamChatPanel } from './stream-chat-panel'
 import { useStreamContext } from '@/context/stream-ctx'
 import { INVITE_CARD_COPY, STREAM_ROOM_COPY } from '@/config/copy'
 import { forComponent } from '@/lib/logger'
-import { Logo } from '../ui/icons'
 
 const log = forComponent('stream-room')
 

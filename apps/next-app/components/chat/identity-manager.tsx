@@ -96,15 +96,15 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
       <Button
         aria-label="Manage identity"
         className={`h-12 !text-sm px-6 rounded-sm font-semibold text-background`}
-        isDisabled={rotatingIdentity}
-        radius="sm"
-        size="sm"
-        onPress={onOpen}
         color="primary"
         endContent={
           rotatingIdentity && <Sparkles aria-hidden className="h-3.5 w-3.5 !text-foreground" strokeWidth={2} />
         }
+        isDisabled={rotatingIdentity}
+        radius="sm"
+        size="sm"
         variant="solid"
+        onPress={onOpen}
       >
         Your Identity
       </Button>

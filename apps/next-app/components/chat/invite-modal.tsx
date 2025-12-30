@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Snippet, useDisclosure } from '@heroui/react'
-import { Check, Copy, UserPlus2 } from 'lucide-react'
+import { UserPlus2 } from 'lucide-react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { UI_COPY } from '@/config/copy'

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
-import { Loader2, RotateCw } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'

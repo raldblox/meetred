@@ -51,7 +51,9 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
   return (
     <>
       <Button
-        className={compact ? '!p-3 h-10 !text-tiny text-foreground bg-default-50 rounded-sm hover:bg-primary' : undefined}
+        className={
+          compact ? '!p-3 h-10 !text-tiny text-foreground bg-default-50 rounded-sm hover:bg-primary' : undefined
+        }
         color="success"
         size="sm"
         variant="flat"

@@ -121,8 +121,8 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
                 <PeerWrapper
                   peer={id}
                   self={false}
-                  syncing={historySyncingPeerIds.includes(p)}
                   showCountBadge={roomId === PUBLIC_CHAT_ROOM_ID}
+                  syncing={historySyncingPeerIds.includes(p)}
                   withName={true}
                   withUnread={true}
                 />

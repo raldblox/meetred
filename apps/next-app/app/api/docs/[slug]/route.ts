@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs/promises'
+
+import { NextResponse } from 'next/server'
 
 const ALLOWED = new Set([
   'messaging-architecture',
