@@ -22,7 +22,7 @@ const config = {
         light: {
           colors: {
             foreground: {
-              DEFAULT: '#0F172A', // strong slate text
+              DEFAULT: '#09090b', // strong slate text
               muted: '#6B7280',
             },
             background: {
@@ -52,7 +52,7 @@ const config = {
               muted: '#9CA3AF',
             },
             background: {
-              DEFAULT: '#050816', // deep indigo/black mix
+              DEFAULT: '#09090b', // deep indigo/black mix
               surface: '#0B1220', // panels, chat bubbles
               subtle: '#111827', // mid-surface
             },
