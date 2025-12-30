@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
-import { Loader2, RotateCcw, RotateCw } from 'lucide-react'
+import { Loader2, RotateCw } from 'lucide-react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
@@ -15,9 +15,10 @@ export interface PeerProps {
   withName: boolean
   withUnread: boolean
   syncing?: boolean
+  showCountBadge?: boolean
 }
 
-export function PeerWrapper({ peer, self, withName, withUnread, syncing = false }: PeerProps) {
+export function PeerWrapper({ peer, self, withName, withUnread, syncing = false, showCountBadge = true }: PeerProps) {
   const { libp2p } = useLibp2pContext()
   const [identified, setIdentified] = useState(false)
   const { setRoomId } = useChatContext()
@@ -44,7 +45,16 @@ export function PeerWrapper({ peer, self, withName, withUnread, syncing = false 
     init()
   }, [libp2p.peerStore, peer])
 
-  const body = <Peer peer={peer} self={self} syncing={syncing} withName={withName} withUnread={withUnread} />
+  const body = (
+    <Peer
+      peer={peer}
+      self={self}
+      showCountBadge={showCountBadge}
+      syncing={syncing}
+      withName={withName}
+      withUnread={withUnread}
+    />
+  )
   const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
 
   const clickableBody = (
@@ -66,12 +76,23 @@ export function PeerWrapper({ peer, self, withName, withUnread, syncing = false 
   return clickableBody
 }
 
-export function Peer({ peer, self, withName, withUnread, syncing = false }: PeerProps) {
+export function Peer({ peer, self, withName, withUnread, syncing = false, showCountBadge = true }: PeerProps) {
   const { directMessages } = useChatContext()
+  const peerIdStr = peer.toString()
+  const messagesForPeer = directMessages[peerIdStr] ?? []
+  const totalCount = messagesForPeer.length
+  const unreadCount = messagesForPeer.filter((m) => !m.read).length
 
   return (
     <div className="flex h-10 items-center text-sm transition duration-150 ease-in-out focus:outline-none relative text-left">
-      <Blockies className="h-8 rounded-sm" scale={4} seed={peer.toString()} size={8} />
+      <span className="relative inline-flex">
+        <Blockies className="h-8 rounded-sm" scale={4} seed={peerIdStr} size={8} />
+        {showCountBadge && totalCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] px-1 rounded-full bg-default-900 text-[10px] leading-4 text-default-50 text-center shadow-sm">
+            {totalCount}
+          </span>
+        )}
+      </span>
       {/* <Badge color="success" content="" placement="bottom-right" shape="rectangle" size="sm">
         <Blockies className="rounded-sm h-5" scale={3} seed={peer.toString()} size={12} />
       </Badge> */}
@@ -80,17 +101,13 @@ export function Peer({ peer, self, withName, withUnread, syncing = false }: Peer
         <div className="w-full">
           <div className="flex items-center gap-1">
             <span className={`block ml-2 uppercase font-semibold ${self ? 'text-primary' : 'text-default-600'}`}>
-              {peer.toString().slice(-7)}
+              {peerIdStr.slice(-7)}
               {self && ' (You)'}
             </span>
             {syncing && <RotateCw aria-label="Syncing history" className="h-3 w-3 animate-spin text-success" />}
           </div>
           {withUnread && (
-            <div className="ml-2 text-xs text-success-600">
-              {directMessages[peer.toString()]?.filter((m) => !m.read).length
-                ? `(${directMessages[peer.toString()]?.filter((m) => !m.read).length} unread)`
-                : ''}
-            </div>
+            <div className="ml-2 text-xs text-success-600">{unreadCount ? `(${unreadCount} unread)` : ''}</div>
           )}
         </div>
       )}

@@ -10,6 +10,7 @@ import { PeerWrapper } from './peer'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
 import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/config/constants'
+import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat/chat-room'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -121,6 +122,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
                   peer={id}
                   self={false}
                   syncing={historySyncingPeerIds.includes(p)}
+                  showCountBadge={roomId === PUBLIC_CHAT_ROOM_ID}
                   withName={true}
                   withUnread={true}
                 />

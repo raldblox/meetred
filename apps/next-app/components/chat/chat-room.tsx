@@ -117,6 +117,7 @@ export default function ChatContainer() {
         read: true,
         receivedAt: Date.now(),
         status: 'pending',
+        channel: 'dm',
       }
 
       setDirectMessages((prev) => {
@@ -396,6 +397,34 @@ export default function ChatContainer() {
       setMessages(directMessages[roomId] || [])
     }
   }, [roomId, directMessages, messageHistory])
+
+  // Mark messages as read when viewing a room (helps keep unread badge accurate after backfill)
+  useEffect(() => {
+    if (!roomId || roomId === PUBLIC_CHAT_ROOM_ID) {
+      return
+    }
+
+    const existing = directMessages[roomId]
+
+    if (!existing || existing.length === 0) {
+      return
+    }
+
+    const hasUnread = existing.some((m) => !m.read)
+
+    if (!hasUnread) {
+      return
+    }
+
+    setDirectMessages((prev) => {
+      const current = prev[roomId] ?? []
+
+      return {
+        ...prev,
+        [roomId]: current.map((m) => (m.read ? m : { ...m, read: true })),
+      }
+    })
+  }, [directMessages, roomId, setDirectMessages])
 
   useEffect(() => {
     const invitePeer = searchParams?.get('invite')

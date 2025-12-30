@@ -8,6 +8,7 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { pipe } from 'it-pipe'
 import map from 'it-map'
 import * as lp from 'it-length-prefixed'
+import { peerIdFromString } from '@libp2p/peer-id'
 
 import { useLibp2pContext } from './libp2p-ctx'
 
@@ -81,7 +82,7 @@ export interface ChatMessage {
   read: boolean
   receivedAt: number
   status?: 'pending' | 'sent' | 'failed'
-  channel?: 'public' | 'agent' | 'stream'
+  channel?: 'public' | 'agent' | 'stream' | 'dm'
 }
 
 export interface ChatFile {
@@ -104,6 +105,8 @@ type HistoryRequest = {
   limit?: number
   requester?: string
   via?: 'dm' | 'pubsub'
+  scope?: 'public' | 'dm'
+  peer?: string
 }
 
 type HistorySnapshotMessage = Pick<ChatMessage, 'msgId' | 'msg' | 'peerId' | 'receivedAt' | 'channel'>
@@ -112,6 +115,8 @@ type HistoryResponse = {
   kind: 'history_response'
   target?: string
   via?: 'dm' | 'pubsub'
+  scope?: 'public' | 'dm'
+  peer?: string
   messages: HistorySnapshotMessage[]
 }
 
@@ -152,15 +157,24 @@ export const ChatProvider = ({ children }: any) => {
   const [roomId, setRoomId] = useState<Chatroom>('')
   const [historySyncingPeerIds, setHistorySyncingPeerIds] = useState<string[]>([])
   const messageHistoryRef = useRef<ChatMessage[]>([])
+  const directMessagesRef = useRef<DirectMessages>({})
   const requestedHistoryPeers = useRef<Set<string>>(new Set())
   const historyRequestAttempts = useRef(0)
   const historyRetryTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const dmConnectedPeersRef = useRef<Set<string>>(new Set())
+  const dmPurgeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const dmPurgeIntervals = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
+  const dmPurgeAttempts = useRef<Map<string, number>>(new Map())
 
   const { libp2p } = useLibp2pContext()
 
   useEffect(() => {
     messageHistoryRef.current = messageHistory
   }, [messageHistory])
+
+  useEffect(() => {
+    directMessagesRef.current = directMessages
+  }, [directMessages])
 
   const addSyncingPeer = useCallback((peerId: string) => {
     setHistorySyncingPeerIds((prev) => (prev.includes(peerId) ? prev : [...prev, peerId]))
@@ -169,6 +183,19 @@ export const ChatProvider = ({ children }: any) => {
   const removeSyncingPeer = useCallback((peerId: string) => {
     setHistorySyncingPeerIds((prev) => prev.filter((p) => p !== peerId))
   }, [])
+
+  const isPeerConnected = useCallback(
+    (peerIdStr: string): boolean => {
+      try {
+        const pid = peerIdFromString(peerIdStr)
+
+        return (libp2p.getConnections?.(pid) ?? []).length > 0
+      } catch {
+        return false
+      }
+    },
+    [libp2p],
+  )
 
   const mergeHistoryMessages = (incoming: HistorySnapshotMessage[]) => {
     setMessageHistory((prev) => {
@@ -198,25 +225,80 @@ export const ChatProvider = ({ children }: any) => {
     })
   }
 
-  const sendHistoryResponseDM = useCallback(
-    async (peerId: PeerId, request: HistoryRequest) => {
-      const limit = request.limit ?? 50
-      const since = request.since
-      const eligible = messageHistoryRef.current
+  const mergeDirectHistoryMessages = (peerId: string, incoming: HistorySnapshotMessage[]) => {
+    setDirectMessages((prev) => {
+      const existing = prev[peerId] ?? []
+      const existingIds = new Set(existing.map((m) => m.msgId))
+      const existingSignatures = new Set(existing.map((m) => historySignature(m)))
+
+      const toAdd: ChatMessage[] = incoming
+        .filter((m) => !existingIds.has(m.msgId) && !existingSignatures.has(historySignature(m)))
+        .map((m) => ({
+          msgId: m.msgId,
+          msg: m.msg,
+          peerId: m.peerId,
+          receivedAt: m.receivedAt,
+          channel: 'dm',
+          fileObjectUrl: undefined,
+          read: false,
+          status: 'sent',
+        }))
+
+      if (toAdd.length === 0) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [peerId]: [...existing, ...toAdd].sort((a, b) => a.receivedAt - b.receivedAt),
+      }
+    })
+  }
+
+  const collectHistory = useCallback(
+    (scope: 'public' | 'dm', peerId: string | undefined, since: number | undefined, limit: number) => {
+      if (scope === 'dm') {
+        if (!peerId) return []
+        if (!isPeerConnected(peerId)) return []
+
+        return (directMessagesRef.current[peerId] ?? []).filter((m) => (since ? m.receivedAt > since : true))
+      }
+
+      return messageHistoryRef.current
         .filter((m) => !m.channel || m.channel === 'public')
         .filter((m) => (since ? m.receivedAt > since : true))
+    },
+    [isPeerConnected],
+  )
+
+  const toHistoryPayload = (scope: 'public' | 'dm', messages: ChatMessage[], limit: number): HistorySnapshotMessage[] =>
+    messages.slice(-limit).map((m) => ({
+      msgId: m.msgId,
+      msg: m.msg,
+      peerId: m.peerId,
+      receivedAt: m.receivedAt,
+      channel: scope === 'dm' ? 'dm' : m.channel ?? 'public',
+    }))
+
+  const sendHistoryResponseDM = useCallback(
+    async (peerId: PeerId, request: HistoryRequest) => {
+      const scope = request.scope ?? 'public'
+      const limit = request.limit ?? 50
+      const since = request.since
+      const targetPeer = request.peer ?? request.requester ?? peerId.toString()
+      const eligible = collectHistory(scope, scope === 'dm' ? targetPeer : undefined, since, limit)
+
+      if (scope === 'dm' && eligible.length === 0) {
+        return
+      }
 
       const payload: HistoryResponse = {
         kind: 'history_response',
         target: request.requester,
         via: 'dm',
-        messages: eligible.slice(-limit).map((m) => ({
-          msgId: m.msgId,
-          msg: m.msg,
-          peerId: m.peerId,
-          receivedAt: m.receivedAt,
-          channel: m.channel ?? 'public',
-        })),
+        scope,
+        peer: scope === 'dm' ? targetPeer : undefined,
+        messages: toHistoryPayload(scope, eligible, limit),
       }
 
       try {
@@ -225,28 +307,27 @@ export const ChatProvider = ({ children }: any) => {
         log.error('failed to send history response to %s %o', peerId.toString(), e)
       }
     },
-    [libp2p.services.directMessage],
+    [collectHistory, libp2p.services.directMessage],
   )
 
   const sendHistoryResponsePubsub = useCallback(
     async (targetPeerId: string, request: HistoryRequest) => {
+      const scope = request.scope ?? 'public'
       const limit = request.limit ?? 50
       const since = request.since
-      const eligible = messageHistoryRef.current
-        .filter((m) => !m.channel || m.channel === 'public')
-        .filter((m) => (since ? m.receivedAt > since : true))
+      const eligible = collectHistory(scope, scope === 'dm' ? targetPeerId : undefined, since, limit)
+
+      if (scope === 'dm' && eligible.length === 0) {
+        return
+      }
 
       const payload: HistoryResponse = {
         kind: 'history_response',
         target: targetPeerId,
         via: 'pubsub',
-        messages: eligible.slice(-limit).map((m) => ({
-          msgId: m.msgId,
-          msg: m.msg,
-          peerId: m.peerId,
-          receivedAt: m.receivedAt,
-          channel: m.channel ?? 'public',
-        })),
+        scope,
+        peer: scope === 'dm' ? targetPeerId : undefined,
+        messages: toHistoryPayload(scope, eligible, limit),
       }
 
       try {
@@ -257,18 +338,23 @@ export const ChatProvider = ({ children }: any) => {
         log.error('failed to publish history response to %s %o', targetPeerId, e)
       }
     },
-    [libp2p.services.pubsub],
+    [collectHistory, libp2p.services.pubsub],
   )
 
   const requestHistoryFromPeer = useCallback(
-    async (peerId: PeerId) => {
+    async (peerId: PeerId, scope: 'public' | 'dm' = 'public') => {
       const id = peerId.toString()
+      const requestKey = `${scope}:${id}`
 
-      if (requestedHistoryPeers.current.has(id)) {
+      if (requestedHistoryPeers.current.has(requestKey)) {
         return
       }
 
-      requestedHistoryPeers.current.add(id)
+      if (scope === 'dm' && !isPeerConnected(id)) {
+        return
+      }
+
+      requestedHistoryPeers.current.add(requestKey)
       addSyncingPeer(id)
 
       const payload: HistoryRequest = {
@@ -276,17 +362,19 @@ export const ChatProvider = ({ children }: any) => {
         limit: 50,
         requester: libp2p.peerId.toString(),
         via: 'dm',
+        scope,
+        peer: scope === 'dm' ? libp2p.peerId.toString() : undefined,
       }
 
       try {
         await libp2p.services.directMessage.send(peerId, JSON.stringify(payload))
       } catch (e) {
         log.error('failed to request history from %s %o', id, e)
-        requestedHistoryPeers.current.delete(id)
+        requestedHistoryPeers.current.delete(requestKey)
         removeSyncingPeer(id)
       }
     },
-    [addSyncingPeer, libp2p.peerId, libp2p.services.directMessage, removeSyncingPeer],
+    [addSyncingPeer, isPeerConnected, libp2p.peerId, libp2p.services.directMessage, removeSyncingPeer],
   )
 
   const broadcastHistoryRequest = useCallback(async () => {
@@ -319,7 +407,7 @@ export const ChatProvider = ({ children }: any) => {
 
     conns.forEach((conn: any) => {
       if (conn?.remotePeer) {
-        void requestHistoryFromPeer(conn.remotePeer as PeerId)
+        void requestHistoryFromPeer(conn.remotePeer as PeerId, 'public')
       }
     })
 
@@ -336,6 +424,10 @@ export const ChatProvider = ({ children }: any) => {
           control.requester ?? (typeof senderPeerId === 'string' ? senderPeerId : senderPeerId?.toString())
 
         if (!requester || requester === selfId) {
+          return
+        }
+
+        if (control.scope === 'dm' && senderId && !isPeerConnected(senderId)) {
           return
         }
 
@@ -359,10 +451,25 @@ export const ChatProvider = ({ children }: any) => {
           removeSyncingPeer(senderId)
         }
 
-        mergeHistoryMessages(control.messages)
+        if (control.scope === 'dm' && senderId) {
+          if (!isPeerConnected(senderId)) {
+            return
+          }
+
+          mergeDirectHistoryMessages(senderId, control.messages)
+        } else {
+          mergeHistoryMessages(control.messages)
+        }
       }
     },
-    [libp2p.peerId, mergeHistoryMessages, removeSyncingPeer, sendHistoryResponseDM, sendHistoryResponsePubsub],
+    [
+      libp2p.peerId,
+      mergeDirectHistoryMessages,
+      mergeHistoryMessages,
+      removeSyncingPeer,
+      sendHistoryResponseDM,
+      sendHistoryResponsePubsub,
+    ],
   )
 
   const messageCB = (evt: CustomEvent<Message>) => {
@@ -576,6 +683,7 @@ export const ChatProvider = ({ children }: any) => {
         fileObjectUrl: undefined,
         peerId: peerId,
         receivedAt: Date.now(),
+        channel: 'dm',
       }
 
       const messageWithStatus: ChatMessage = { ...message, status: 'sent' }
@@ -602,7 +710,7 @@ export const ChatProvider = ({ children }: any) => {
       const peerId: PeerId | undefined = detail?.remotePeer ?? detail
 
       if (peerId) {
-        void requestHistoryFromPeer(peerId)
+        void requestHistoryFromPeer(peerId, 'public')
       }
     }
 
@@ -610,7 +718,7 @@ export const ChatProvider = ({ children }: any) => {
 
     existingConnections.forEach((conn: any) => {
       if (conn?.remotePeer) {
-        void requestHistoryFromPeer(conn.remotePeer as PeerId)
+        void requestHistoryFromPeer(conn.remotePeer as PeerId, 'public')
       }
     })
 
@@ -676,6 +784,118 @@ export const ChatProvider = ({ children }: any) => {
       historyRetryTimer.current = null
     }
   }, [attemptHistoryRequests, messageHistory.length])
+
+  useEffect(() => {
+    if (!roomId) {
+      return
+    }
+
+    const existing = directMessagesRef.current[roomId] ?? []
+
+    if (existing.length > 0) {
+      return
+    }
+
+    try {
+      const peer = peerIdFromString(roomId)
+
+      void requestHistoryFromPeer(peer, 'dm')
+    } catch {
+      // ignore invalid peer ids
+    }
+  }, [requestHistoryFromPeer, roomId])
+
+  useEffect(() => {
+    const handleConnectionOpen = ({ detail }: any) => {
+      const peer = detail?.remotePeer ?? detail
+
+      if (!peer) return
+
+      dmConnectedPeersRef.current.add(peer.toString())
+      const id = peer.toString()
+      const existingTimer = dmPurgeTimers.current.get(id)
+      if (existingTimer) {
+        clearTimeout(existingTimer)
+        dmPurgeTimers.current.delete(id)
+      }
+      const existingInterval = dmPurgeIntervals.current.get(id)
+      if (existingInterval) {
+        clearInterval(existingInterval)
+        dmPurgeIntervals.current.delete(id)
+      }
+      dmPurgeAttempts.current.delete(id)
+    }
+
+    const handleConnectionClose = ({ detail }: any) => {
+      const peer = detail?.remotePeer ?? detail
+
+      if (!peer) return
+
+      const peerIdStr = peer.toString()
+      dmConnectedPeersRef.current.delete(peerIdStr)
+      const intervalMs = 30_000
+      const maxAttempts = 3
+
+      const scheduleCheck = () => {
+        const attempt = (dmPurgeAttempts.current.get(peerIdStr) ?? 0) + 1
+        dmPurgeAttempts.current.set(peerIdStr, attempt)
+
+        const stillConnected = isPeerConnected(peerIdStr)
+
+        if (stillConnected) {
+          const int = dmPurgeIntervals.current.get(peerIdStr)
+          if (int) clearInterval(int)
+          dmPurgeIntervals.current.delete(peerIdStr)
+          dmPurgeAttempts.current.delete(peerIdStr)
+
+          return
+        }
+
+        if (attempt >= maxAttempts) {
+          setDirectMessages((prev) => {
+            const next = { ...prev }
+
+            delete next[peerIdStr]
+
+            return next
+          })
+
+          const int = dmPurgeIntervals.current.get(peerIdStr)
+          if (int) clearInterval(int)
+          dmPurgeIntervals.current.delete(peerIdStr)
+          dmPurgeAttempts.current.delete(peerIdStr)
+        }
+      }
+
+      // Start periodic checks; first check after interval to allow reconnects
+      const intervalId = setInterval(scheduleCheck, intervalMs)
+      dmPurgeIntervals.current.set(peerIdStr, intervalId)
+
+      // Also set a longstop timeout to ensure interval is cleared eventually
+      const purgeTimer = setTimeout(() => {
+        const int = dmPurgeIntervals.current.get(peerIdStr)
+        if (int) clearInterval(int)
+        dmPurgeIntervals.current.delete(peerIdStr)
+        dmPurgeAttempts.current.delete(peerIdStr)
+        dmPurgeTimers.current.delete(peerIdStr)
+      }, intervalMs * maxAttempts + 5_000)
+
+      dmPurgeTimers.current.set(peerIdStr, purgeTimer)
+    }
+
+    libp2p.addEventListener('connection:open', handleConnectionOpen)
+    libp2p.addEventListener('connection:close', handleConnectionClose)
+
+    return () => {
+      libp2p.removeEventListener('connection:open', handleConnectionOpen)
+      libp2p.removeEventListener('connection:close', handleConnectionClose)
+      dmPurgeTimers.current.forEach((timer) => clearTimeout(timer))
+      dmPurgeTimers.current.clear()
+      dmPurgeIntervals.current.forEach((interval) => clearInterval(interval))
+      dmPurgeIntervals.current.clear()
+      dmPurgeAttempts.current.clear()
+    }
+  }, [isPeerConnected, libp2p, setDirectMessages])
 
   useEffect(() => {
     libp2p.services.pubsub.addEventListener('message', messageCB)

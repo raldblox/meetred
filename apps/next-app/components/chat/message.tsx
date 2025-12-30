@@ -159,7 +159,14 @@ export const Message = ({
         <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right' : 'text-left'}`}>
           {showAvatar ? (
             <div className="mt-5 w-8 h-8">
-              <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+              <PeerWrapper
+                key={peerIdStr}
+                peer={peerIdObj}
+                self={isSelf}
+                showCountBadge={!dm}
+                withName={false}
+                withUnread={false}
+              />
             </div>
           ) : (
             <div className="w-8" />
@@ -222,7 +229,14 @@ export const Message = ({
       <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
-            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+            <PeerWrapper
+              key={peerIdStr}
+              peer={peerIdObj}
+              self={isSelf}
+              showCountBadge={!dm}
+              withName={false}
+              withUnread={false}
+            />
           </div>
         ) : (
           <div className="w-8" />
@@ -276,7 +290,14 @@ export const Message = ({
       >
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
-            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+            <PeerWrapper
+              key={peerIdStr}
+              peer={peerIdObj}
+              self={isSelf}
+              showCountBadge={!dm}
+              withName={false}
+              withUnread={false}
+            />
           </div>
         ) : (
           <div className="w-8" />
@@ -326,7 +347,14 @@ export const Message = ({
       <li className={`flex text-left items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'mr-10'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
-            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+            <PeerWrapper
+              key={peerIdStr}
+              peer={peerIdObj}
+              self={isSelf}
+              showCountBadge={!dm}
+              withName={false}
+              withUnread={false}
+            />
           </div>
         ) : (
           <div className="w-8" />
@@ -394,7 +422,14 @@ export const Message = ({
       <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}>
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
-            <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+            <PeerWrapper
+              key={peerIdStr}
+              peer={peerIdObj}
+              self={isSelf}
+              showCountBadge={!dm}
+              withName={false}
+              withUnread={false}
+            />
           </div>
         ) : (
           <div className="w-8" />
@@ -450,7 +485,14 @@ export const Message = ({
     <li className={`flex items-start gap-x-2 text-left ${isSelf ? 'flex-row-reverse ml-10' : 'mr-10'}`}>
       {showAvatar ? (
         <div className="mt-5 w-8 h-8">
-          <PeerWrapper key={peerIdStr} peer={peerIdObj} self={isSelf} withName={false} withUnread={false} />
+          <PeerWrapper
+            key={peerIdStr}
+            peer={peerIdObj}
+            self={isSelf}
+            showCountBadge={!dm}
+            withName={false}
+            withUnread={false}
+          />
         </div>
       ) : (
         <div className="!w-8 !h-8 aspect-square" />
