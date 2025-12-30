@@ -1,25 +1,113 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@heroui/react'
+import { CircleHelp } from 'lucide-react'
 
 import { HelpModal, type Topic } from './help-modal'
 
-const helpTopics: Topic[] = [
-  { slug: 'network-basics', title: 'How libp2p works', description: 'Discovery, transports, relays, topics.' },
-  { slug: 'dm-history', title: 'DM history & backfill', description: 'Who stores history and when it purges.' },
-  { slug: 'security-privacy', title: 'Security & privacy', description: 'Signatures, storage, and encryption notes.' },
-  { slug: 'faq-chat', title: 'Chat FAQ', description: 'Common chat/DM behavior questions.' },
-  { slug: 'howto-troubleshoot', title: 'Troubleshooting', description: 'Connectivity steps and debug tips.' },
-  { slug: 'identity', title: 'Identity & keys', description: 'Reuse, rotate, and recover your peer ID.' },
-  { slug: 'messaging-architecture', title: 'Architecture diagram', description: 'How topics and envelopes route.' },
+type Audience = 'user' | 'developer'
+
+const userTopics: Topic[] = [
+  { slug: 'user-overview', title: 'Overview', description: 'Where to start and what Meetred is.', audience: 'user' },
+  { slug: 'user-start', title: 'Start here', description: 'Get started in 60 seconds.', audience: 'user' },
+  { slug: 'user-faq', title: 'FAQ', description: 'Quick answers to common questions.', audience: 'user' },
+  { slug: 'user-public', title: 'Public room', description: 'How the lobby chat works.', audience: 'user' },
+  { slug: 'user-dms', title: 'Direct messages', description: 'Private chats and how history works.', audience: 'user' },
+  {
+    slug: 'user-identity',
+    title: 'Identity',
+    description: 'Back up, rotate, or move your identity.',
+    audience: 'user',
+  },
+  { slug: 'user-streams', title: 'Streams', description: 'Host and watch streams with chat.', audience: 'user' },
+  {
+    slug: 'user-calls',
+    title: 'Calls',
+    description: 'Start and join private audio and video calls.',
+    audience: 'user',
+  },
+  { slug: 'user-ai', title: 'AI rooms', description: 'Chat with an AI hosted by the room owner.', audience: 'user' },
+  {
+    slug: 'user-payments',
+    title: 'Payments',
+    description: 'Paid minutes and tips, explained simply.',
+    audience: 'user',
+  },
+  { slug: 'user-safety', title: 'Safety', description: 'Public vs private and best practices.', audience: 'user' },
+  { slug: 'user-troubleshoot', title: 'Troubleshooting', description: 'Fix common issues fast.', audience: 'user' },
+  { slug: 'user-glossary', title: 'Glossary', description: 'Key terms in plain language.', audience: 'user' },
+]
+
+const devTopics: Topic[] = [
+  {
+    slug: 'dev-overview',
+    title: 'Developer overview',
+    description: 'Architecture, data flow, and core concepts.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-tech-stack',
+    title: 'Tech stack',
+    description: 'Frameworks, libraries, and services used.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-architecture',
+    title: 'Architecture',
+    description: 'How the app, rooms, and identity fit together.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-networking',
+    title: 'Networking',
+    description: 'libp2p, discovery, relays, and media transport.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-history',
+    title: 'Message history',
+    description: 'Local storage, retention, and backfill behavior.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-security',
+    title: 'Security model',
+    description: 'Signing, encryption, and system boundaries.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-ai',
+    title: 'AI integration',
+    description: 'Local model hosting and API-based models.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-retention',
+    title: 'Data retention',
+    description: 'What is stored where and for how long.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-threat',
+    title: 'Threat model',
+    description: 'Assumptions and adversaries for auditing.',
+    audience: 'developer',
+  },
+  {
+    slug: 'dev-open',
+    title: 'Open questions',
+    description: 'Known gaps and future work areas.',
+    audience: 'developer',
+  },
 ]
 
 export function HelpLauncher({ compact = false }: { compact?: boolean }) {
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpLoading, setHelpLoading] = useState(false)
   const [helpContent, setHelpContent] = useState('')
-  const [activeHelp, setActiveHelp] = useState<string | null>('network-basics')
+  const [activeHelp, setActiveHelp] = useState<string | null>('user-overview')
+  const [audience, setAudience] = useState<Audience>('user')
 
   const loadHelp = useCallback(async (slug: string) => {
     setHelpLoading(true)
@@ -48,6 +136,30 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
     }
   }, [activeHelp, helpOpen, loadHelp])
 
+  useEffect(() => {
+    if (!helpOpen) {
+      const scrollers = document.querySelectorAll('[data-help-scroll]')
+      scrollers.forEach((el) => {
+        if (el instanceof HTMLElement) el.scrollTop = 0
+      })
+    }
+  }, [helpOpen])
+
+  const filteredTopics = useMemo(() => {
+    return audience === 'user' ? userTopics : devTopics
+  }, [audience])
+
+  useEffect(() => {
+    if (!filteredTopics.find((t) => t.slug === activeHelp)) {
+      const fallback = filteredTopics[0]?.slug
+      if (fallback) {
+        setActiveHelp(fallback)
+        if (helpOpen) {
+          loadHelp(fallback)
+        }
+      }
+    }
+  }, [activeHelp, filteredTopics, helpOpen, loadHelp])
   return (
     <>
       <Button
@@ -59,17 +171,20 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
         variant="flat"
         onPress={() => {
           setHelpOpen(true)
-          loadHelp(activeHelp ?? 'network-basics')
+          loadHelp(activeHelp ?? 'user-overview')
         }}
+        startContent={<CircleHelp className="h-4 w-4" />}
       >
-        Guides
+        Help
       </Button>
       <HelpModal
         activeSlug={activeHelp}
+        audience={audience}
         content={helpContent}
         loading={helpLoading}
         open={helpOpen}
-        topics={helpTopics}
+        topics={filteredTopics}
+        onAudienceChange={setAudience}
         onClose={() => setHelpOpen(false)}
         onSelect={(slug) => {
           setHelpOpen(true)

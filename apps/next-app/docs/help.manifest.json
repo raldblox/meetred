@@ -1,0 +1,156 @@
+{
+  "tabs": [
+    {
+      "id": "user",
+      "label": "User",
+      "subtitle": "Quick answers and guides for using Meetred."
+    },
+    {
+      "id": "developer",
+      "label": "Developer",
+      "subtitle": "Technical docs for identity, networking, and integrations."
+    }
+  ],
+  "user": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "description": "Where to start and what Meetred is.",
+      "file": "user/OVERVIEW.md"
+    },
+    {
+      "id": "start",
+      "title": "Start here",
+      "description": "Get started in 60 seconds.",
+      "file": "user/START_HERE.md"
+    },
+    {
+      "id": "faq",
+      "title": "FAQ",
+      "description": "Quick answers to common questions.",
+      "file": "user/FAQ.md"
+    },
+    {
+      "id": "public",
+      "title": "Public room",
+      "description": "How the lobby chat works.",
+      "file": "user/PUBLIC_ROOM.md"
+    },
+    {
+      "id": "dms",
+      "title": "Direct messages",
+      "description": "Private chats and how history works.",
+      "file": "user/DIRECT_MESSAGES.md"
+    },
+    {
+      "id": "identity",
+      "title": "Identity",
+      "description": "Back up, rotate, or move your identity.",
+      "file": "user/IDENTITY.md"
+    },
+    {
+      "id": "streams",
+      "title": "Streams",
+      "description": "Host and watch streams with chat.",
+      "file": "user/STREAMS.md"
+    },
+    {
+      "id": "calls",
+      "title": "Calls",
+      "description": "Start and join private audio and video calls.",
+      "file": "user/CALLS.md"
+    },
+    {
+      "id": "ai",
+      "title": "AI rooms",
+      "description": "Chat with an AI hosted by the room owner.",
+      "file": "user/AI_ROOMS.md"
+    },
+    {
+      "id": "payments",
+      "title": "Payments",
+      "description": "Paid minutes and tips, explained simply.",
+      "file": "user/PAYMENTS.md"
+    },
+    {
+      "id": "safety",
+      "title": "Safety",
+      "description": "What is public vs private and best practices.",
+      "file": "user/SAFETY.md"
+    },
+    {
+      "id": "troubleshoot",
+      "title": "Troubleshooting",
+      "description": "Fix common issues fast.",
+      "file": "user/TROUBLESHOOTING.md"
+    },
+    {
+      "id": "glossary",
+      "title": "Glossary",
+      "description": "Key terms in plain language.",
+      "file": "user/GLOSSARY.md"
+    }
+  ],
+  "developer": [
+    {
+      "id": "overview",
+      "title": "Developer overview",
+      "description": "Architecture, data flow, and core concepts.",
+      "file": "developer/OVERVIEW.md"
+    },
+    {
+      "id": "stack",
+      "title": "Tech stack",
+      "description": "Frameworks, libraries, and services used.",
+      "file": "developer/TECH_STACK.md"
+    },
+    {
+      "id": "arch",
+      "title": "Architecture",
+      "description": "How the app, rooms, and identity fit together.",
+      "file": "developer/ARCHITECTURE.md"
+    },
+    {
+      "id": "network",
+      "title": "Networking",
+      "description": "libp2p, discovery, relays, and media transport.",
+      "file": "developer/NETWORKING.md"
+    },
+    {
+      "id": "history",
+      "title": "Message history",
+      "description": "Local storage, retention, and backfill behavior.",
+      "file": "developer/MESSAGE_HISTORY.md"
+    },
+    {
+      "id": "security",
+      "title": "Security model",
+      "description": "Signing, encryption, and system boundaries.",
+      "file": "developer/SECURITY_MODEL.md"
+    },
+    {
+      "id": "ai",
+      "title": "AI integration",
+      "description": "Local model hosting and API-based models.",
+      "file": "developer/AI_INTEGRATION.md"
+    },
+    {
+      "id": "retention",
+      "title": "Data retention",
+      "description": "What is stored where and for how long.",
+      "file": "developer/DATA_RETENTION.md"
+    },
+    {
+      "id": "threat",
+      "title": "Threat model",
+      "description": "Assumptions and adversaries for auditing.",
+      "file": "developer/THREAT_MODEL.md"
+    },
+    {
+      "id": "open",
+      "title": "Open questions",
+      "description": "Known gaps and future work areas.",
+      "file": "developer/OPEN_QUESTIONS.md"
+    }
+  ]
+}

@@ -686,7 +686,7 @@ export default function ChatContainer() {
                         className="border-1 border-default-100"
                         color={input ? 'primary' : 'default'}
                         isDisabled={sending}
-                        isIconOnly={isMobile}
+                        isIconOnly
                         type="submit"
                         variant="solid"
                         onPress={handleSend}
@@ -705,7 +705,7 @@ export default function ChatContainer() {
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
               />
-              <div className="flex w-full items-center justify-between gap-2 overflow-auto px-4 pb-4">
+              <div className="flex w-full items-end justify-between gap-2 overflow-auto px-4 pb-4">
                 <div className="flex w-full gap-1 md:gap-3">
                   <>
                     <Input
@@ -773,7 +773,7 @@ export default function ChatContainer() {
                     </Tooltip>
                   </>
                 </div>
-                <p className="text-tiny text-default-400 py-1">{input.length}/2000</p>
+                <p className="text-tiny leading-0 text-default-400 py-1">{input.length}/2000</p>
               </div>
             </div>
           </div>
