@@ -7,6 +7,7 @@ import { Earth, MessagesSquare, Radio, Video, Bot, UserPlus, IdCard } from 'luci
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
+import { HelpLauncher } from '../chat/help-launcher'
 
 import { ThemeSwitch } from '@/components/ui/theme-switch'
 import { UI_COPY } from '@/config/copy'
@@ -102,6 +103,9 @@ export const Navbar = () => {
                 <InviteButton />
               </div>
             </Tooltip>
+          </NavbarItem>
+          <NavbarItem className="hidden md:flex">
+            <HelpLauncher compact />
           </NavbarItem>
         </ul>
         {/* <NavbarItem className="hidden sm:flex gap-2">
