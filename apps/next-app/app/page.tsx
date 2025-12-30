@@ -18,7 +18,7 @@ export default function Home() {
     <>
       <div className="relative text-foreground bg-background flex flex-col h-screen overflow-y-scroll">
         <Navbar />
-        <main className="px-6 bg-background border-default-100 w-full flex flex-col flex-grow min-h-0">
+        <main className="bg-background border-default-100 w-full flex flex-col flex-grow min-h-0">
           <ChatContainer />
         </main>
         <ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />

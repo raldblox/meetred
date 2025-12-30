@@ -53,6 +53,10 @@ export default function ChatContainer() {
   const router = useRouter()
   const pathname = usePathname()
   const composerPlaceholder = UI_COPY.composer.placeholder
+  const chatShellRef = useRef<HTMLDivElement | null>(null)
+  const messagePanelRef = useRef<HTMLDivElement | null>(null)
+  const peerListRef = useRef<HTMLDivElement | null>(null)
+  const mobilePeerListRef = useRef<HTMLDivElement | null>(null)
 
   // Send message to public chat over gossipsub
   const sendPublicMessage = useCallback(
@@ -485,18 +489,57 @@ export default function ChatContainer() {
     return () => window.removeEventListener('resize', updateIsMobile)
   }, [])
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (roomId === PUBLIC_CHAT_ROOM_ID) return
+      if (!chatShellRef.current) return
+
+      const target = event.target as Node | null
+      const path = (event as any).composedPath?.() ?? []
+      const messagePanel = messagePanelRef.current
+      const peerList = peerListRef.current
+      const mobilePeerList = mobilePeerListRef.current
+
+      if (messagePanel && (path.includes(messagePanel) || messagePanel.contains(target as Node))) {
+        return
+      }
+      if (peerList && (path.includes(peerList) || peerList.contains(target as Node))) {
+        return
+      }
+      if (mobilePeerList && (path.includes(mobilePeerList) || mobilePeerList.contains(target as Node))) {
+        return
+      }
+
+      setRoomId(PUBLIC_CHAT_ROOM_ID)
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [roomId, setRoomId])
+
   return (
-    <div className="w-full relative mx-auto gap-6 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6">
-      <div className="hidden rounded-sm h-full lg:block">
+    <div
+      ref={chatShellRef}
+      className={`w-full px-6 relative transition-all mx-auto gap-6 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6 ${
+        roomId === PUBLIC_CHAT_ROOM_ID ? 'bg-default-100/50' : ''
+      }`}
+    >
+      <div ref={peerListRef} className="hidden rounded-sm h-full lg:block">
         <ChatPeerList />
       </div>
       <div
+        ref={messagePanelRef}
         className={`col-span-1 lg:col-span-4 flex rounded-2xl flex-col min-h-0 h-full overflow-hidden ${
           roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-100/50' : ''
         }`}
       >
         <div
-          className={`relative h-12 p-3 flex items-center text-sm font-semibold text-default-800 ${
+          className={`relative  h-12 p-3 flex items-center text-sm font-semibold text-default-800 ${
             roomId !== PUBLIC_CHAT_ROOM_ID ? 'border-b border-default-100' : ''
           }`}
         >
@@ -547,8 +590,9 @@ export default function ChatContainer() {
           )}
         </div>
         <div
+          ref={mobilePeerListRef}
           aria-hidden={!showMobilePeerList}
-          className={`lg:hidden bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg transition-opacity ${
+          className={`lg:hidden transition-all bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg ${
             showMobilePeerList ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
           }`}
         >
@@ -572,7 +616,9 @@ export default function ChatContainer() {
           <ChatPeerList hideHeader={true} />
         </div>
 
-        <div className={`flex flex-col transition-all min-h-0 flex-1 ${roomId !== PUBLIC_CHAT_ROOM_ID ? 'p-2' : ''}`}>
+        <div
+          className={`flex flex-col transition-all min-h-0 flex-1 py-3 ${roomId !== PUBLIC_CHAT_ROOM_ID ? 'px-3' : 'pb-6'}`}
+        >
           <div className="relative flex-1 min-h-0">
             <ScrollShadow
               ref={messageListRef}

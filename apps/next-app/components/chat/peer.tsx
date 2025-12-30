@@ -61,7 +61,13 @@ export function PeerWrapper({ peer, self, withName, withUnread, syncing = false,
     <button
       className="relative cursor-pointer transition-all hover:saturate-150 inline-flex w-full items-stretch text-left focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-default-400"
       type="button"
-      onClick={handleSetRoomId}
+      // Prevent outer click handlers (like returning to public chat) from firing when selecting peers
+      onClick={(e) => {
+        e.stopPropagation()
+        handleSetRoomId()
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
     >
       <span className="sr-only">Open direct message</span>
       {body}
