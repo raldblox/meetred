@@ -3,7 +3,7 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button, Tooltip } from '@heroui/react'
-import { Earth, MessagesSquare, Radio, Video, Bot } from 'lucide-react'
+import { Earth, MessagesSquare, Radio, Video, Bot, EarthLock } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
@@ -40,24 +40,21 @@ export const Navbar = () => {
 
   return (
     <HeroUINavbar
-      classNames={{ base: '!p-6', wrapper: 'container !p-0 h-fit', content: '' }}
+      classNames={{ base: '!p-6', wrapper: 'container !p-0 h-fit lg:grid lg:grid-cols-6 lg:items-center', content: '' }}
       maxWidth="full"
       position="static"
     >
-      <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
+      <NavbarContent className="basis-auto lg:basis-auto lg:col-span-1" justify="start">
         <NavbarBrand as="li" className="max-w-fit">
           <NextLink
             className="flex rounded-sm aspect-square h-12 justify-center bg-primary gap-2 p-2 items-center"
             href="/"
           >
-            <Earth className="h-7 text-background" />
+            <EarthLock className="h-7 text-background" />
             {/* <Logo className="text-background" size={16} /> */}
-            {/* <div className="flex items-center text-lg justify-center gap-0.25">
-              <h1 className="leading-0">meet</h1>
-              <span className="font-bold p-0 m-0 leading-0 trac">red</span>
-            </div> */}
           </NextLink>
         </NavbarBrand>
+
         {/* <ul className="hidden lg:flex gap-1 justify-start ml-2">
           {siteConfig.navItems.map((item) => (
             <NavbarItem key={item.href}>
@@ -75,8 +72,17 @@ export const Navbar = () => {
           ))}
         </ul> */}
       </NavbarContent>
+      <NavbarContent className="hidden lg:flex text-default-400 lg:col-span-2 lg:col-start-2" justify="start">
+        <div className="flex flex-col text-xs">
+          <h1 className="font-semibold text-sm leading-tight">Meetred.</h1>
+          <span className="leading-tight">Live rooms. Paid by time.</span>
+        </div>
+      </NavbarContent>
 
-      <NavbarContent className="hidden items-center sm:flex basis-1/5 gap-1.5 sm:basis-full" justify="end">
+      <NavbarContent
+        className="hidden items-center sm:flex basis-1/5 gap-1.5 sm:basis-full lg:col-span-3"
+        justify="end"
+      >
         <ul className="hidden h-12 lg:flex gap-1 bg-default-100 p-1.5 rounded-sm justify-start items-center ml-2">
           {navLinks.map((item) => (
             <NavbarItem key={item.href}>
