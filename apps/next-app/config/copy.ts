@@ -181,7 +181,7 @@ export const AI_ROOM_COPY = {
 
   setupPanel: {
     title: 'Model setup',
-    tabs: { local: 'Local model', openai: 'OpenAI' },
+    tabs: { local: 'LM Studio', openai: 'OpenAI' },
 
     local: {
       urlLabel: 'Local model URL',

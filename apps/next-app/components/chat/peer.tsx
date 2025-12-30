@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { PeerId } from '@libp2p/interface'
 import Blockies from 'react-18-blockies'
-import { Loader2 } from 'lucide-react'
+import { Loader2, RotateCcw, RotateCw } from 'lucide-react'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
@@ -83,7 +83,7 @@ export function Peer({ peer, self, withName, withUnread, syncing = false }: Peer
               {peer.toString().slice(-7)}
               {self && ' (You)'}
             </span>
-            {syncing && <Loader2 aria-label="Syncing history" className="h-3.5 w-3.5 animate-spin text-success" />}
+            {syncing && <RotateCw aria-label="Syncing history" className="h-3 w-3 animate-spin text-success" />}
           </div>
           {withUnread && (
             <div className="ml-2 text-xs text-success-600">

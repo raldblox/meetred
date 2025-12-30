@@ -35,6 +35,8 @@ const log = forComponent('chat')
 export const PUBLIC_CHAT_ROOM_ID = ''
 const PUBLIC_CHAT_ROOM_NAME = 'Public Room'
 
+export const getIsMobile = () => (typeof window !== 'undefined' ? window.innerWidth < 640 : false)
+
 export default function ChatContainer() {
   const { libp2p } = useLibp2pContext()
   const { roomId, setRoomId } = useChatContext()
@@ -46,6 +48,7 @@ export default function ChatContainer() {
   const [sending, setSending] = useState(false)
   const [showMobilePeerList, setShowMobilePeerList] = useState(false)
   const [isMessageListAtBottom, setIsMessageListAtBottom] = useState(true)
+  const [isMobile, setIsMobile] = useState<boolean>(getIsMobile())
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -444,6 +447,15 @@ export default function ChatContainer() {
     }
   }, [])
 
+  useEffect(() => {
+    const updateIsMobile = () => setIsMobile(getIsMobile())
+
+    updateIsMobile()
+    window.addEventListener('resize', updateIsMobile)
+
+    return () => window.removeEventListener('resize', updateIsMobile)
+  }, [])
+
   return (
     <div className="w-full relative mx-auto gap-6 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6">
       <div className="hidden rounded-sm h-full lg:block">
@@ -451,7 +463,7 @@ export default function ChatContainer() {
       </div>
       <div
         className={`col-span-1 lg:col-span-4 flex rounded-2xl flex-col min-h-0 h-full overflow-hidden ${
-          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-50/50' : ''
+          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-default-100/50' : ''
         }`}
       >
         <div
@@ -581,15 +593,16 @@ export default function ChatContainer() {
             )}
           </div>
           <div className="w-full h-fit">
-            {roomId === PUBLIC_CHAT_ROOM_ID ? (
-              <div className="flex w-full items-start justify-between p-2">
-                <div className="flex flex-col">
-                  {/* <span className="text-xs font-semibold text-default-700">{UI_COPY.composer.label}</span> */}
-                  <span className="text-tiny text-default-500">{UI_COPY.composer.helper}</span>
-                </div>
-                {/* <span className="hidden text-tiny text-default-400 sm:inline">{UI_COPY.composer.tip}</span> */}
+            <div className="flex w-full items-start justify-between p-2">
+              <div className="flex flex-col">
+                <span className="text-tiny text-default-500">
+                  {roomId === PUBLIC_CHAT_ROOM_ID
+                    ? UI_COPY.composer.helper
+                    : `Direct message · ${roomId.toString().slice(-7)}`}
+                </span>
               </div>
-            ) : null}
+            </div>
+
             <div className="rounded-medium pt-1 bg-default-100 hover:bg-default-200/70 flex w-full flex-col items-start transition-colors">
               <Textarea
                 classNames={{
@@ -614,7 +627,7 @@ export default function ChatContainer() {
                       radius="sm"
                     >
                       <Button
-                        isIconOnly
+                        isIconOnly={isMobile}
                         className="border-1 border-default-100"
                         color={input ? 'primary' : 'default'}
                         isDisabled={sending}
@@ -645,6 +658,7 @@ export default function ChatContainer() {
                       radius="sm"
                     >
                       <Button
+                        isIconOnly={isMobile}
                         className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} gap-1`}
                         disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
                         startContent={<Paperclip size={16} />}
@@ -656,6 +670,7 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="secondary" content={UI_COPY.tooltips.composer.aiRoom} placement="top" radius="sm">
                       <Button
+                        isIconOnly={isMobile}
                         className="border-1 border-default-100 gap-1"
                         color="secondary"
                         isDisabled={sending}
@@ -668,6 +683,7 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="primary" content={UI_COPY.tooltips.composer.stream} placement="top" radius="sm">
                       <Button
+                        isIconOnly={isMobile}
                         className="border-1 border-default-100 gap-1"
                         color="primary"
                         isDisabled={sending}
@@ -680,6 +696,7 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="success" content={UI_COPY.tooltips.composer.call} placement="top" radius="sm">
                       <Button
+                        isIconOnly={isMobile}
                         className="border-1 border-default-100 gap-1"
                         color="success"
                         isDisabled={sending}

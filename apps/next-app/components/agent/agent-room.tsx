@@ -5,6 +5,7 @@ import type { AgentManagerState } from '@/lib/agent-manager'
 import type { LMStudioModel } from '@/lib/lmstudio'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import Image from 'next/image'
 import {
   Button,
   Card,
@@ -83,10 +84,9 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-6xl flex-col gap-4 p-4">
-      <header className="flex flex-col gap-2 rounded-2xl border border-default-200 bg-background/70 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Chip color="secondary" size="sm" variant="flat">
+    <div className="flex h-full w-full flex-col gap-4">
+      <header className="flex h-12 items-center gap-2 rounded-sm border border-default-200 bg-background/70 p-3">
+        {/* <Chip color="secondary" size="sm" variant="flat">
             Peer ID
           </Chip>
           <Snippet
@@ -98,18 +98,18 @@ export function AgentRoom({ peerId }: { peerId: string }) {
             variant="bordered"
           >
             <span className="text-xs">{peerId}</span>
-          </Snippet>
-          <Chip color={statusColorMap[hostStatus] ?? 'default'} size="sm" variant="dot">
-            {`Host - ${hostStatus}`}
-          </Chip>
-        </div>
-        {error ? (
-          <div className="rounded-xl border border-danger/20 bg-danger/10 px-4 py-2 text-sm text-danger">{error}</div>
-        ) : null}
+          </Snippet> */}
+        <Chip color={statusColorMap[hostStatus] ?? 'default'} size="sm" variant="dot">
+          {`Host - ${hostStatus}`}
+        </Chip>
+        {error ? <div className="text-sm text-danger">{error}</div> : null}
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card className="border border-default-200 shadow-none">
+      <div className="grid gap-4 lg:grid-cols-5 h-full">
+        <div className="h-full">
+          <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
+        </div>
+        <Card className="border md:col-span-3 rounded-sm border-default-200 shadow-none">
           <CardHeader className="flex flex-col gap-1 pb-1">
             <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
             <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
@@ -121,7 +121,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
           </CardBody>
         </Card>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 h-full">
           <AgentManagerPanel
             agentState={agentState}
             authorized={authorized}
@@ -135,7 +135,6 @@ export function AgentRoom({ peerId }: { peerId: string }) {
             setLmBaseUrl={setLmBaseUrl}
             setLmTargetUrl={setLmTargetUrl}
           />
-          <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
         </div>
       </div>
     </div>
@@ -248,21 +247,38 @@ function AgentManagerPanel({
   const activeModelId = agentState.selectedModelId
 
   return (
-    <Card className="border border-default-200 shadow-none">
+    <Card className="border h-full w-full rounded-sm border-default-200 shadow-none">
       <CardHeader className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.4em] text-default-400">Agent manager</p>
-        <h2 className="text-lg font-semibold text-default-900">Choose your model</h2>
+        <h2 className="text-lg font-semibold text-default-900">Choose your provider</h2>
       </CardHeader>
       <CardBody className="space-y-4">
         <Tabs
           fullWidth
+          size="lg"
           color="primary"
           selectedKey={provider}
           variant="bordered"
           onSelectionChange={handleProviderChange}
         >
-          <Tab key="lmstudio-local" title={AI_ROOM_COPY.setupPanel.tabs.local} />
-          <Tab key="openai" title={AI_ROOM_COPY.setupPanel.tabs.openai} />
+          <Tab
+            key="lmstudio-local"
+            title={
+              <div className="flex items-center gap-2">
+                <Image alt="LM Studio" className="h-4 w-4" height={16} src="/lmstudio.png" width={16} />
+                <span>{AI_ROOM_COPY.setupPanel.tabs.local}</span>
+              </div>
+            }
+          />
+          <Tab
+            key="openai"
+            title={
+              <div className="flex items-center gap-2">
+                <Image alt="OpenAI" className="h-4 w-4" height={16} src="/openai.png" width={16} />
+                <span>{AI_ROOM_COPY.setupPanel.tabs.openai}</span>
+              </div>
+            }
+          />
         </Tabs>
 
         {provider === 'lmstudio-local' ? (
@@ -372,7 +388,7 @@ function AgentManagerPanel({
 
 function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPeerId: string }) {
   return (
-    <Card className="border border-default-200 shadow-none">
+    <Card className="border h-full rounded-sm border-default-200 shadow-none">
       <CardHeader className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.logPanel.title}</p>
         <h2 className="text-lg font-semibold text-default-900">{AI_ROOM_COPY.logPanel.title}</h2>
@@ -396,9 +412,6 @@ function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPe
             </ScrollShadow>
           )}
         </div>
-        <p className="mt-3 text-[11px] uppercase tracking-[0.3em] text-default-400">
-          Host peer - {hostPeerId.slice(-7)}
-        </p>
       </CardBody>
     </Card>
   )

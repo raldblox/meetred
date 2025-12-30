@@ -90,32 +90,23 @@ export function NewIdentityButton({ variant = 'full' }: NewIdentityButtonProps) 
   const peerIdString = libp2p.peerId.toString()
   const hexKey = storedKey ? `0x${uint8ArrayToString(uint8ArrayFromString(storedKey, 'base64pad'), 'hex')}` : undefined
   const buttonIsIconOnly = variant === 'icon'
-  const iconOnlyContent = rotatingIdentity ? (
-    <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin text-default-500" strokeWidth={2} />
-  ) : (
-    <Sparkles aria-hidden className="h-4 w-4 text-default-600" strokeWidth={2} />
-  )
-  const buttonStartContent = rotatingIdentity ? (
-    <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin text-default-500" strokeWidth={2} />
-  ) : (
-    <Sparkles aria-hidden className="h-3.5 w-3.5 text-default-500" strokeWidth={2} />
-  )
 
   return (
     <>
       <Button
         aria-label="Manage identity"
-        className={`h-12 !text-tiny px-6 rounded-sm font-normal text-background`}
+        className={`h-12 !text-sm px-6 rounded-sm font-semibold text-background`}
         isDisabled={rotatingIdentity}
-        isIconOnly={buttonIsIconOnly}
         radius="sm"
         size="sm"
         onPress={onOpen}
         color="primary"
-        // startContent={buttonIsIconOnly ? undefined : buttonStartContent}
+        endContent={
+          rotatingIdentity && <Sparkles aria-hidden className="h-3.5 w-3.5 !text-foreground" strokeWidth={2} />
+        }
         variant="solid"
       >
-        {buttonIsIconOnly ? iconOnlyContent : 'Identity'}
+        Your Identity
       </Button>
 
       <Modal

@@ -126,7 +126,7 @@ export const Navbar = () => {
       <NavbarContent className="sm:hidden basis-1 gap-1" justify="end">
         {/* <InviteButton /> */}
         <NewIdentityButton variant="icon" />
-        <ThemeSwitch />
+        {/* <ThemeSwitch /> */}
       </NavbarContent>
     </HeroUINavbar>
   )
