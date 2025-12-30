@@ -3,7 +3,7 @@
 import React, { type ComponentProps } from 'react'
 import ReactMarkdown, { type Components as MarkdownComponents } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Modal, ModalBody, ModalContent, ModalHeader, Tabs, Tab } from '@heroui/react'
+import { Modal, ModalBody, ModalContent, ModalHeader, Tabs, Tab, Button, ScrollShadow } from '@heroui/react'
 
 export interface Topic {
   slug: string
@@ -117,45 +117,25 @@ export function HelpModal({
               <p className="text-xs uppercase tracking-wide text-default-500">Help & Guides</p>
               <p className="text-sm text-default-700">{subtitle}</p>
             </div>
-            <Tabs
-              aria-label="Help audience"
-              color="success"
-              size="sm"
-              selectedKey={audience}
-              variant="solid"
-              onSelectionChange={(key) => onAudienceChange(key as 'user' | 'developer')}
-            >
-              <Tab key="user" title="User" />
-              <Tab key="developer" title="Developer" />
-            </Tabs>
           </div>
         </ModalHeader>
         <ModalBody className="p-0">
           <div className="flex h-[65vh] w-full">
             <div className="w-72 border-r border-default-200 bg-default-50 flex flex-col" data-help-scroll>
               <div className="p-4 space-y-2 border-b border-default-200">
-                <div className="flex gap-2">
-                  <Button
-                    className="text-xs"
-                    color={audience === 'user' ? 'success' : 'default'}
-                    size="sm"
-                    variant={audience === 'user' ? 'flat' : 'light'}
-                    onPress={() => onAudienceChange('user')}
-                  >
-                    User
-                  </Button>
-                  <Button
-                    className="text-xs"
-                    color={audience === 'developer' ? 'success' : 'default'}
-                    size="sm"
-                    variant={audience === 'developer' ? 'flat' : 'light'}
-                    onPress={() => onAudienceChange('developer')}
-                  >
-                    Developer
-                  </Button>
-                </div>
+                <Tabs
+                  aria-label="Help audience"
+                  color="primary"
+                  size="sm"
+                  selectedKey={audience}
+                  variant="solid"
+                  onSelectionChange={(key) => onAudienceChange(key as 'user' | 'developer')}
+                >
+                  <Tab key="user" title="User" />
+                  <Tab key="developer" title="Developer" />
+                </Tabs>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <ScrollShadow className="flex-1 overflow-y-auto p-4 space-y-2">
                 {topics.map((topic) => (
                   <button
                     key={topic.slug}
@@ -170,7 +150,7 @@ export function HelpModal({
                     <div className="text-[11px] text-default-500">{topic.description}</div>
                   </button>
                 ))}
-              </div>
+              </ScrollShadow>
             </div>
             <div className="flex-1 overflow-auto p-6" data-help-scroll>
               {loading ? (
