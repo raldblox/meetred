@@ -13,8 +13,8 @@ const ALLOWED = new Set([
   'identity',
 ])
 
-export async function GET(_request: Request, { params }: { params: { slug: string } }) {
-  const slug = params.slug
+export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+  const { slug } = await context.params
 
   if (!ALLOWED.has(slug)) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
