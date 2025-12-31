@@ -66,15 +66,15 @@ export function AgentRoom({ peerId }: { peerId: string }) {
 
   if (!isHost) {
     return (
-      <div className="mx-auto flex h-full max-w-4xl flex-col gap-4 p-4">
-        <Card className="border border-default-200 shadow-none">
+      <div className="mx-auto flex h-full min-h-0 max-w-4xl flex-col gap-4 p-4 overflow-hidden">
+        <Card className="border border-default-200 shadow-none h-full">
           <CardHeader className="flex flex-col gap-1 pb-1">
             <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
             <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
             <p className="text-xs text-default-500">{chatSubtitle}</p>
             {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
           </CardHeader>
-          <CardBody className="px-0 py-0">
+          <CardBody className="px-0 py-0 h-full">
             <AgentChatPanel agentPeerId={hostPeerId} />
           </CardBody>
         </Card>
@@ -83,7 +83,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   }
 
   return (
-    <div className="flex h-full w-full flex-col gap-4">
+    <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
       <header className="flex h-12 items-center gap-2 rounded-sm border border-default-200 bg-background/70 p-3">
         {/* <Chip color="secondary" size="sm" variant="flat">
             Peer ID
@@ -104,23 +104,17 @@ export function AgentRoom({ peerId }: { peerId: string }) {
         {error ? <div className="text-sm text-danger">{error}</div> : null}
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-5 h-full">
-        <div className="h-full">
+      <div className="grid gap-4 lg:grid-cols-5 h-full min-h-0">
+        <div className="h-full min-h-0">
           <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
         </div>
-        <Card className="border md:col-span-3 rounded-sm border-default-200 shadow-none">
-          <CardHeader className="flex flex-col gap-1 pb-1">
-            <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
-            <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
-            <p className="text-xs text-default-500">{chatSubtitle}</p>
-            {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
-          </CardHeader>
-          <CardBody className="px-0 py-0">
+        <Card className="border md:col-span-3 rounded-sm border-default-200 shadow-none h-full">
+          <CardBody className="px-0 py-0 h-full">
             <AgentChatPanel agentPeerId={hostPeerId} />
           </CardBody>
         </Card>
 
-        <div className="flex flex-col gap-4 h-full">
+        <div className="flex flex-col gap-4 h-full min-h-0">
           <AgentManagerPanel
             agentState={agentState}
             authorized={authorized}
@@ -246,18 +240,17 @@ function AgentManagerPanel({
   const activeModelId = agentState.selectedModelId
 
   return (
-    <Card className="border h-full w-full rounded-sm border-default-200 shadow-none">
-      <CardHeader className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.4em] text-default-400">Agent manager</p>
-        <h2 className="text-lg font-semibold text-default-900">Choose your provider</h2>
+    <Card className="border p-0 h-full w-full rounded-sm bg-transparent border-none shadow-none overflow-hidden">
+      <CardHeader className="flex gap-1 p-0">
+        <h2 className="text-lg !text-left font-semibold text-default-900">Agent manager</h2>
       </CardHeader>
-      <CardBody className="space-y-4">
+      <CardBody className="space-y-4 px-0 overflow-y-auto pr-1 max-h-full">
         <Tabs
           fullWidth
           color="primary"
           selectedKey={provider}
           size="lg"
-          variant="bordered"
+          variant="solid"
           onSelectionChange={handleProviderChange}
         >
           <Tab
@@ -346,9 +339,11 @@ function AgentManagerPanel({
           </div>
         )}
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-default-500 uppercase tracking-[0.3em]">
-            <span>{AI_ROOM_COPY.setupPanel.local.detectedTitle}</span>
+        <div className="space-y-4">
+          <div className="flex items-center pb-4 justify-between text-xs text-default-500">
+            <span className="text-lg !text-left font-semibold text-default-900">
+              {AI_ROOM_COPY.setupPanel.local.detectedTitle}
+            </span>
             <span className="text-default-400">
               {agentState.sourceType === 'openai'
                 ? 'OpenAI'
@@ -387,23 +382,22 @@ function AgentManagerPanel({
 
 function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPeerId: string }) {
   return (
-    <Card className="border h-full rounded-sm border-default-200 shadow-none">
-      <CardHeader className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.logPanel.title}</p>
+    <Card className="h-full min-h-0 !p-0 border-none bg-transparent shadow-none">
+      <CardHeader className="flex !p-0 !text-left gap-1">
         <h2 className="text-lg font-semibold text-default-900">{AI_ROOM_COPY.logPanel.title}</h2>
       </CardHeader>
-      <CardBody>
-        <div className="rounded-2xl border border-default-100 bg-default-50 p-3">
+      <CardBody className="!px-0 h-full min-h-0">
+        <div className="h-full">
           {hostEvents.length === 0 ? (
             <p className="text-sm text-default-500">{AI_ROOM_COPY.logPanel.empty}</p>
           ) : (
-            <ScrollShadow className="max-h-[280px] pr-2">
-              <ul className="space-y-2 text-sm text-default-800">
+            <ScrollShadow className="h-full max-h-full">
+              <ul className="space-y-1.5 text-sm text-default-800">
                 {hostEvents
                   .slice()
                   .reverse()
                   .map((entry, idx) => (
-                    <li key={`${entry}-${idx}`} className="rounded-xl bg-default-100 px-3 py-2 shadow-sm">
+                    <li key={`${entry}-${idx}`} className="rounded-xl bg-default-50 px-3 py-2 shadow-sm">
                       {entry}
                     </li>
                   ))}

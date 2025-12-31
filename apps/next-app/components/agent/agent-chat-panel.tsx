@@ -5,7 +5,7 @@ import type { ChatMessage } from '@/context/chat-ctx'
 
 import { useCallback, useMemo, useState } from 'react'
 import Blockies from 'react-18-blockies'
-import { SendIcon } from 'lucide-react'
+import { Bot, SendIcon } from 'lucide-react'
 import { Button, Input, ScrollShadow } from '@heroui/react'
 import clsx from 'clsx'
 import ReactMarkdown from 'react-markdown'
@@ -221,31 +221,41 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         </p>
       </div>
 
-      <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-3 py-3 pr-1">
+      <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-4 py-3 pr-1">
         {chats.length === 0 ? (
           <p className="text-xs text-default-500 text-center">{AI_ROOM_COPY.chatPanel.empty}</p>
         ) : (
-          chats.map(({ payload, original }) => (
-            <div key={original.msgId} className="flex items-start gap-3">
-              <Blockies className="rounded-sm h-8" scale={10} seed={payload.senderPeerId || original.peerId} size={8} />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-default-400">
-                  <span className="font-mono text-default-500">
-                    {(payload.senderPeerId || original.peerId).slice(-7)}
-                  </span>
-                  {payload.modelId && <span className="text-default-500">{payload.modelId.slice(-7)}</span>}
-                  <span>
-                    {new Date(original.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+          chats.map(({ payload, original }) => {
+            const isAgentResponse = payload.variant === 'model'
+            const senderId = payload.senderPeerId || original.peerId
+            const displayName = isAgentResponse ? payload.modelId || 'Agent model' : senderId.slice(-7)
+
+            return (
+              <div key={original.msgId} className="flex items-start gap-3">
+                {isAgentResponse ? (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-primary-300 bg-primary-100 text-primary-700">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                ) : (
+                  <Blockies className="rounded-sm h-8" scale={10} seed={senderId} size={8} />
+                )}
+                <div className="flex-1">
+                  <div className="flex items-start gap-2 text-[11px] uppercase tracking-wide text-default-400">
+                    <span className="font-semibold text-default-600 ">{displayName}</span>
+
+                    <span>
+                      {new Date(original.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <ChatBubble
+                    isHostMessage={payload.senderPeerId === agentPeerId && payload.variant === 'user'}
+                    isSelf={payload.senderPeerId === libp2p.peerId.toString()}
+                    payload={payload}
+                  />
                 </div>
-                <ChatBubble
-                  isHostMessage={payload.senderPeerId === agentPeerId && payload.variant === 'user'}
-                  isSelf={payload.senderPeerId === libp2p.peerId.toString()}
-                  payload={payload}
-                />
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </ScrollShadow>
 
@@ -289,7 +299,7 @@ function ChatBubble({
   const isAgentResponse = payload.variant === 'model'
 
   const bubbleClass = clsx(
-    'w-fit max-w-full rounded-2xl border px-3 py-2 text-sm shadow-sm',
+    'w-fit max-w-full rounded-sm border px-3 py-2 text-sm shadow-sm',
     isAgentResponse
       ? payload.status === 'pending'
         ? 'border-primary-200 bg-primary-50 text-primary-700 animate-pulse'
