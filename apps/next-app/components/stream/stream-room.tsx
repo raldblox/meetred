@@ -2,11 +2,12 @@
 
 /* eslint-disable jsx-a11y/media-has-caption */
 
-import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Chip } from '@heroui/react'
-import { Gift, LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Alert, Button, Chip, useDisclosure } from '@heroui/react'
+import { Gift, LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, Share2, X } from 'lucide-react'
 
 import { ThemeSwitch } from '../ui/theme-switch'
+import { ShareRoomModal } from '../ui/share-room-modal'
 
 import { StreamChatPanel } from './stream-chat-panel'
 
@@ -37,6 +38,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
   const [viewerAudioEnabled, setViewerAudioEnabled] = useState(true)
   const viewerStartedRef = useRef(false)
+  const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -127,6 +129,15 @@ export function StreamRoom({ streamId }: { streamId: string }) {
     : status === 'live'
       ? 'Enjoy the live stream.'
       : viewerWaitingMessage
+  const shareableLink = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    const url = new URL(window.location.origin)
+    url.pathname = `/stream/${streamId}`
+    if (!url.searchParams.has('autoplay')) {
+      url.searchParams.set('autoplay', 'true')
+    }
+    return url.toString()
+  }, [streamId])
 
   return (
     <div className="flex flex-col h-full">
@@ -136,7 +147,18 @@ export function StreamRoom({ streamId }: { streamId: string }) {
             {STREAM_ROOM_COPY.header.titlePrefix}: <span className="font-medium uppercase">{streamId.slice(-7)}</span>
           </h1>
         </div>
-        <ThemeSwitch />
+        <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            aria-label="Share stream room"
+            className="border border-default-200"
+            radius="full"
+            startContent={<Share2 className="h-4 w-4" />}
+            variant="light"
+            onPress={openShareModal}
+          />
+          <ThemeSwitch />
+        </div>
       </nav>
 
       <div className="flex-1 w-full flex flex-col min-h-0 py-0">
@@ -275,6 +297,14 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           </div>
         </div>
       </div>
+      <ShareRoomModal
+        isOpen={isShareModalOpen}
+        roomType="stream"
+        shareUrl={shareableLink}
+        subtitle="Post or copy the link so people can hop into the stream."
+        title="Share stream room"
+        onOpenChange={onShareModalOpenChange}
+      />
     </div>
   )
 }

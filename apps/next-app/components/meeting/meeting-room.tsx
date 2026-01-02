@@ -1,8 +1,7 @@
 'use client'
 
-import { Button, Chip, Modal, ModalBody, ModalContent, ModalHeader, Snippet, useDisclosure } from '@heroui/react'
+import { Button, Chip, Modal, ModalBody, ModalContent, ModalHeader, useDisclosure } from '@heroui/react'
 import { motion } from 'framer-motion'
-import ReactQRCode from 'react-qr-code'
 import {
   Camera,
   CameraOff,
@@ -25,6 +24,7 @@ import { useMemo } from 'react'
 import { useRoomController } from '../../hooks/useRoomController'
 
 import { ThemeSwitch } from '@/components/ui/theme-switch'
+import { ShareRoomModal } from '@/components/ui/share-room-modal'
 import { CALL_ROOM_COPY } from '@/config/copy'
 
 export default function RoomPage({ roomId }: { roomId: string }) {
@@ -74,13 +74,13 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     latency,
   } = useRoomController(roomId)
 
-  const { isOpen: isQrModalOpen, onOpen: openQrModal, onOpenChange: onQrModalOpenChange } = useDisclosure()
+  const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
 
-  const handleOpenQrModal = () => {
+  const handleOpenShareModal = () => {
     if (!ensureRoomLinkAvailable()) {
       return
     }
-    openQrModal()
+    openShareModal()
   }
 
   // Memoized shareable link to prevent re-renders
@@ -482,7 +482,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
             radius="full"
             size="md"
             startContent={<Share size={16} />}
-            onPress={handleOpenQrModal}
+            onPress={handleOpenShareModal}
           />
           <Button
             isIconOnly
@@ -569,49 +569,15 @@ export default function RoomPage({ roomId }: { roomId: string }) {
           )}
         </ModalContent>
       </Modal>
-      <Modal
-        hideCloseButton={false}
-        isOpen={isQrModalOpen}
-        placement="center"
-        size="xs"
-        onOpenChange={onQrModalOpenChange}
-      >
-        <ModalContent>
-          {(_onClose) => (
-            <>
-              <ModalHeader className="flex flex-col items-center gap-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-default-400">Share room</p>
-                <h2 className="text-lg text-center font-semibold text-default-900">Scan to join</h2>
-              </ModalHeader>
-              <ModalBody className="pb-6 pt-0">
-                <div className="flex flex-col items-center gap-3">
-                  {shareableLink ? (
-                    <div className="rounded-xl border border-default-100 p-3">
-                      <ReactQRCode className="h-full w-full" value={shareableLink} />
-                    </div>
-                  ) : (
-                    <div className="flex h-48 w-48 items-center justify-center rounded-2xl border border-default-100 bg-default-100 text-[10px] font-semibold uppercase tracking-widest text-default-500">
-                      Preparing link
-                    </div>
-                  )}
-
-                  <Snippet
-                    hideSymbol
-                    className="pl-5 bg-transparent uppercase hover:bg-default-100 transition-all"
-                    codeString={shareableLink}
-                    color="primary"
-                    hideCopyButton={!shareableLink}
-                    size="sm"
-                    variant="flat"
-                  >
-                    Copy Room Link
-                  </Snippet>
-                </div>
-              </ModalBody>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+      <ShareRoomModal
+        isOpen={isShareModalOpen}
+        roomType="call"
+        shareUrl={shareableLink}
+        showQrCode
+        subtitle="Share the link, social post, or QR to join instantly."
+        title="Share call room"
+        onOpenChange={onShareModalOpenChange}
+      />
     </main>
   )
 }

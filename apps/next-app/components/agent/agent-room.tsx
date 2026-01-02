@@ -18,10 +18,13 @@ import {
   SelectItem,
   Tab,
   Tabs,
+  useDisclosure,
 } from '@heroui/react'
+import { Share2 } from 'lucide-react'
 
 import { useAgentContext } from '@/context/agent-ctx'
 import { AgentChatPanel } from '@/components/agent/agent-chat-panel'
+import { ShareRoomModal } from '@/components/ui/share-room-modal'
 import { AI_ROOM_COPY } from '@/config/copy'
 
 const statusColorMap: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'default'> = {
@@ -51,6 +54,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
     selectAgentModel,
     hostEvents,
   } = useAgentContext()
+  const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
 
   const activeModel = useMemo(
     () => models.find((model) => model.id === agentState.selectedModelId),
@@ -63,74 +67,111 @@ export function AgentRoom({ peerId }: { peerId: string }) {
       ? `Model - ${activeModel.id}`
       : AI_ROOM_COPY.setupPanel.local.statusWaiting
     : ''
+  const shareTargetPeerId = hostPeerId || peerId || 'agent-room'
+  const shareableLink = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    const url = new URL(window.location.origin)
+    url.pathname = `/agent/${shareTargetPeerId}`
+    if (!url.searchParams.has('autoJoin')) {
+      url.searchParams.set('autoJoin', 'true')
+    }
+    return url.toString()
+  }, [shareTargetPeerId])
+
+  const shareModal = (
+    <ShareRoomModal
+      isOpen={isShareModalOpen}
+      roomType="ai"
+      shareUrl={shareableLink}
+      showQrCode
+      subtitle="Share the AI room link or a pre-filled post."
+      title="Share AI room"
+      onOpenChange={onShareModalOpenChange}
+    />
+  )
 
   if (!isHost) {
     return (
-      <div className="mx-auto flex h-full min-h-0 max-w-4xl flex-col gap-4 p-4 overflow-hidden">
-        <Card className="border border-default-200 shadow-none h-full">
-          <CardHeader className="flex flex-col gap-1 pb-1">
-            <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
-            <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
-            <p className="text-xs text-default-500">{chatSubtitle}</p>
-            {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
-          </CardHeader>
-          <CardBody className="px-0 py-0 h-full">
-            <AgentChatPanel agentPeerId={hostPeerId} />
-          </CardBody>
-        </Card>
-      </div>
+      <>
+        <div className="mx-auto flex h-full min-h-0 max-w-4xl flex-col gap-4 p-4 overflow-hidden">
+          <Card className="border border-default-200 shadow-none h-full">
+            <CardHeader className="flex items-start justify-between gap-3 pb-1">
+              <div className="flex flex-col gap-1">
+                <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
+                <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
+                <p className="text-xs text-default-500">{chatSubtitle}</p>
+                {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
+              </div>
+              <Button
+                isIconOnly
+                aria-label="Share AI room"
+                radius="full"
+                size="sm"
+                startContent={<Share2 className="h-4 w-4" />}
+                variant="light"
+                onPress={openShareModal}
+              />
+            </CardHeader>
+            <CardBody className="px-0 py-0 h-full">
+              <AgentChatPanel agentPeerId={hostPeerId} />
+            </CardBody>
+          </Card>
+        </div>
+        {shareModal}
+      </>
     )
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
-      <header className="flex h-12 items-center gap-2 rounded-sm border border-default-200 bg-background/70 p-3">
-        {/* <Chip color="secondary" size="sm" variant="flat">
-            Peer ID
+    <>
+      <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
+        <header className="flex h-12 items-center gap-2 rounded-sm border border-default-200 bg-background/70 p-3">
+          <Chip color={statusColorMap[hostStatus] ?? 'default'} size="sm" variant="dot">
+            {`Host - ${hostStatus}`}
           </Chip>
-          <Snippet
-            hideSymbol
-            className="flex-1 max-w-full overflow-hidden text-ellipsis"
-            codeString={peerId}
-            hideCopyButton={false}
-            size="sm"
-            variant="bordered"
-          >
-            <span className="text-xs">{peerId}</span>
-          </Snippet> */}
-        <Chip color={statusColorMap[hostStatus] ?? 'default'} size="sm" variant="dot">
-          {`Host - ${hostStatus}`}
-        </Chip>
-        {error ? <div className="text-sm text-danger">{error}</div> : null}
-      </header>
+          {error ? <div className="text-sm text-danger">{error}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              isIconOnly
+              aria-label="Share AI room"
+              radius="full"
+              size="sm"
+              startContent={<Share2 className="h-4 w-4" />}
+              variant="light"
+              onPress={openShareModal}
+            />
+          </div>
+        </header>
 
-      <div className="grid gap-4 lg:grid-cols-5 h-full min-h-0">
-        <div className="h-full min-h-0">
-          <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
-        </div>
-        <Card className="border md:col-span-3 rounded-sm border-default-200 shadow-none h-full">
-          <CardBody className="px-0 py-0 h-full">
-            <AgentChatPanel agentPeerId={hostPeerId} />
-          </CardBody>
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-5 h-full min-h-0">
+          <div className="h-full min-h-0">
+            <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
+          </div>
+          <Card className="border md:col-span-3 rounded-sm border-default-200 shadow-none h-full">
+            <CardBody className="px-0 py-0 h-full">
+              <AgentChatPanel agentPeerId={hostPeerId} />
+            </CardBody>
+          </Card>
 
-        <div className="flex flex-col gap-4 h-full min-h-0">
-          <AgentManagerPanel
-            agentState={agentState}
-            authorized={authorized}
-            connectLocalAgent={connectLocalAgent}
-            connectOpenAIAgent={connectOpenAIAgent}
-            isHost={isHost}
-            lmBaseUrl={lmBaseUrl}
-            lmTargetUrl={lmTargetUrl}
-            models={models}
-            selectAgentModel={selectAgentModel}
-            setLmBaseUrl={setLmBaseUrl}
-            setLmTargetUrl={setLmTargetUrl}
-          />
+          <div className="flex flex-col gap-4 h-full min-h-0">
+            <AgentManagerPanel
+              agentState={agentState}
+              authorized={authorized}
+              connectLocalAgent={connectLocalAgent}
+              connectOpenAIAgent={connectOpenAIAgent}
+              isHost={isHost}
+              lmBaseUrl={lmBaseUrl}
+              lmTargetUrl={lmTargetUrl}
+              models={models}
+              selectAgentModel={selectAgentModel}
+              setLmBaseUrl={setLmBaseUrl}
+              setLmTargetUrl={setLmTargetUrl}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      {shareModal}
+    </>
   )
 }
 
