@@ -157,7 +157,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
             variant="light"
             onPress={openShareModal}
           />
-          <ThemeSwitch />
+          {/* <ThemeSwitch /> */}
         </div>
       </nav>
 
