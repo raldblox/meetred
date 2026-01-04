@@ -4,7 +4,7 @@ import type { Selection } from '@react-types/shared'
 import type { AgentManagerState } from '@/lib/agent-manager'
 import type { LMStudioModel } from '@/lib/lmstudio'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import {
   Button,
@@ -57,6 +57,8 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   } = useAgentContext()
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
+  const allowSessionStart = true // Master gate: replace with wallet/entitlement check later
+  const lastTimerStateRef = useRef(false)
 
   const activeModel = useMemo(
     () => models.find((model) => model.id === agentState.selectedModelId),
@@ -91,6 +93,20 @@ export function AgentRoom({ peerId }: { peerId: string }) {
       onOpenChange={onShareModalOpenChange}
     />
   )
+
+  const modelReady = authorized && agentState.status === 'ready'
+  useEffect(() => {
+    const shouldRun = allowSessionStart && modelReady
+
+    if (shouldRun && !lastTimerStateRef.current) {
+      sessionTimer.reset()
+      sessionTimer.start()
+      lastTimerStateRef.current = true
+    } else if (!shouldRun && lastTimerStateRef.current) {
+      sessionTimer.stop()
+      lastTimerStateRef.current = false
+    }
+  }, [allowSessionStart, modelReady, sessionTimer])
 
   if (!isHost) {
     return (

@@ -19,7 +19,7 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 
 import { useRoomController } from '../../hooks/useRoomController'
 
@@ -75,6 +75,21 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     latency,
   } = useRoomController(roomId)
   const sessionTimer = useSessionTimer()
+  const allowSessionStart = true // Master gate: placeholder until wallet/access control is added
+
+  const lastTimerStateRef = useRef(false)
+  useEffect(() => {
+    const shouldRun = allowSessionStart && isCalling
+
+    if (shouldRun && !lastTimerStateRef.current) {
+      sessionTimer.reset()
+      sessionTimer.start()
+      lastTimerStateRef.current = true
+    } else if (!shouldRun && lastTimerStateRef.current) {
+      sessionTimer.stop()
+      lastTimerStateRef.current = false
+    }
+  }, [allowSessionStart, isCalling, sessionTimer])
 
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
 

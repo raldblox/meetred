@@ -41,6 +41,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const viewerStartedRef = useRef(false)
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
+  const allowSessionStart = true // Master gate: future wallet/entitlement check
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -117,6 +118,24 @@ export function StreamRoom({ streamId }: { streamId: string }) {
       }
     }
   }, [isHost, stopViewing])
+
+  const lastTimerStateRef = useRef(false)
+  useEffect(() => {
+    const shouldRun =
+      allowSessionStart &&
+      (isHost
+        ? status === 'live'
+        : status === 'live' && Boolean(remoteStream)) // viewers pay only when consuming
+
+    if (shouldRun && !lastTimerStateRef.current) {
+      sessionTimer.reset()
+      sessionTimer.start()
+      lastTimerStateRef.current = true
+    } else if (!shouldRun && lastTimerStateRef.current) {
+      sessionTimer.stop()
+      lastTimerStateRef.current = false
+    }
+  }, [allowSessionStart, isHost, remoteStream, sessionTimer, status])
 
   const viewerWaitingMessage = INVITE_CARD_COPY.stream.waiting.body
 
