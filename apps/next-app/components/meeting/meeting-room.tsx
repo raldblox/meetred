@@ -26,6 +26,7 @@ import { useRoomController } from '../../hooks/useRoomController'
 import { ThemeSwitch } from '@/components/ui/theme-switch'
 import { ShareRoomModal } from '@/components/ui/share-room-modal'
 import { CALL_ROOM_COPY } from '@/config/copy'
+import { useSessionTimer } from '@/hooks/useSessionTimer'
 
 export default function RoomPage({ roomId }: { roomId: string }) {
   const {
@@ -73,6 +74,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
     audioLevel,
     latency,
   } = useRoomController(roomId)
+  const sessionTimer = useSessionTimer()
 
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
 
@@ -498,25 +500,30 @@ export default function RoomPage({ roomId }: { roomId: string }) {
       <footer
         className={`flex items-center px-3 gap-3 opacity-50 justify-between w-full ${isFullscreen ? 'hidden' : ''}`}
       >
-        <Chip
-          className="px-3 py-1"
-          classNames={{ base: 'border-1 !py-0 !px-2' }}
-          color={
-            isCalling
-              ? 'secondary'
-              : isAwaitingAnswer
-                ? 'warning'
-                : peerPresent
-                  ? 'primary'
-                  : isJoined
-                    ? 'success'
-                    : 'default'
-          }
-          size="sm"
-          variant="dot"
-        >
-          {status}
-        </Chip>
+        <div className="flex items-center gap-2">
+          <Chip
+            className="px-3 py-1"
+            classNames={{ base: 'border-1 !py-0 !px-2' }}
+            color={
+              isCalling
+                ? 'secondary'
+                : isAwaitingAnswer
+                  ? 'warning'
+                  : peerPresent
+                    ? 'primary'
+                    : isJoined
+                      ? 'success'
+                      : 'default'
+            }
+            size="sm"
+            variant="dot"
+          >
+            {status}
+          </Chip>
+          <Chip className="font-mono" size="sm" variant="flat">
+            {sessionTimer.formatted}
+          </Chip>
+        </div>
         <ThemeSwitch />
       </footer>
       <Modal

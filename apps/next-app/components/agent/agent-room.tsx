@@ -26,6 +26,7 @@ import { useAgentContext } from '@/context/agent-ctx'
 import { AgentChatPanel } from '@/components/agent/agent-chat-panel'
 import { ShareRoomModal } from '@/components/ui/share-room-modal'
 import { AI_ROOM_COPY } from '@/config/copy'
+import { useSessionTimer } from '@/hooks/useSessionTimer'
 
 const statusColorMap: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'default'> = {
   idle: 'default',
@@ -55,6 +56,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
     hostEvents,
   } = useAgentContext()
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
+  const sessionTimer = useSessionTimer()
 
   const activeModel = useMemo(
     () => models.find((model) => model.id === agentState.selectedModelId),
@@ -102,15 +104,20 @@ export function AgentRoom({ peerId }: { peerId: string }) {
                 <p className="text-xs text-default-500">{chatSubtitle}</p>
                 {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
               </div>
-              <Button
-                isIconOnly
-                aria-label="Share AI room"
-                radius="full"
-                size="sm"
-                startContent={<Share2 className="h-4 w-4" />}
-                variant="light"
-                onPress={openShareModal}
-              />
+              <div className="flex items-center gap-2">
+                <Chip className="font-mono" size="sm" variant="flat">
+                  {sessionTimer.formatted}
+                </Chip>
+                <Button
+                  isIconOnly
+                  aria-label="Share AI room"
+                  radius="full"
+                  size="sm"
+                  startContent={<Share2 className="h-4 w-4" />}
+                  variant="light"
+                  onPress={openShareModal}
+                />
+              </div>
             </CardHeader>
             <CardBody className="px-0 py-0 h-full">
               <AgentChatPanel agentPeerId={hostPeerId} />
@@ -131,6 +138,9 @@ export function AgentRoom({ peerId }: { peerId: string }) {
           </Chip>
           {error ? <div className="text-sm text-danger">{error}</div> : null}
           <div className="ml-auto flex items-center gap-2">
+            <Chip className="font-mono" size="sm" variant="flat">
+              {sessionTimer.formatted}
+            </Chip>
             <Button
               isIconOnly
               aria-label="Share AI room"

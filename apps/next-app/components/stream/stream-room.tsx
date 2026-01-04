@@ -13,6 +13,7 @@ import { StreamChatPanel } from './stream-chat-panel'
 
 import { useStreamContext } from '@/context/stream-ctx'
 import { INVITE_CARD_COPY, STREAM_ROOM_COPY } from '@/config/copy'
+import { useSessionTimer } from '@/hooks/useSessionTimer'
 import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-room')
@@ -39,6 +40,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const [viewerAudioEnabled, setViewerAudioEnabled] = useState(true)
   const viewerStartedRef = useRef(false)
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
+  const sessionTimer = useSessionTimer()
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -148,6 +150,9 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <Chip className="font-mono" size="sm" variant="flat">
+            {sessionTimer.formatted}
+          </Chip>
           <Button
             isIconOnly
             aria-label="Share stream room"
