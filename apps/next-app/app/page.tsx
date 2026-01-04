@@ -16,7 +16,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="relative text-foreground bg-background flex flex-col h-screen overflow-y-scroll">
+      <div className="relative text-foreground bg-background flex flex-col h-screen overflow-y-scroll md:overflow-y-hidden">
         <Navbar />
         <main className="bg-background border-default-100 w-full flex flex-col flex-grow min-h-0">
           <ChatContainer />

@@ -212,10 +212,10 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-default-50 p-4 shadow-sm">
+    <div className="flex h-full flex-col rounded-2xl shadow-sm">
       <div className="flex flex-col gap-1 border-b border-default-200 pb-3">
         <p className="text-sm font-semibold text-default-700">{chatTitle}</p>
-        <p className="text-[11px] uppercase tracking-wide text-default-400">{chatSubtitle}</p>
+        <p className="text-[11px] uppercasee text-default-400">{chatSubtitle}</p>
         <p className="text-xs text-default-500">
           {selectedModelId ? `Active model - ${selectedModelId}` : 'No model selected yet'}
         </p>
@@ -223,7 +223,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
 
       <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-4 py-3 pr-1">
         {chats.length === 0 ? (
-          <p className="text-xs text-default-500 text-center">{AI_ROOM_COPY.chatPanel.empty}</p>
+          <p className="text-xs text-default-500 text-center pt-[25%]">{AI_ROOM_COPY.chatPanel.empty}</p>
         ) : (
           chats.map(({ payload, original }) => {
             const isAgentResponse = payload.variant === 'model'
@@ -259,8 +259,8 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         )}
       </ScrollShadow>
 
-      <div className="border-t border-default-200 pt-3">
-        <div className="flex items-center gap-2">
+      <div className="">
+        <div className="flex items-center gap-2 pb-9 px-1">
           <Input
             placeholder={inputPlaceholder}
             value={input}

@@ -174,14 +174,14 @@ export const AI_ROOM_COPY = {
     titleReady: 'Agent chat',
     subtitleReady: 'Ask questions and get responses in real time.',
     empty: 'No messages yet. Ask your first question when the AI is ready.',
-    inputPlaceholderDisabled: 'AI is starting...',
-    inputPlaceholderReady: 'Ask a question...',
+    inputPlaceholderDisabled: 'Send a message to the model...',
+    inputPlaceholderReady: 'Send a message to the model...',
     send: 'Send',
   },
 
   setupPanel: {
     title: 'Model setup',
-    tabs: { local: 'LM Studio', openai: 'OpenAI' },
+    tabs: { local: 'Local', openai: 'OpenAI' },
 
     local: {
       urlLabel: 'Local model URL',

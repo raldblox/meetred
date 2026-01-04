@@ -5,7 +5,18 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea, Tooltip, ScrollShadow } from '@heroui/react'
-import { ChevronLeftIcon, UsersIcon, Video, X, ChevronDown, Bot, Paperclip, Radio, SendHorizontal } from 'lucide-react'
+import {
+  ChevronLeftIcon,
+  UsersIcon,
+  Video,
+  X,
+  ChevronDown,
+  Bot,
+  Paperclip,
+  Radio,
+  SendHorizontal,
+  Earth,
+} from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../../context/chat-ctx'
@@ -523,21 +534,22 @@ export default function ChatContainer() {
       </div>
       <div
         ref={messagePanelRef}
-        className={`col-span-1 lg:col-span-4 flex rounded-2xl flex-col min-h-0 h-full overflow-hidden ${
-          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-zinc-900' : ''
+        className={`col-span-1 lg:col-span-4  flex-col min-h-0 h-full overflow-hidden ${
+          roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-zinc-900 rounded-2xl' : 'flex'
         }`}
       >
         <div
-          className={`relative  h-12 p-3 flex items-center text-sm font-semibold text-default-800 ${
+          className={`relative h-12 flex items-center text-sm font-semibold text-default-800 ${
             roomId !== PUBLIC_CHAT_ROOM_ID ? 'border-b border-default-100' : ''
           }`}
         >
           {roomId === PUBLIC_CHAT_ROOM_ID && (
             <>
-              {/* <span className="flex text-lg font-semibold text-default-800 items-center gap-2">
-                <Earth className="h-5" /> 
-                {PUBLIC_CHAT_ROOM_NAME}
-              </span> */}
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-default-700">Public room</p>
+                <p className="text-[11px] uppercasee text-default-400">Visible to everyone</p>
+              </div>
+
               <button
                 aria-label="Toggle peer list"
                 className="ml-auto lg:hidden flex items-center text-default-500 hover:text-default-700"
@@ -655,15 +667,9 @@ export default function ChatContainer() {
             </Button>
           </div>
           <div className="w-full h-fit">
-            <div className="flex w-full items-start justify-between p-2">
-              <div className="flex flex-col">
-                <span className="text-tiny text-default-500">
-                  {roomId === PUBLIC_CHAT_ROOM_ID
-                    ? UI_COPY.composer.helper
-                    : `Direct message · ${roomId.toString().slice(-7)}`}
-                </span>
-              </div>
-            </div>
+            {roomId !== PUBLIC_CHAT_ROOM_ID && roomId && (
+              <span className="text-tiny text-default-500">Direct message · ${roomId.toString().slice(-7)}</span>
+            )}
 
             <div className="rounded-medium pt-1 bg-default-100 hover:bg-default-200/70 flex w-full flex-col items-start transition-colors">
               <Textarea

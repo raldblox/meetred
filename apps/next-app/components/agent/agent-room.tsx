@@ -111,15 +111,10 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   if (!isHost) {
     return (
       <>
-        <div className="mx-auto flex h-full min-h-0 max-w-4xl flex-col gap-4 p-4 overflow-hidden">
-          <Card className="border border-default-200 shadow-none h-full">
-            <CardHeader className="flex items-start justify-between gap-3 pb-1">
-              <div className="flex flex-col gap-1">
-                <p className="text-xs uppercase tracking-[0.4em] text-default-400">{AI_ROOM_COPY.chatPanel.titleReady}</p>
-                <h2 className="text-lg font-semibold text-default-900">{chatTitle}</h2>
-                <p className="text-xs text-default-500">{chatSubtitle}</p>
-                {modelStatus ? <p className="text-xs text-default-500">{modelStatus}</p> : null}
-              </div>
+        <div className="flex h-full min-h-0 mx-auto w-full flex-col gap-4 overflow-hidden">
+          <Card className=" bg-transparent p-0 shadow-none h-full">
+            <CardHeader className="flex px-0 items-start justify-between h-12 gap-3 pb-1">
+              <h2 className="text-lg font-semibold text-default-900">Agent Room</h2>
               <div className="flex items-center gap-2">
                 <Chip className="font-mono" size="sm" variant="flat">
                   {sessionTimer.formatted}
@@ -135,8 +130,10 @@ export function AgentRoom({ peerId }: { peerId: string }) {
                 />
               </div>
             </CardHeader>
-            <CardBody className="px-0 py-0 h-full">
-              <AgentChatPanel agentPeerId={hostPeerId} />
+            <CardBody className="grid md:grid-cols-6 p-0">
+              <div className="col-start-2 col-span-4">
+                <AgentChatPanel agentPeerId={hostPeerId} />
+              </div>
             </CardBody>
           </Card>
         </div>
@@ -147,39 +144,36 @@ export function AgentRoom({ peerId }: { peerId: string }) {
 
   return (
     <>
-      <div className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden">
-        <header className="flex h-12 items-center gap-2 rounded-sm border border-default-200 bg-background/70 p-3">
-          <Chip color={statusColorMap[hostStatus] ?? 'default'} size="sm" variant="dot">
-            {`Host - ${hostStatus}`}
-          </Chip>
-          {error ? <div className="text-sm text-danger">{error}</div> : null}
-          <div className="ml-auto flex items-center gap-2">
-            <Chip className="font-mono" size="sm" variant="flat">
-              {sessionTimer.formatted}
-            </Chip>
-            <Button
-              isIconOnly
-              aria-label="Share AI room"
-              radius="full"
-              size="sm"
-              startContent={<Share2 className="h-4 w-4" />}
-              variant="light"
-              onPress={openShareModal}
-            />
-          </div>
-        </header>
-
-        <div className="grid gap-4 lg:grid-cols-5 h-full min-h-0">
+      <div className="flex h-full min-h-0 w-full flex-col gap-6 overflow-hidden">
+        <div className="grid gap-6 lg:grid-cols-6 h-full min-h-0">
           <div className="h-full min-h-0">
             <ActivityCard hostEvents={hostEvents} hostPeerId={hostPeerId} />
+            {error ? <div className="text-sm text-danger">{error}</div> : null}
           </div>
-          <Card className="border md:col-span-3 rounded-sm border-default-200 shadow-none h-full">
-            <CardBody className="px-0 py-0 h-full">
+          <Card className="bg-transparent md:col-span-4 gap-4 rounded-sm shadow-none h-full">
+            <CardBody className="px-0 py-0 flex flex-col gap-3 h-full">
               <AgentChatPanel agentPeerId={hostPeerId} />
             </CardBody>
           </Card>
 
           <div className="flex flex-col gap-4 h-full min-h-0">
+            <div className="ml-auto flex items-center gap-2">
+              <Chip className="capitalize" color={statusColorMap[hostStatus] ?? 'default'} size="sm" variant="flat">
+                {hostStatus}
+              </Chip>
+              <Chip className="font-mono" size="sm" variant="flat">
+                {sessionTimer.formatted}
+              </Chip>
+              <Button
+                isIconOnly
+                aria-label="Share AI room"
+                radius="full"
+                size="sm"
+                startContent={<Share2 className="h-4 w-4" />}
+                variant="light"
+                onPress={openShareModal}
+              />
+            </div>
             <AgentManagerPanel
               agentState={agentState}
               authorized={authorized}
@@ -450,7 +444,7 @@ function AgentManagerPanel({
 function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPeerId: string }) {
   return (
     <Card className="h-full min-h-0 !p-0 border-none bg-transparent shadow-none">
-      <CardHeader className="flex !p-0 !text-left gap-1">
+      <CardHeader className="flex  h-12 !p-0 !text-left gap-1">
         <h2 className="text-lg font-semibold text-default-900">{AI_ROOM_COPY.logPanel.title}</h2>
       </CardHeader>
       <CardBody className="!px-0 h-full min-h-0">

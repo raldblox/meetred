@@ -11,6 +11,7 @@ import { HelpLauncher } from '../chat/help-launcher'
 
 import { UI_COPY } from '@/config/copy'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { Logo } from './icons'
 
 export const Navbar = () => {
   const { libp2p } = useLibp2pContext()
@@ -47,11 +48,12 @@ export const Navbar = () => {
       <NavbarContent className="basis-auto lg:basis-auto lg:col-span-1" justify="start">
         <NavbarBrand as="li" className="max-w-fit">
           <NextLink
-            className="flex rounded-sm aspect-square h-12 justify-center bg-primary gap-2 p-2 items-center"
+            className="flex rounded-sm aspect-square h-12 justify-center bg-primary/30 gap-2 p-2 items-center"
             href="/"
           >
-            <EarthLock className="h-7 text-background" />
-            {/* <Logo className="text-background" size={16} /> */}
+            {/* <h1 className="h-7 font-semibold text-primary">red</h1> */}
+            {/* <EarthLock className="h-7 text-primary" /> */}
+            <Logo className="text-primary shadow" size={20} />
           </NextLink>
         </NavbarBrand>
 
@@ -72,10 +74,10 @@ export const Navbar = () => {
           ))}
         </ul> */}
       </NavbarContent>
-      <NavbarContent className="hidden lg:flex text-default-400 lg:col-span-2 lg:col-start-2" justify="start">
-        <div className="flex flex-col text-xs">
-          <h1 className="font-semibold text-sm leading-tight">Meetred.</h1>
-          <span className="leading-tight">Live rooms. Paid by time.</span>
+      <NavbarContent className="hidden lg:flex lg:col-span-2 lg:col-start-2" justify="start">
+        <div className="flex flex-col text-xs gap-2">
+          <h1 className="font-semibold text-foreground leading-0 text-sm">Meetred.</h1>
+          <span className="leading-tight text-default-400">Live rooms. Paid by time.</span>
         </div>
       </NavbarContent>
 

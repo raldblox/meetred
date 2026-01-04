@@ -128,7 +128,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   return (
     <div className="lg:col-span-1 h-full">
       {!hideHeader && (
-        <div className="flex h-12 pr-2 items-center justify-between hover:bg-gradient-to-l rounded-sm from-zinc-900 to-transparent">
+        <div className="flex h-12 pr-2 items-center justify-between  rounded-sm hover:bg-gradient-to-l from-zinc-900 to-transparent">
           <h2 className="text-lg font-semibold text-default-800">Peers</h2>
           <Button
             size="sm"
@@ -144,7 +144,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
       )}
 
       <div className="overflow-auto h-full select-none">
-        <div className="transition-all flex items-center py-1.5 select-none">
+        <div className="transition-all flex items-center py-1.5 select-none hover:bg-gradient-to-l from-zinc-900 to-transparent">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
@@ -161,7 +161,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
             return (
               <div
                 key={p}
-                className={`transition-all rounded-sm flex py-1.5 hover:bg-default-100 items-center hover:pl-3 select-none ${isSelected ? 'border-primary px-3 bg-default-100/50' : 'border-primary/50'}`}
+                className={`transition-all rounded-sm flex py-1.5 items-center hover:pl-3 select-none ${isSelected ? 'border-primary px-3 bg-gradient-to-l from-zinc-800 to-transparent' : 'border-primary/50 hover:bg-gradient-to-l from-zinc-900 to-transparent'}`}
               >
                 <PeerWrapper
                   peer={id}
