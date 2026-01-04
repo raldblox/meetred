@@ -2,8 +2,9 @@
 
 import type { PeerId } from '@libp2p/interface'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { peerIdFromString } from '@libp2p/peer-id'
+import { RefreshCw } from 'lucide-react'
 
 import { PeerWrapper } from './peer'
 
@@ -11,17 +12,20 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
 import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/config/constants'
 import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat/chat-room'
+import { Button } from '@heroui/react'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
 }
 
 export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
-  const { libp2p } = useLibp2pContext()
+  const { libp2p, refreshPeerDiscovery } = useLibp2pContext()
   const { roomId, historySyncingPeerIds } = useChatContext()
   const [subscribers, setSubscribers] = useState<string[]>([])
   const [connectedPeers, setConnectedPeers] = useState<string[]>([])
   const [seenPeers, setSeenPeers] = useState<string[]>([])
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const onSubscriptionChange = () => {
@@ -71,6 +75,25 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     setConnectedPeers(Array.from(new Set(ids)))
   }, [libp2p])
 
+  const refreshPeers = useCallback(async () => {
+    if (refreshing) {
+      return
+    }
+
+    setRefreshing(true)
+
+    try {
+      await refreshPeerDiscovery()
+    } finally {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current)
+      }
+      refreshTimeoutRef.current = setTimeout(() => {
+        setRefreshing(false)
+      }, 900)
+    }
+  }, [refreshPeerDiscovery, refreshing])
+
   useEffect(() => {
     updateConnections()
 
@@ -86,6 +109,14 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     }
   }, [libp2p, updateConnections])
 
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const peerIds = Array.from(
     new Set([
       ...connectedPeers,
@@ -96,7 +127,21 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
 
   return (
     <div className="lg:col-span-1 h-full">
-      {!hideHeader && <h2 className="text-lg h-12 flex items-center font-semibold text-default-800">Peers</h2>}
+      {!hideHeader && (
+        <div className="flex h-12 pr-2 items-center justify-between hover:bg-gradient-to-l rounded-sm from-zinc-900 to-transparent">
+          <h2 className="text-lg font-semibold text-default-800">Peers</h2>
+          <Button
+            size="sm"
+            color={refreshing ? 'success' : 'default'}
+            isIconOnly
+            aria-label="Refresh peers"
+            variant="light"
+            onPress={refreshPeers}
+          >
+            <RefreshCw className={`h-4 w-4 opacity-50 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      )}
 
       <div className="overflow-auto h-full select-none">
         <div className="transition-all flex items-center py-1.5 select-none">

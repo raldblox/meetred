@@ -10,7 +10,7 @@ import type { Ping } from '@libp2p/ping'
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 
-import { startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
+import { refreshPeerDiscovery as refreshPeerDiscoveryLibp2p, startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 
 import { ChatProvider } from './chat-ctx'
 
@@ -39,6 +39,7 @@ interface Libp2pContextValue {
   createNewIdentity: () => Promise<void>
   rotatingIdentity: boolean
   importIdentity: (encodedKey: string) => Promise<void>
+  refreshPeerDiscovery: () => Promise<void>
 }
 
 export const Libp2pContext = createContext<Libp2pContextValue>({
@@ -47,6 +48,7 @@ export const Libp2pContext = createContext<Libp2pContextValue>({
   createNewIdentity: async () => {},
   rotatingIdentity: false,
   importIdentity: async () => {},
+  refreshPeerDiscovery: async () => {},
 })
 
 interface WrapperProps {
@@ -238,12 +240,24 @@ export function Libp2pProvider({ children }: WrapperProps) {
     [performRestart, rotatingIdentity],
   )
 
+  const refreshPeerDiscovery = useCallback(async () => {
+    if (!libp2p) {
+      return
+    }
+
+    try {
+      await refreshPeerDiscoveryLibp2p(libp2p)
+    } catch (e) {
+      log.error('failed to refresh peer discovery %o', e)
+    }
+  }, [libp2p])
+
   if (!libp2p) {
     return <Booting error={error} logLines={bootLogs} steps={bootSteps} />
   }
 
   return (
-    <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity }}>
+    <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity, refreshPeerDiscovery }}>
       <AnimatePresence>
         {!peerDiscoveryComplete ? (
           <Booting key="boot-overlay" error={error} logLines={bootLogs} steps={bootSteps} variant="overlay" />

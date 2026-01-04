@@ -612,7 +612,7 @@ export default function ChatContainer() {
             <ScrollShadow
               ref={messageListRef}
               hideScrollBar
-              className="h-full"
+              className="h-full scroll-smooth"
               offset={24}
               onScroll={handleMessageScroll}
             >
@@ -644,17 +644,15 @@ export default function ChatContainer() {
                 })}
               </ul>
             </ScrollShadow>
-            {!isMessageListAtBottom && (
-              <Button
-                isIconOnly
-                aria-label="Scroll to latest messages"
-                className="absolute bottom-4 right-0 flex items-center gap-2 rounded-full bg-foreground/30 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg transition hover:bg-foreground/30"
-                size="sm"
-                onPress={() => scrollMessagesToBottom('smooth')}
-              >
-                <ChevronDown size={16} />
-              </Button>
-            )}
+            <Button
+              isIconOnly
+              aria-label="Scroll to latest messages"
+              className={`${isMessageListAtBottom ? 'opacity-0' : 'opacity-100'} transition-all absolute bottom-4 right-0 flex items-center gap-2 rounded-full bg-foreground/30 text-xs font-semibold uppercase tracking-wide text-foreground shadow-lg hover:bg-foreground/30`}
+              size="sm"
+              onPress={() => scrollMessagesToBottom('smooth')}
+            >
+              <ChevronDown size={16} />
+            </Button>
           </div>
           <div className="w-full h-fit">
             <div className="flex w-full items-start justify-between p-2">
