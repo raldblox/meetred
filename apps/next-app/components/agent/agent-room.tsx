@@ -453,12 +453,15 @@ function ActivityCard({ hostEvents, hostPeerId }: { hostEvents: string[]; hostPe
             <p className="text-sm text-default-500">{AI_ROOM_COPY.logPanel.empty}</p>
           ) : (
             <ScrollShadow className="h-full max-h-full">
-              <ul className="space-y-1.5 text-sm text-default-800">
+              <ul className="space-y-1.5 text-xs text-default-500">
                 {hostEvents
                   .slice()
                   .reverse()
                   .map((entry, idx) => (
-                    <li key={`${entry}-${idx}`} className="rounded-xl bg-default-50 px-3 py-2 shadow-sm">
+                    <li
+                      key={`${entry}-${idx}`}
+                      className="rounded-sm py-1 hover:bg-gradient-to-l from-default-50 to-transparent"
+                    >
                       {entry}
                     </li>
                   ))}

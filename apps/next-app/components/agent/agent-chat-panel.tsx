@@ -212,7 +212,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-2xl shadow-sm">
+    <div className="flex h-full flex-col rounded-sm shadow-sm">
       <div className="flex flex-col gap-1 border-b border-default-200 pb-3">
         <p className="text-sm font-semibold text-default-700">{chatTitle}</p>
         <p className="text-[11px] uppercasee text-default-400">{chatSubtitle}</p>
@@ -221,7 +221,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         </p>
       </div>
 
-      <ScrollShadow hideScrollBar className="flex-1 min-h-0 space-y-4 py-3 pr-1">
+      <ScrollShadow hideScrollBar className="flex-1 min-h-0 py-6">
         {chats.length === 0 ? (
           <p className="text-xs text-default-500 text-center pt-[25%]">{AI_ROOM_COPY.chatPanel.empty}</p>
         ) : (
@@ -231,18 +231,20 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
             const displayName = isAgentResponse ? payload.modelId || 'Agent model' : senderId.slice(-7)
 
             return (
-              <div key={original.msgId} className="flex items-start gap-3">
+              <div
+                key={original.msgId}
+                className="flex items-start rounded-sm hover:bg-gradient-to-l py-2 pr-2 from-default-50 to-transparent gap-3"
+              >
                 {isAgentResponse ? (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-primary-300 bg-primary-100 text-primary-700">
+                  <div className="flex h-7 w-7 mt-1 items-center justify-center rounded-sm border border-primary-300 bg-primary-100 text-primary-700">
                     <Bot className="h-5 w-5" />
                   </div>
                 ) : (
-                  <Blockies className="rounded-sm h-8" scale={10} seed={senderId} size={8} />
+                  <Blockies className="rounded-sm h-7 mt-1" scale={10} seed={senderId} size={8} />
                 )}
-                <div className="flex-1">
-                  <div className="flex items-start gap-2 text-[11px] uppercase tracking-wide text-default-400">
+                <div className="flex-1 space-y-1">
+                  <div className="flex gap-2 text-[11px] uppercase tracking-wide text-default-400">
                     <span className="font-semibold text-default-600 ">{displayName}</span>
-
                     <span>
                       {new Date(original.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -260,7 +262,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
       </ScrollShadow>
 
       <div className="">
-        <div className="flex items-center gap-2 pb-9 px-1">
+        <div className="flex items-center gap-2 pb-9">
           <Input
             placeholder={inputPlaceholder}
             value={input}
