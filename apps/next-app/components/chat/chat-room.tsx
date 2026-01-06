@@ -523,13 +523,13 @@ export default function ChatContainer() {
       </div>
       <div
         ref={messagePanelRef}
-        className={`col-span-1 lg:col-span-4  flex-col min-h-0 h-full overflow-hidden ${
+        className={`col-span-1 lg:col-span-4 flex flex-col min-h-0 h-full overflow-hidden ${
           roomId !== PUBLIC_CHAT_ROOM_ID ? 'bg-zinc-900 rounded-2xl' : 'flex'
         }`}
       >
         <div
           className={`relative h-12 flex items-center text-sm font-semibold text-default-800 ${
-            roomId !== PUBLIC_CHAT_ROOM_ID ? 'border-b border-default-100' : ''
+            roomId !== PUBLIC_CHAT_ROOM_ID ? 'border-b  px-3 border-default-100' : ''
           }`}
         >
           {roomId === PUBLIC_CHAT_ROOM_ID && (
