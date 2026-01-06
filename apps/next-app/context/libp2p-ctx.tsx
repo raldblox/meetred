@@ -257,7 +257,9 @@ export function Libp2pProvider({ children }: WrapperProps) {
   }
 
   return (
-    <Libp2pContext.Provider value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity, refreshPeerDiscovery }}>
+    <Libp2pContext.Provider
+      value={{ libp2p, createNewIdentity, rotatingIdentity, importIdentity, refreshPeerDiscovery }}
+    >
       <AnimatePresence>
         {!peerDiscoveryComplete ? (
           <Booting key="boot-overlay" error={error} logLines={bootLogs} steps={bootSteps} variant="overlay" />

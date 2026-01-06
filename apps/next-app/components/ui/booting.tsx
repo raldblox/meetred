@@ -12,6 +12,7 @@ import {
   type BootPhase,
   type BootPhaseState,
 } from '@/lib/boot-status'
+import TrueFocus from './text-focus'
 
 type BootLogLine = { id: string; text: string; createdAt: number; phase: BootPhase; state: BootPhaseState }
 
@@ -27,7 +28,7 @@ const DISPLAY_HEIGHT = 'h-[3rem]'
 export function Booting({ error, steps = [], variant = 'standalone', logLines = [] }: Props) {
   const containerClass = clsx(
     'grid place-items-center px-6',
-    variant === 'overlay' ? 'fixed inset-0 z-50 bg-background backdrop-blur-sm' : 'min-h-screen',
+    variant === 'overlay' ? 'fixed inset-0 z-50 saturation-150 bg-background/50 backdrop-blur-md' : 'min-h-screen',
   )
 
   const focusedStep = useMemo(() => {
@@ -91,7 +92,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
     const timeout = setTimeout(() => {
       setReadyLine({
         id: `boot-ready-${Date.now()}`,
-        text: 'Connections ready. Welcome!',
+        text: 'Welcome to meetred!',
         createdAt: Date.now(),
         phase: latestLog.phase,
         state: latestLog.state,
@@ -126,7 +127,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
       combined = [...filteredBase.filter((line) => `${line.phase}-${line.state}` !== readyKey), readyLine]
     }
 
-    return combined.slice(-3)
+    return combined.slice(-5)
   }, [fallbackLine, logLines, readyLine])
 
   const overlayMotionProps =
@@ -134,7 +135,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
       ? {
           initial: false,
           exit: { opacity: 0 },
-          transition: { duration: 0.2, ease: 'easeOut' },
+          transition: { duration: 0.25, ease: 'easeOut' },
         }
       : {}
 
@@ -143,21 +144,28 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 text-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <Logo className="text-primary" size={64} />
+          <TrueFocus
+            sentence="meet red .app"
+            manualMode={false}
+            blurAmount={1.5}
+            borderColor="red"
+            animationDuration={0.6}
+            pauseBetweenAnimations={0.1}
+          />
           <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You&apos;re joining live.</p>
         </div>
 
-        <div className="w-full max-w-sm px-4">
+        <div className="w-full max-w-sm mt-12 px-4">
           <div
             aria-live="polite"
             className={clsx(
-              'flex w-full flex-col justify-end gap-0 overflow-hidden font-mono text-center text-sm text-default-600',
+              'flex w-full flex-col justify-end gap-0 font-mono text-center text-sm text-default-600',
               DISPLAY_HEIGHT,
             )}
           >
             <AnimatePresence mode="popLayout">
               {displayLines.map((line, idx, arr) => {
                 const age = arr.length - 1 - idx
-
                 return <TerminalLine key={line.id} age={age} text={line.text} />
               })}
             </AnimatePresence>
@@ -171,9 +179,9 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
 }
 
 function TerminalLine({ text, age }: { text: string; age: number }) {
-  const opacities = [1, 0.65, 0.25]
-  const offsets = [0, -8, -16]
-  const clampedAge = Math.min(age, 2)
+  const opacities = [1, 0.8, 0.6, 0.4, 0.2]
+  const offsets = [0, -8, -16, -24, -30]
+  const clampedAge = Math.min(age, 4)
   const targetOpacity = opacities[clampedAge]
   const targetOffset = offsets[clampedAge]
 
