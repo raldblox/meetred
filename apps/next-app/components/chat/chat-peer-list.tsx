@@ -161,7 +161,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
             return (
               <div
                 key={p}
-                className={`transition-all rounded-sm flex py-1.5 items-center hover:pl-3 select-none ${isSelected ? 'border-primary px-3 bg-gradient-to-l from-zinc-800 to-transparent' : 'border-primary/50 hover:bg-gradient-to-l from-zinc-900 to-transparent'}`}
+                className={`transition-all rounded-sm flex py-1.5 items-center hover:pl-3 select-none ${isSelected ? 'border-primary px-1.5 bg-gradient-to-l from-zinc-800 to-transparent' : 'border-primary/50 hover:bg-gradient-to-l from-zinc-900 to-transparent'}`}
               >
                 <PeerWrapper
                   peer={id}
