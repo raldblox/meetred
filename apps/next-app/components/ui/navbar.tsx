@@ -74,9 +74,9 @@ export const Navbar = () => {
           ))}
         </ul> */}
       </NavbarContent>
-      <NavbarContent className="hidden lg:flex lg:col-span-2 lg:col-start-2" justify="start">
-        <div className="flex flex-col text-xs gap-2">
-          <h1 className="font-semibold text-foreground leading-0 text-sm">Meetred.</h1>
+      <NavbarContent className="hidden lg:flex items-center  lg:col-span-2 lg:col-start-2" justify="start">
+        <div className="flex flex-col justify-center h-full text-xs gap-1">
+          <h1 className="font-semibold text-foreground text-sm">Meetred.</h1>
           <span className="leading-tight text-default-400">Live rooms. Paid by time.</span>
         </div>
       </NavbarContent>

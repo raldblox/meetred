@@ -21,6 +21,7 @@ import { createLMStudioChatCompletion } from '@/lib/lmstudio'
 import { createOpenAIChatCompletion } from '@/lib/openai'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
 import { AI_ROOM_COPY } from '@/config/copy'
+import ShinyText from '../ui/shiny-text'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -233,7 +234,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
             return (
               <div
                 key={original.msgId}
-                className="flex items-start rounded-sm hover:bg-gradient-to-l py-2 pr-2 from-default-50 to-transparent gap-3"
+                className="flex items-start transition-all hover:translate-x-0.5 rounded-sm hover:bg-gradient-to-l py-2 pr-2 from-default-50 to-transparent gap-3"
               >
                 {isAgentResponse ? (
                   <div className="flex h-7 w-7 mt-1 items-center justify-center rounded-sm border border-primary-300 bg-primary-100 text-primary-700">
@@ -244,7 +245,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
                 )}
                 <div className="flex-1 space-y-1">
                   <div className="flex gap-2 text-[11px] uppercase tracking-wide text-default-400">
-                    <span className="font-semibold text-default-600 ">{displayName}</span>
+                    <span className="font-semibold text-default-500 ">{displayName}</span>
                     <span>
                       {new Date(original.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -301,23 +302,23 @@ function ChatBubble({
   const isAgentResponse = payload.variant === 'model'
 
   const bubbleClass = clsx(
-    'w-fit max-w-full rounded-sm border px-3 py-2 text-sm shadow-sm',
+    'w-fit max-w-full rounded-sm border border-transparent text-sm shadow-sm',
     isAgentResponse
       ? payload.status === 'pending'
-        ? 'border-primary-200 bg-primary-50 text-primary-700 animate-pulse'
+        ? 'border-primary-200 text-primary-700 animate-pulse'
         : payload.status === 'error'
-          ? 'border-danger-200 bg-danger-50 text-danger-600'
-          : 'border-primary-200 bg-primary-100 text-primary-900'
+          ? 'border-danger-200 text-danger-600'
+          : 'border-primary-200 text-default-600'
       : isHostMessage
-        ? 'border-success-200 bg-success-100 text-success-900'
+        ? 'border-success-200 text-success-900'
         : isSelf
-          ? 'border-secondary-200 bg-secondary-100 text-secondary-900'
-          : 'border-default-200 bg-default-100 text-default-800',
+          ? 'border-secondary-200 text-secondary-900'
+          : 'border-default-200 text-default-800',
   )
 
   if (isAgentResponse) {
     if (payload.status === 'pending') {
-      return <div className={bubbleClass}>Agent is thinking...</div>
+      return <ShinyText text="Thinking..." disabled={false} speed={3} className="text-sm" />
     }
 
     return (

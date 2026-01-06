@@ -710,7 +710,7 @@ export default function ChatContainer() {
                 onKeyDown={handleKeyDown}
               />
               <div className="flex w-full items-end justify-between gap-2 overflow-auto px-4 pb-4">
-                <div className="flex w-full gap-1 md:gap-3">
+                <div className="flex w-full gap-1 md:gap-1.5">
                   <>
                     <Input
                       ref={fileRef}
@@ -726,6 +726,7 @@ export default function ChatContainer() {
                       radius="sm"
                     >
                       <Button
+                        size="sm"
                         className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} gap-1`}
                         disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
                         isIconOnly={isMobile}
@@ -738,6 +739,7 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="secondary" content={UI_COPY.tooltips.composer.aiRoom} placement="top" radius="sm">
                       <Button
+                        size="sm"
                         className="border-1 border-default-100 gap-1"
                         color="secondary"
                         isDisabled={sending}
@@ -751,6 +753,7 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="primary" content={UI_COPY.tooltips.composer.stream} placement="top" radius="sm">
                       <Button
+                        size="sm"
                         className="border-1 border-default-100 gap-1"
                         color="primary"
                         isDisabled={sending}
@@ -764,6 +767,7 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="success" content={UI_COPY.tooltips.composer.call} placement="top" radius="sm">
                       <Button
+                        size="sm"
                         className="border-1 border-default-100 gap-1"
                         color="success"
                         isDisabled={sending}
