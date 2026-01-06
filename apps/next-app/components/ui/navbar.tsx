@@ -3,15 +3,16 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button, Tooltip } from '@heroui/react'
-import { Earth, MessagesSquare, Radio, Video, Bot, EarthLock } from 'lucide-react'
+import { MessagesSquare, Radio, Video, Bot } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
 import { HelpLauncher } from '../chat/help-launcher'
 
+import { Logo } from './icons'
+
 import { UI_COPY } from '@/config/copy'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { Logo } from './icons'
 
 export const Navbar = () => {
   const { libp2p } = useLibp2pContext()

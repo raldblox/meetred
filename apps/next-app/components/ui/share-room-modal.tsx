@@ -2,12 +2,11 @@
 
 import React, { useMemo } from 'react'
 import { Button, Modal, ModalBody, ModalContent, ModalHeader, Snippet } from '@heroui/react'
-import ReactQRCode from 'react-qr-code'
-import { Facebook, Linkedin, Share2 } from 'lucide-react'
-
-import { SHARE_COPY, type RoomType, type SharePlatform } from '@/config/share'
+import { Facebook, Linkedin } from 'lucide-react'
 
 import { TwitterIcon } from './icons'
+
+import { SHARE_COPY, type RoomType, type SharePlatform } from '@/config/share'
 
 interface ShareRoomModalProps {
   isOpen: boolean
@@ -32,12 +31,15 @@ export function ShareRoomModal({
 
   const getCopy = (platform: SharePlatform) => {
     const platformCopy = SHARE_COPY[roomType]?.[platform]
+
     if (platformCopy) return platformCopy
+
     return SHARE_COPY[roomType]?.generic ?? SHARE_COPY.public.generic
   }
 
   const buildShareText = (platform: SharePlatform) => {
     const copy = getCopy(platform)
+
     return `${copy.title}\n\n${copy.description}\n\n${shareUrl || ''}`.trim()
   }
 
@@ -118,8 +120,8 @@ export function ShareRoomModal({
                       color="primary"
                       href={target.href}
                       isDisabled={!target.href}
-                      rel="noreferrer"
                       radius="sm"
+                      rel="noreferrer"
                       startContent={target.icon}
                       target="_blank"
                       variant="solid"

@@ -282,6 +282,7 @@ export const connectToMultiaddr = (libp2p: Libp2p) => async (multiaddr: Multiadd
 
 export async function refreshPeerDiscovery(libp2p: Libp2pType): Promise<void> {
   const payload = new TextEncoder().encode(`refresh:${Date.now()}`)
+
   await libp2p.services.pubsub.publish(PUBSUB_PEER_DISCOVERY, payload)
 }
 

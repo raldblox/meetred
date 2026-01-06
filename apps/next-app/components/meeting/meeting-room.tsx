@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Chip, Modal, ModalBody, ModalContent, ModalHeader, useDisclosure } from '@heroui/react'
+import { Button, Chip, Modal, ModalContent, useDisclosure } from '@heroui/react'
 import { motion } from 'framer-motion'
 import {
   Camera,
@@ -78,6 +78,7 @@ export default function RoomPage({ roomId }: { roomId: string }) {
   const allowSessionStart = true // Master gate: placeholder until wallet/access control is added
 
   const lastTimerStateRef = useRef(false)
+
   useEffect(() => {
     const shouldRun = allowSessionStart && isCalling
 
@@ -592,10 +593,10 @@ export default function RoomPage({ roomId }: { roomId: string }) {
         </ModalContent>
       </Modal>
       <ShareRoomModal
+        showQrCode
         isOpen={isShareModalOpen}
         roomType="call"
         shareUrl={shareableLink}
-        showQrCode
         subtitle="Share the link, social post, or QR to join instantly."
         title="Share call room"
         onOpenChange={onShareModalOpenChange}

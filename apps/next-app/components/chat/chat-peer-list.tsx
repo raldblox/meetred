@@ -5,6 +5,7 @@ import type { PeerId } from '@libp2p/interface'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { RefreshCw } from 'lucide-react'
+import { Button } from '@heroui/react'
 
 import { PeerWrapper } from './peer'
 
@@ -12,7 +13,6 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
 import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/config/constants'
 import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat/chat-room'
-import { Button } from '@heroui/react'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -131,10 +131,10 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
         <div className="flex h-12 pr-2 items-center justify-between rounded-sm hover:bg-gradient-to-l from-zinc-900 to-transparent">
           <h2 className="text-lg font-semibold text-default-800">Peers</h2>
           <Button
-            size="sm"
-            color={refreshing ? 'success' : 'default'}
             isIconOnly
             aria-label="Refresh peers"
+            color={refreshing ? 'success' : 'default'}
+            size="sm"
             variant="light"
             onPress={refreshPeers}
           >

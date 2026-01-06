@@ -139,6 +139,7 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     if (!helpOpen) {
       const scrollers = document.querySelectorAll('[data-help-scroll]')
+
       scrollers.forEach((el) => {
         if (el instanceof HTMLElement) el.scrollTop = 0
       })
@@ -152,6 +153,7 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     if (!filteredTopics.find((t) => t.slug === activeHelp)) {
       const fallback = filteredTopics[0]?.slug
+
       if (fallback) {
         setActiveHelp(fallback)
         if (helpOpen) {
@@ -160,6 +162,7 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
       }
     }
   }, [activeHelp, filteredTopics, helpOpen, loadHelp])
+
   return (
     <>
       <Button
@@ -168,12 +171,12 @@ export function HelpLauncher({ compact = false }: { compact?: boolean }) {
         }
         color="success"
         size="sm"
+        startContent={<CircleHelp className="h-4 w-4" />}
         variant="flat"
         onPress={() => {
           setHelpOpen(true)
           loadHelp(activeHelp ?? 'user-overview')
         }}
-        startContent={<CircleHelp className="h-4 w-4" />}
       >
         Help
       </Button>

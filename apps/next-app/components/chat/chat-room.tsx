@@ -5,18 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Blockies from 'react-18-blockies'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { Button, Input, Spinner, Textarea, Tooltip, ScrollShadow } from '@heroui/react'
-import {
-  ChevronLeftIcon,
-  UsersIcon,
-  Video,
-  X,
-  ChevronDown,
-  Bot,
-  Paperclip,
-  Radio,
-  SendHorizontal,
-  Earth,
-} from 'lucide-react'
+import { ChevronLeftIcon, UsersIcon, Video, X, ChevronDown, Bot, Paperclip, Radio, SendHorizontal } from 'lucide-react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 import { ChatFile, ChatMessage, useChatContext } from '../../context/chat-ctx'
@@ -687,10 +676,10 @@ export default function ChatContainer() {
                       radius="sm"
                     >
                       <Button
+                        isIconOnly
                         className="border-1 border-default-100"
                         color={input ? 'primary' : 'default'}
                         isDisabled={sending}
-                        isIconOnly
                         type="submit"
                         variant="solid"
                         onPress={handleSend}
@@ -726,10 +715,10 @@ export default function ChatContainer() {
                       radius="sm"
                     >
                       <Button
-                        size="sm"
                         className={`${roomId === PUBLIC_CHAT_ROOM_ID ? '' : 'cursor-not-allowed'} gap-1`}
                         disabled={roomId !== PUBLIC_CHAT_ROOM_ID}
                         isIconOnly={isMobile}
+                        size="sm"
                         startContent={<Paperclip size={16} />}
                         variant="flat"
                         onPress={handleFileSend}
@@ -739,11 +728,11 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="secondary" content={UI_COPY.tooltips.composer.aiRoom} placement="top" radius="sm">
                       <Button
-                        size="sm"
                         className="border-1 border-default-100 gap-1"
                         color="secondary"
                         isDisabled={sending}
                         isIconOnly={isMobile}
+                        size="sm"
                         startContent={<Bot size={16} />}
                         variant="flat"
                         onPress={handleSendAgentInvite}
@@ -753,11 +742,11 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="primary" content={UI_COPY.tooltips.composer.stream} placement="top" radius="sm">
                       <Button
-                        size="sm"
                         className="border-1 border-default-100 gap-1"
                         color="primary"
                         isDisabled={sending}
                         isIconOnly={isMobile}
+                        size="sm"
                         startContent={<Radio size={16} />}
                         variant="flat"
                         onPress={handleSendStreamInvite}
@@ -767,11 +756,11 @@ export default function ChatContainer() {
                     </Tooltip>
                     <Tooltip color="success" content={UI_COPY.tooltips.composer.call} placement="top" radius="sm">
                       <Button
-                        size="sm"
                         className="border-1 border-default-100 gap-1"
                         color="success"
                         isDisabled={sending}
                         isIconOnly={isMobile}
+                        size="sm"
                         startContent={<Video size={16} />}
                         variant="flat"
                         onPress={handleSendMeetingInvite}

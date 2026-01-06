@@ -75,19 +75,21 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   const shareableLink = useMemo(() => {
     if (typeof window === 'undefined') return ''
     const url = new URL(window.location.origin)
+
     url.pathname = `/agent/${shareTargetPeerId}`
     if (!url.searchParams.has('autoJoin')) {
       url.searchParams.set('autoJoin', 'true')
     }
+
     return url.toString()
   }, [shareTargetPeerId])
 
   const shareModal = (
     <ShareRoomModal
+      showQrCode
       isOpen={isShareModalOpen}
       roomType="ai"
       shareUrl={shareableLink}
-      showQrCode
       subtitle="Share the AI room link or a pre-filled post."
       title="Share AI room"
       onOpenChange={onShareModalOpenChange}
@@ -95,6 +97,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   )
 
   const modelReady = authorized && agentState.status === 'ready'
+
   useEffect(() => {
     const shouldRun = allowSessionStart && modelReady
 

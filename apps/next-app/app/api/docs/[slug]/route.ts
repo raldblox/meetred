@@ -30,7 +30,7 @@ const DOCS_MAP: Record<string, string> = {
   'dev-threat': path.join('developer', 'THREAT_MODEL.md'),
   'dev-open': path.join('developer', 'OPEN_QUESTIONS.md'),
   // Legacy aliases to keep links working
-  'summary': path.join('user', 'OVERVIEW.md'),
+  summary: path.join('user', 'OVERVIEW.md'),
   'start-here': path.join('user', 'START_HERE.md'),
   'what-is-meetred': path.join('user', 'OVERVIEW.md'),
   'public-room': path.join('user', 'PUBLIC_ROOM.md'),

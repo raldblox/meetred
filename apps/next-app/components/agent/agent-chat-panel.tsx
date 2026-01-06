@@ -11,6 +11,8 @@ import clsx from 'clsx'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+import ShinyText from '../ui/shiny-text'
+
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { AGENT_CHAT_TOPIC } from '@/config/constants'
@@ -21,7 +23,6 @@ import { createLMStudioChatCompletion } from '@/lib/lmstudio'
 import { createOpenAIChatCompletion } from '@/lib/openai'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
 import { AI_ROOM_COPY } from '@/config/copy'
-import ShinyText from '../ui/shiny-text'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -318,7 +319,7 @@ function ChatBubble({
 
   if (isAgentResponse) {
     if (payload.status === 'pending') {
-      return <ShinyText text="Thinking..." disabled={false} speed={3} className="text-sm" />
+      return <ShinyText className="text-sm" disabled={false} speed={3} text="Thinking..." />
     }
 
     return (

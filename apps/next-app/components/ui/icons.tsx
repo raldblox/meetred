@@ -4,10 +4,10 @@ import { IconSvgProps } from '@/types'
 
 export const Logo: React.FC<IconSvgProps> = ({ size = 18, width, height, ...props }) => (
   <svg fill="none" height={size || height} viewBox="0 0 633 633" width={size || width} {...props}>
-    <rect y="435" width="198" height="198" fill="currentColor" />
+    <rect fill="currentColor" height="198" width="198" y="435" />
     <path d="M217 217H415V633H217V217Z" fill="currentColor" />
-    <rect width="198" height="416" fill="currentColor" />
-    <rect x="435.5" y="0.5" width="197" height="632" fill="currentColor" />
+    <rect fill="currentColor" height="416" width="198" />
+    <rect fill="currentColor" height="632" width="197" x="435.5" y="0.5" />
   </svg>
 )
 

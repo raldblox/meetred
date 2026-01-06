@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Chip, useDisclosure } from '@heroui/react'
 import { Gift, LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, Share2, X } from 'lucide-react'
 
-import { ThemeSwitch } from '../ui/theme-switch'
 import { ShareRoomModal } from '../ui/share-room-modal'
 
 import { StreamChatPanel } from './stream-chat-panel'
@@ -120,12 +119,9 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   }, [isHost, stopViewing])
 
   const lastTimerStateRef = useRef(false)
+
   useEffect(() => {
-    const shouldRun =
-      allowSessionStart &&
-      (isHost
-        ? status === 'live'
-        : status === 'live' && Boolean(remoteStream)) // viewers pay only when consuming
+    const shouldRun = allowSessionStart && (isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)) // viewers pay only when consuming
 
     if (shouldRun && !lastTimerStateRef.current) {
       sessionTimer.reset()
@@ -153,10 +149,12 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const shareableLink = useMemo(() => {
     if (typeof window === 'undefined') return ''
     const url = new URL(window.location.origin)
+
     url.pathname = `/stream/${streamId}`
     if (!url.searchParams.has('autoplay')) {
       url.searchParams.set('autoplay', 'true')
     }
+
     return url.toString()
   }, [streamId])
 

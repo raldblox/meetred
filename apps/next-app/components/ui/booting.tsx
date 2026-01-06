@@ -3,6 +3,8 @@ import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import { Logo } from './icons'
+import TrueFocus from './text-focus'
+import ShinyText from './shiny-text'
 
 import {
   PRIMARY_BOOT_PHASES,
@@ -12,8 +14,6 @@ import {
   type BootPhase,
   type BootPhaseState,
 } from '@/lib/boot-status'
-import TrueFocus from './text-focus'
-import ShinyText from './shiny-text'
 
 type BootLogLine = { id: string; text: string; createdAt: number; phase: BootPhase; state: BootPhaseState }
 
@@ -146,12 +146,12 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
         <div className="flex flex-col items-center justify-center gap-6">
           <Logo className="text-primary" size={64} />
           <TrueFocus
-            sentence="meet red .app"
-            manualMode={false}
+            animationDuration={0.6}
             blurAmount={1.5}
             borderColor="red"
-            animationDuration={0.6}
+            manualMode={false}
             pauseBetweenAnimations={0.1}
+            sentence="meet red .app"
           />
           <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You&apos;re joining live.</p>
         </div>
@@ -167,6 +167,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
             <AnimatePresence mode="popLayout">
               {displayLines.map((line, idx, arr) => {
                 const age = arr.length - 1 - idx
+
                 return <TerminalLine key={line.id} age={age} text={line.text} />
               })}
             </AnimatePresence>
@@ -195,7 +196,7 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
       layout="position"
       transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      {age == 0 ? <ShinyText text={text} disabled={false} speed={3} className="text-[11px]" /> : text}
+      {age == 0 ? <ShinyText className="text-[11px]" disabled={false} speed={3} text={text} /> : text}
     </motion.div>
   )
 }

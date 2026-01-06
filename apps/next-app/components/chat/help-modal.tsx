@@ -3,7 +3,7 @@
 import React, { type ComponentProps } from 'react'
 import ReactMarkdown, { type Components as MarkdownComponents } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Modal, ModalBody, ModalContent, ModalHeader, Tabs, Tab, Button, ScrollShadow } from '@heroui/react'
+import { Modal, ModalBody, ModalContent, ModalHeader, Tabs, Tab, ScrollShadow } from '@heroui/react'
 
 export interface Topic {
   slug: string
@@ -121,13 +121,13 @@ export function HelpModal({
         </ModalHeader>
         <ModalBody className="p-0">
           <div className="flex h-[65vh] w-full">
-            <div className="w-72 border-r border-default-200 bg-default-50 flex flex-col" data-help-scroll>
+            <div data-help-scroll className="w-72 border-r border-default-200 bg-default-50 flex flex-col">
               <div className="p-4 space-y-2 border-b border-default-200">
                 <Tabs
                   aria-label="Help audience"
                   color="primary"
-                  size="sm"
                   selectedKey={audience}
+                  size="sm"
                   variant="solid"
                   onSelectionChange={(key) => onAudienceChange(key as 'user' | 'developer')}
                 >
@@ -152,7 +152,7 @@ export function HelpModal({
                 ))}
               </ScrollShadow>
             </div>
-            <div className="flex-1 overflow-auto p-6" data-help-scroll>
+            <div data-help-scroll className="flex-1 overflow-auto p-6">
               {loading ? (
                 <p className="text-sm text-default-500">Loading...</p>
               ) : (
