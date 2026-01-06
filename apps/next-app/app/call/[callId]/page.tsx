@@ -1,10 +1,10 @@
-import RoomPage from '@/components/meeting/meeting-room'
+import { CallRoom } from '@/components/call/call-room'
 import { Navbar } from '@/components/ui/navbar'
 
-export default async function Room({ params }: { params: Promise<{ roomId: string }> }) {
-  const { roomId } = await params
+export default async function Call({ params }: { params: Promise<{ callId: string }> }) {
+  const { callId } = await params
 
-  if (!roomId) {
+  if (!callId) {
     return <div>Peer ID is required</div>
   }
 
@@ -12,7 +12,7 @@ export default async function Room({ params }: { params: Promise<{ roomId: strin
     <div className="relative text-foreground bg-background flex flex-col h-screen overflow-y-scroll md:overflow-y-hidden">
       <Navbar />
       <main className="px-6 bg-background border-default-100 w-full flex flex-col flex-grow min-h-0">
-        <RoomPage roomId={roomId} />
+        <CallRoom callId={callId} />
       </main>
 
       <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between">
