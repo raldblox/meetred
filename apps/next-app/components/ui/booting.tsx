@@ -13,6 +13,7 @@ import {
   type BootPhaseState,
 } from '@/lib/boot-status'
 import TrueFocus from './text-focus'
+import ShinyText from './shiny-text'
 
 type BootLogLine = { id: string; text: string; createdAt: number; phase: BootPhase; state: BootPhaseState }
 
@@ -186,7 +187,7 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
   const targetOffset = offsets[clampedAge]
 
   return (
-    <motion.p
+    <motion.div
       animate={{ opacity: targetOpacity, y: targetOffset }}
       className="flex items-center justify-center text-[11px] leading-none"
       exit={{ opacity: 0, y: -20 }}
@@ -194,7 +195,7 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
       layout="position"
       transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      {text}
-    </motion.p>
+      {age == 0 ? <ShinyText text={text} disabled={false} speed={3} className="text-[11px]" /> : text}
+    </motion.div>
   )
 }
