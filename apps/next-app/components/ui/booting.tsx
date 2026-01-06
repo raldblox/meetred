@@ -147,11 +147,11 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
           <Logo className="text-primary" size={64} />
           <TrueFocus
             animationDuration={0.6}
-            blurAmount={1.5}
+            blurAmount={0}
             borderColor="red"
             manualMode={false}
             pauseBetweenAnimations={0.1}
-            sentence="meet red .app"
+            sentence="Meet red .io"
           />
           <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You&apos;re joining live.</p>
         </div>
@@ -196,7 +196,7 @@ function TerminalLine({ text, age }: { text: string; age: number }) {
       layout="position"
       transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      {age == 0 ? <ShinyText className="text-[11px]" disabled={false} speed={3} text={text} /> : text}
+      {age == 0 ? <ShinyText className="text-[11px]" disabled={false} speed={2} text={text} /> : text}
     </motion.div>
   )
 }
