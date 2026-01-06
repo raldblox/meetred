@@ -28,7 +28,7 @@ export const Navbar = () => {
     },
     {
       label: UI_COPY.nav.call,
-      href: selfId ? `/room/${selfId}` : '/room',
+      href: selfId ? `/call/${selfId}` : '/call',
       icon: Video,
       tooltip: UI_COPY.tooltips.nav.call,
     },

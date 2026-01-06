@@ -86,7 +86,7 @@ const TrueFocus: React.FC<TrueFocusProps> = ({
             ref={(el) => {
               wordRefs.current[index] = el
             }}
-            className="relative text-xl font-black cursor-pointer"
+            className={`relative text-xl font-black duration-500 !transition-all text-foreground cursor-pointer ${isActive && 'text-primary/100'}`}
             style={
               {
                 filter: manualMode
@@ -115,7 +115,7 @@ const TrueFocus: React.FC<TrueFocusProps> = ({
           height: focusRect.height,
           opacity: currentIndex >= 0 ? 1 : 0,
         }}
-        className="absolute top-0 left-0 pointer-events-none box-border border-0"
+        className="absolute bg-primary/10 top-0 left-0 pointer-events-none box-border border-0"
         style={
           {
             '--border-color': borderColor,
@@ -127,28 +127,28 @@ const TrueFocus: React.FC<TrueFocusProps> = ({
         }}
       >
         <span
-          className="absolute w-1.5 h-1.5 border-1 top-[-1px] left-[-6px] border-r-0 border-b-0"
+          className="absolute w-1.5 h-1.5 border-1 top-[-0px] left-[-3px] border-r-0 border-b-0"
           style={{
             borderColor: 'var(--border-color)',
             filter: 'drop-shadow(0 0 2px var(--border-color))',
           }}
         />
         <span
-          className="absolute w-1.5 h-1.5 border-1 top-[-1px] right-[-6px] border-l-0 border-b-0"
+          className="absolute w-1.5 h-1.5 border-1 top-[-1px] right-[-3px] border-l-0 border-b-0"
           style={{
             borderColor: 'var(--border-color)',
             filter: 'drop-shadow(0 0 2px var(--border-color))',
           }}
         />
         <span
-          className="absolute w-1.5 h-1.5 border-1 bottom-[-1px] left-[-6px] border-r-0 border-t-0"
+          className="absolute w-1.5 h-1.5 border-1 bottom-[-0px] left-[-3px] border-r-0 border-t-0"
           style={{
             borderColor: 'var(--border-color)',
             filter: 'drop-shadow(0 0 2px var(--border-color))',
           }}
         />
         <span
-          className="absolute w-1.5 h-1.5 border-1 bottom-[-1px] right-[-6px] border-l-0 border-t-0"
+          className="absolute w-1.5 h-1.5 border-1 bottom-[-0px] right-[-3px] border-l-0 border-t-0"
           style={{
             borderColor: 'var(--border-color)',
             filter: 'drop-shadow(0 0 2px var(--border-color))',
