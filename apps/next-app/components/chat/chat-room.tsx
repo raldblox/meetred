@@ -743,7 +743,7 @@ export default function ChatContainer() {
                     <Tooltip color="primary" content={UI_COPY.tooltips.composer.stream} placement="top" radius="sm">
                       <Button
                         className="border-1 border-default-100 gap-1"
-                        color="primary"
+                        color="danger"
                         isDisabled={sending}
                         isIconOnly={isMobile}
                         size="sm"
