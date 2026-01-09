@@ -125,7 +125,9 @@ export function CallProvider({ callId, children }: { callId: string; children: R
     setParticipantsMap((prev) => {
       if (!prev[peerId]) return prev
       const next = { ...prev }
+
       delete next[peerId]
+
       return next
     })
   }, [])
@@ -145,15 +147,18 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
         if (needsVideo && !hasVideo) {
           const videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+
           videoStream.getVideoTracks().forEach((track) => stream.addTrack(track))
         }
 
         if (needsAudio && !hasAudio) {
           const audioStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+
           audioStream.getAudioTracks().forEach((track) => stream.addTrack(track))
         }
 
         setLocalStream(new MediaStream(stream.getTracks()))
+
         return stream
       }
 
@@ -164,6 +169,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
       localStreamRef.current = stream
       setLocalStream(stream)
+
       return stream
     },
     [setLocalStream],
@@ -172,6 +178,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
   const syncTrackState = useCallback(
     (stream: MediaStream) => {
       const videoEnabled = isScreenSharing ? true : isCameraEnabled
+
       stream.getVideoTracks().forEach((track) => {
         track.enabled = videoEnabled
       })
@@ -191,6 +198,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
   const createPeerConnection = useCallback(
     (targetPeerId: string) => {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+
       peerConnectionRef.current = pc
 
       pc.onicecandidate = (event) => {
@@ -205,11 +213,13 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
       pc.ontrack = (event) => {
         const [stream] = event.streams
+
         setRemoteStream(stream ?? null)
       }
 
       pc.onconnectionstatechange = () => {
         const state = pc.connectionState
+
         if (state === 'connected') {
           setStatus('in-call')
         }
@@ -227,6 +237,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
   const closeConnection = useCallback(() => {
     const pc = peerConnectionRef.current
+
     if (pc) {
       pc.onicecandidate = null
       pc.ontrack = null
@@ -261,12 +272,15 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
       try {
         const stream = await ensureLocalStream(true, true)
+
         syncTrackState(stream)
 
         const pc = createPeerConnection(peerId)
+
         attachTracksToConnection(pc, stream)
 
         const offer = await pc.createOffer()
+
         await pc.setLocalDescription(offer)
 
         await publishSignal({
@@ -280,38 +294,54 @@ export function CallProvider({ callId, children }: { callId: string; children: R
         setStatus('error')
       }
     },
-    [attachTracksToConnection, createPeerConnection, ensureLocalStream, isHost, publishSignal, status, syncTrackState, updateParticipant],
+    [
+      attachTracksToConnection,
+      createPeerConnection,
+      ensureLocalStream,
+      isHost,
+      publishSignal,
+      status,
+      syncTrackState,
+      updateParticipant,
+    ],
   )
 
   const toggleCamera = useCallback(async () => {
     const next = !isCameraEnabled
+
     setIsCameraEnabled(next)
 
     if (!next) {
       localStreamRef.current?.getVideoTracks().forEach((track) => (track.enabled = false))
+
       return
     }
 
     const stream = await ensureLocalStream(true, isMicEnabled)
+
     stream.getVideoTracks().forEach((track) => (track.enabled = true))
   }, [ensureLocalStream, isCameraEnabled, isMicEnabled])
 
   const toggleMicrophone = useCallback(async () => {
     const next = !isMicEnabled
+
     setIsMicEnabled(next)
 
     if (!next) {
       localStreamRef.current?.getAudioTracks().forEach((track) => (track.enabled = false))
+
       return
     }
 
     const stream = await ensureLocalStream(isCameraEnabled, true)
+
     stream.getAudioTracks().forEach((track) => (track.enabled = true))
   }, [ensureLocalStream, isCameraEnabled, isMicEnabled])
 
   const toggleScreenShare = useCallback(async () => {
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setError('This browser does not support screen sharing.')
+
       return
     }
 
@@ -328,6 +358,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       const newTrack = stream.getVideoTracks()[0]
       const oldTrack = localStreamRef.current.getVideoTracks()[0]
+
       if (oldTrack) {
         localStreamRef.current.removeTrack(oldTrack)
         oldTrack.stop()
@@ -341,6 +372,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
       })
       setIsScreenSharing(false)
       setLocalStream(new MediaStream(localStreamRef.current.getTracks()))
+
       return
     }
 
@@ -376,6 +408,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
       if (activePeerId && activePeerId !== peerId) {
         await publishSignal({ action: 'call-decline', to: peerId, payload: { reason: 'busy' } })
+
         return
       }
 
@@ -385,13 +418,16 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
       try {
         const stream = await ensureLocalStream(true, true)
+
         syncTrackState(stream)
 
         const pc = createPeerConnection(peerId)
+
         attachTracksToConnection(pc, stream)
 
         await pc.setRemoteDescription({ type: 'offer', sdp: signal.payload?.sdp })
         const answer = await pc.createAnswer()
+
         await pc.setLocalDescription(answer)
 
         await publishSignal({
@@ -405,29 +441,38 @@ export function CallProvider({ callId, children }: { callId: string; children: R
         setStatus('error')
       }
     },
-    [activePeerId, attachTracksToConnection, createPeerConnection, ensureLocalStream, isHost, publishSignal, syncTrackState, updateParticipant],
+    [
+      activePeerId,
+      attachTracksToConnection,
+      createPeerConnection,
+      ensureLocalStream,
+      isHost,
+      publishSignal,
+      syncTrackState,
+      updateParticipant,
+    ],
   )
 
-  const handleIncomingAnswer = useCallback(
-    async (signal: CallSignalMessage) => {
-      const pc = peerConnectionRef.current
-      if (!pc) return
-      try {
-        await pc.setRemoteDescription({ type: 'answer', sdp: signal.payload?.sdp })
-        setStatus('in-call')
-      } catch (e: any) {
-        log.error('failed to apply answer %o', e)
-        setError(e?.message ?? 'Failed to connect call.')
-        setStatus('error')
-      }
-    },
-    [],
-  )
+  const handleIncomingAnswer = useCallback(async (signal: CallSignalMessage) => {
+    const pc = peerConnectionRef.current
+
+    if (!pc) return
+    try {
+      await pc.setRemoteDescription({ type: 'answer', sdp: signal.payload?.sdp })
+      setStatus('in-call')
+    } catch (e: any) {
+      log.error('failed to apply answer %o', e)
+      setError(e?.message ?? 'Failed to connect call.')
+      setStatus('error')
+    }
+  }, [])
 
   const handleIncomingIce = useCallback(async (signal: CallSignalMessage) => {
     const pc = peerConnectionRef.current
+
     if (!pc) return
     const candidate = signal.payload?.candidate ?? null
+
     if (!candidate) return
     try {
       await pc.addIceCandidate(candidate)
@@ -446,6 +491,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
       try {
         const decoded = decodeZeroWidth(uint8ArrayToString(evt.detail.data)) ?? uint8ArrayToString(evt.detail.data)
         const envelope = JSON.parse(decoded) as CallSignalEnvelope
+
         if (envelope?.type !== CALL_SIGNAL_WRAPPER || envelope?.app !== CALL_SIGNAL_APP_ID || !envelope.payload) {
           return
         }
@@ -461,6 +507,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
         if (incomingPeerId && incomingPeerId !== selfPeerId) {
           updateParticipant(incomingPeerId, { status: parsed.payload?.status ?? 'waiting', lastSeen: Date.now() })
         }
+
         return
       }
 
@@ -468,6 +515,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
         if (incomingPeerId) {
           removeParticipant(incomingPeerId)
         }
+
         return
       }
 
@@ -475,6 +523,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
         if (!isHost) {
           setHostStatus(parsed.payload?.status ?? 'available')
         }
+
         return
       }
 
@@ -525,6 +574,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
   useEffect(() => {
     libp2p.services.pubsub.addEventListener('message', handleSignal)
+
     return () => {
       libp2p.services.pubsub.removeEventListener('message', handleSignal)
     }
@@ -533,6 +583,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
   useEffect(() => {
     if (!selfPeerId) return
     publishSignal({ action: 'presence-join', payload: { status: 'waiting' } }).catch(() => undefined)
+
     return () => {
       publishSignal({ action: 'presence-leave' }).catch(() => undefined)
     }
@@ -542,6 +593,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
     if (!isHost) return
     const nextHostStatus: HostStatus =
       status === 'calling' || status === 'in-call' || status === 'connecting' ? 'busy' : 'available'
+
     setHostStatus(nextHostStatus)
     publishSignal({ action: 'host-status', payload: { status: nextHostStatus } }).catch(() => undefined)
   }, [isHost, publishSignal, status])
@@ -605,8 +657,10 @@ export function CallProvider({ callId, children }: { callId: string; children: R
 
 export function useCallContext() {
   const ctx = useContext(CallContext)
+
   if (!ctx) {
     throw new Error('useCallContext must be used within a CallProvider')
   }
+
   return ctx
 }

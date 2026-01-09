@@ -44,8 +44,11 @@ export function CallRoom({ callId }: { callId: string }) {
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const localPreviewRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
+
   const sessionTimer = useSessionTimer()
+
   const allowSessionStart = true
 
   useEffect(() => {
@@ -65,6 +68,7 @@ export function CallRoom({ callId }: { callId: string }) {
 
   useEffect(() => {
     const shouldRun = allowSessionStart && status === 'in-call'
+
     if (shouldRun && !sessionTimer.isRunning) {
       sessionTimer.reset()
       sessionTimer.start()
@@ -76,10 +80,12 @@ export function CallRoom({ callId }: { callId: string }) {
   const shareableLink = useMemo(() => {
     if (typeof window === 'undefined') return ''
     const url = new URL(window.location.origin)
+
     url.pathname = `/call/${callId}`
     if (!url.searchParams.has('autoJoin')) {
       url.searchParams.set('autoJoin', 'true')
     }
+
     return url.toString()
   }, [callId])
 
@@ -135,15 +141,17 @@ export function CallRoom({ callId }: { callId: string }) {
             {showCallStage ? (
               <div className="grid w-full h-full gap-4 md:grid-cols-2">
                 <div className="relative rounded-2xl bg-default-50 overflow-hidden">
-                  <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+                  <video ref={localVideoRef} autoPlay muted playsInline className="h-full w-full object-cover">
+                    <track kind="captions" />
+                  </video>
                   {!isCameraEnabled && (
-                    <div className="absolute inset-0 flex items-center justify-center text-default-400">
-                      Camera off
-                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center text-default-400">Camera off</div>
                   )}
                 </div>
                 <div className="relative rounded-2xl bg-default-50 overflow-hidden">
-                  <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
+                  <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover">
+                    <track kind="captions" />
+                  </video>
                   {!remoteStream && (
                     <div className="absolute inset-0 flex items-center justify-center text-default-400">
                       Waiting for peer
@@ -161,14 +169,12 @@ export function CallRoom({ callId }: { callId: string }) {
                   const position = ringPositions[index % ringPositions.length]
                   const isBusy = peer.status === 'busy' || peer.status === 'in-call'
                   const isActive = peer.peerId === activePeerId
-                  const disabled = !isHost || status === 'calling' || status === 'in-call'
+                  const disabled = !isHost || status === 'ringing' || status === 'waiting'
 
                   return (
                     <button
                       key={peer.peerId}
-                      className={`absolute flex flex-col items-center gap-1 transition ${
-                        isActive ? 'scale-110' : ''
-                      }`}
+                      className={`absolute flex flex-col items-center gap-1 transition ${isActive ? 'scale-110' : ''}`}
                       disabled={disabled || isBusy}
                       style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
                       type="button"
@@ -206,7 +212,9 @@ export function CallRoom({ callId }: { callId: string }) {
               </p>
             </div>
             <div className="relative overflow-hidden rounded-xl bg-default-100 aspect-video">
-              <video ref={localPreviewRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+              <video ref={localPreviewRef} autoPlay muted playsInline className="h-full w-full object-cover">
+                <track kind="captions" />
+              </video>
               {!localStream && (
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-default-400">
                   Enable your camera or mic to preview.
@@ -277,10 +285,10 @@ export function CallRoom({ callId }: { callId: string }) {
       </div>
 
       <ShareRoomModal
+        showQrCode
         isOpen={isShareModalOpen}
         roomType="call"
         shareUrl={shareableLink}
-        showQrCode
         subtitle="Share the link to invite someone into your private call."
         title="Share call room"
         onOpenChange={onShareModalOpenChange}

@@ -3,7 +3,7 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button, Tooltip } from '@heroui/react'
-import { MessagesSquare, Radio, Video, Bot } from 'lucide-react'
+import { Bot, Globe, MessagesSquare, Radio, Video } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
@@ -19,6 +19,7 @@ export const Navbar = () => {
   const selfId = libp2p.peerId?.toString() ?? ''
 
   const navLinks = [
+    // { label: UI_COPY.nav.network, href: '/network', icon: Globe, tooltip: UI_COPY.tooltips.nav.network },
     { label: UI_COPY.nav.chat, href: '/', icon: MessagesSquare, tooltip: UI_COPY.tooltips.nav.chat },
     {
       label: UI_COPY.nav.stream,

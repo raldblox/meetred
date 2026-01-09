@@ -274,6 +274,7 @@ export const CALL_ROOM_COPY = {
  */
 export const UI_COPY = {
   nav: {
+    network: 'Network',
     chat: 'Chat',
     stream: 'Stream',
     call: 'Call',
@@ -299,6 +300,7 @@ export const UI_COPY = {
 
   tooltips: {
     nav: {
+      network: 'View the Meetred network',
       chat: 'Go to the public room',
       stream: 'Open your stream room',
       call: 'Open your call room',

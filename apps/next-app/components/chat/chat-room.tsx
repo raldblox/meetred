@@ -22,7 +22,6 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 const log = forComponent('chat')
 
 export const PUBLIC_CHAT_ROOM_ID = ''
-const PUBLIC_CHAT_ROOM_NAME = 'Public Room'
 
 export const getIsMobile = () => (typeof window !== 'undefined' ? window.innerWidth < 640 : false)
 
@@ -582,7 +581,7 @@ export default function ChatContainer() {
         <div
           ref={mobilePeerListRef}
           aria-hidden={!showMobilePeerList}
-          className={`lg:hidden transition-all bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-2 right-2 top-12 z-20 shadow-medium rounded-lg ${
+          className={`lg:hidden transition-all bg-default-100/50 border backdrop-blur-md border-default-100 absolute left-6 right-4 top-12 z-20 shadow-medium rounded-lg ${
             showMobilePeerList ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
           }`}
         >
@@ -603,17 +602,19 @@ export default function ChatContainer() {
               <X size={16} />
             </Button>
           </div>
-          <ChatPeerList hideHeader={true} />
+          <div className="px-3 pb-3">
+            <ChatPeerList hideHeader={true} />
+          </div>
         </div>
 
         <div
-          className={`flex flex-col transition-all min-h-0 flex-1 py-3 ${roomId !== PUBLIC_CHAT_ROOM_ID ? 'px-3' : 'pb-6'}`}
+          className={`flex flex-col transition-all min-h-0 flex-1 py-3 ${roomId !== PUBLIC_CHAT_ROOM_ID ? 'px-3' : 'md:pb-6'}`}
         >
           <div className="relative flex-1 min-h-0">
             <ScrollShadow
               ref={messageListRef}
               hideScrollBar
-              className="h-full scroll-smooth"
+              className="h-full scroll-smooth pb-12"
               offset={24}
               onScroll={handleMessageScroll}
             >

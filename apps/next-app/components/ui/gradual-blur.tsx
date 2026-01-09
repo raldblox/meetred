@@ -112,11 +112,13 @@ const getGradientDirection = (position: string): string => {
     left: 'to left',
     right: 'to right',
   }
+
   return directions[position] || 'to bottom'
 }
 
 const debounce = <T extends (...a: any[]) => void>(fn: T, wait: number) => {
   let t: ReturnType<typeof setTimeout>
+
   return (...a: Parameters<T>) => {
     clearTimeout(t)
     t = setTimeout(() => fn(...a), wait)
@@ -128,6 +130,7 @@ const useResponsiveDimension = (
   key: keyof GradualBlurProps,
 ) => {
   const [val, setVal] = useState<any>(config[key])
+
   useEffect(() => {
     if (!responsive) return
     const calc = () => {
@@ -135,16 +138,20 @@ const useResponsiveDimension = (
       let v: any = config[key]
       const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
       const k = cap(key as string)
+
       if (w <= 480 && (config as any)['mobile' + k]) v = (config as any)['mobile' + k]
       else if (w <= 768 && (config as any)['tablet' + k]) v = (config as any)['tablet' + k]
       else if (w <= 1024 && (config as any)['desktop' + k]) v = (config as any)['desktop' + k]
       setVal(v)
     }
     const deb = debounce(calc, 100)
+
     calc()
     window.addEventListener('resize', deb)
+
     return () => window.removeEventListener('resize', deb)
   }, [responsive, config, key])
+
   return responsive ? val : (config as any)[key]
 }
 
@@ -157,6 +164,7 @@ const useIntersectionObserver = (ref: React.RefObject<HTMLDivElement>, shouldObs
     const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0.1 })
 
     observer.observe(ref.current)
+
     return () => observer.disconnect()
   }, [ref, shouldObserve])
 
@@ -169,6 +177,7 @@ const GradualBlur: React.FC<GradualBlurProps> = (props) => {
 
   const config = useMemo(() => {
     const presetConfig = props.preset && PRESETS[props.preset] ? PRESETS[props.preset] : {}
+
     return mergeConfigs(DEFAULT_CONFIG, presetConfig, props) as Required<GradualBlurProps>
   }, [props])
 
@@ -187,9 +196,11 @@ const GradualBlur: React.FC<GradualBlurProps> = (props) => {
 
     for (let i = 1; i <= config.divCount; i++) {
       let progress = i / config.divCount
+
       progress = curveFunc(progress)
 
       let blurValue: number
+
       if (config.exponential) {
         blurValue = Number(math.pow(2, progress * 4)) * 0.0625 * currentStrength
       } else {
@@ -202,6 +213,7 @@ const GradualBlur: React.FC<GradualBlurProps> = (props) => {
       const p4 = math.round((increment * i + increment * 2) * 10) / 10
 
       let gradient = `transparent ${p1}%, black ${p2}%`
+
       if (p3 <= 100) gradient += `, black ${p3}%`
       if (p4 <= 100) gradient += `, transparent ${p4}%`
 
@@ -256,9 +268,11 @@ const GradualBlur: React.FC<GradualBlurProps> = (props) => {
   }, [config, responsiveHeight, responsiveWidth, isVisible])
 
   const { hoverIntensity, animated, onAnimationComplete, duration } = config as any
+
   useEffect(() => {
     if (isVisible && animated === 'scroll' && onAnimationComplete) {
       const t = setTimeout(() => onAnimationComplete(), parseFloat(duration) * 1000)
+
       return () => clearTimeout(t)
     }
   }, [isVisible, animated, onAnimationComplete, duration])
@@ -278,6 +292,7 @@ const GradualBlur: React.FC<GradualBlurProps> = (props) => {
 }
 
 const GradualBlurMemo = React.memo(GradualBlur)
+
 GradualBlurMemo.displayName = 'GradualBlur'
 ;(GradualBlurMemo as any).PRESETS = PRESETS
 ;(GradualBlurMemo as any).CURVE_FUNCTIONS = CURVE_FUNCTIONS
@@ -286,12 +301,15 @@ export default GradualBlurMemo
 const injectStyles = () => {
   if (typeof document === 'undefined') return
   const id = 'gradual-blur-styles'
+
   if (document.getElementById(id)) return
   const el = document.createElement('style')
+
   el.id = id
   el.textContent = `.gradual-blur{pointer-events:none;transition:opacity .3s ease-out}.gradual-blur-inner{pointer-events:none}`
   document.head.appendChild(el)
 }
+
 if (typeof document !== 'undefined') {
   injectStyles()
 }

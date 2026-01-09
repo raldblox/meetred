@@ -147,7 +147,7 @@ export const Message = ({
   )
   const inviteShellClass = 'w-full min-w-[280px] max-w-xl '
   const inviteCardClass =
-    'relative w-full overflow-hidden rounded-xl bg-default-100 border border-default-200 p-4 shadow-sm'
+    'relative w-full overflow-hidden rounded-xl bg-default-100 border border-default-200 p-3 shadow-sm'
 
   if (streamInvite) {
     const hostShortId = streamInvite.hostPeerId.slice(-7)
@@ -184,7 +184,6 @@ export const Message = ({
               <div className={inviteCardClass}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-default-400">{streamCopy.label}</p>
                     <p className="text-lg uppercase text-left font-semibold">{streamCopy.title(hostShortId)}</p>
                   </div>
                   <Button
@@ -192,8 +191,8 @@ export const Message = ({
                     className="font-semibold !text-sm"
                     color="primary"
                     href={`/stream/${streamInvite.hostPeerId}`}
-                    radius="full"
-                    size="md"
+                    radius="sm"
+                    size="sm"
                     variant="solid"
                   >
                     {streamCopy.cta}
@@ -286,7 +285,7 @@ export const Message = ({
 
     return (
       <li
-        className={`flex items-start min-w-[250px]  gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}
+        className={`flex items-start min-w-[250px] gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}
       >
         {showAvatar ? (
           <div className="mt-5 w-8 h-8">
@@ -372,17 +371,8 @@ export const Message = ({
             <div className={inviteCardClass}>
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-default-400">{callCopy.label}</p>
                   <p className="text-lg font-semibold uppercase text-foreground">{callCopy.title(hostShortId)}</p>
                   <p className="text-sm text-default-600">{callCopy.body}</p>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
-                    <span className="flex items-center gap-1">
-                      Hosted by
-                      <Blockies className="h-4 w-4 rounded-sm" scale={10} seed={meetingInvite.hostPeerId} size={8} />
-                      {hostShortId}
-                    </span>
-                    {callCopy.meta && <span className="text-default-400">{callCopy.meta}</span>}
-                  </div>
                 </div>
 
                 <Button
@@ -390,8 +380,8 @@ export const Message = ({
                   className="font-semibold !text-sm"
                   color="success"
                   href={`/call/${meetingInvite.roomId}`}
-                  radius="full"
-                  size="md"
+                  radius="sm"
+                  size="sm"
                   variant="solid"
                 >
                   {callCopy.cta}
@@ -447,7 +437,6 @@ export const Message = ({
             <div className={inviteCardClass}>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] text-left uppercase tracking-[0.3em] text-default-400">{aiCopy.label}</p>
                   <p className="text-lg text-left font-semibold uppercase">{aiCopy.title(agentShortId)}</p>
                 </div>
                 <Button
@@ -455,8 +444,8 @@ export const Message = ({
                   className="font-semibold !text-sm"
                   color="secondary"
                   href={`/agent/${agentInvite.agentPeerId}`}
-                  radius="full"
-                  size="md"
+                  radius="sm"
+                  size="sm"
                   variant="solid"
                 >
                   {aiCopy.cta}

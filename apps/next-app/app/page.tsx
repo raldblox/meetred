@@ -16,14 +16,14 @@ export default function Home() {
 
   return (
     <Grid
-      main={<ChatContainer />}
-      panel={<ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />}
       footer={
         <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between">
           <div className="text-xs">Metered</div>
           <ConnectionInfoButton onClick={handleOpenConnectionPanel} />
         </footer>
       }
+      main={<ChatContainer />}
+      panel={<ConnectionPanel isOpen={isConnectionPanelOpen} onClose={() => setIsConnectionPanelOpen(false)} />}
     />
   )
 }

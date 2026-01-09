@@ -1,5 +1,7 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 import { useCallback, useMemo, useState } from 'react'
 import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Snippet, useDisclosure } from '@heroui/react'
 import { UserPlus2 } from 'lucide-react'
@@ -7,7 +9,25 @@ import { UserPlus2 } from 'lucide-react'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { UI_COPY } from '@/config/copy'
 
-export function InviteButton() {
+interface InviteButtonProps {
+  label?: string
+  className?: string
+  ariaLabel?: string
+  size?: 'sm' | 'md' | 'lg'
+  radius?: 'none' | 'sm' | 'md' | 'lg' | 'full'
+  variant?: 'solid' | 'flat' | 'light' | 'ghost' | 'bordered'
+  startContent?: ReactNode
+}
+
+export function InviteButton({
+  label = UI_COPY.nav.invite,
+  className = '!p-3 h-10 bg-default-50 rounded-sm font-normal !text-tiny text-primary hover:text-background hover:bg-primary',
+  ariaLabel = 'Invite to private chat',
+  size = 'sm',
+  radius = 'sm',
+  variant = 'solid',
+  startContent,
+}: InviteButtonProps) {
   const { libp2p } = useLibp2pContext()
   const { isOpen, onOpen, onClose, onOpenChange } = useDisclosure()
   const [copied, setCopied] = useState(false)
@@ -41,16 +61,16 @@ export function InviteButton() {
   return (
     <>
       <Button
-        aria-label="Invite to private chat"
-        className="!p-3 h-10 bg-default-50 rounded-sm font-normal !text-tiny text-primary hover:text-background hover:bg-primary"
+        aria-label={ariaLabel}
+        className={className}
         color="primary"
-        radius="sm"
+        radius={radius}
+        size={size}
+        startContent={startContent}
+        variant={variant}
         onPress={onOpen}
-        size="sm"
-        // startContent={<UserPlus2 className="h-3.5 w-3.5" />}
-        variant="solid"
       >
-        {UI_COPY.nav.invite}
+        {label}
       </Button>
 
       <Modal

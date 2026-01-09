@@ -1,7 +1,5 @@
 'use client'
 
-import type { PeerId } from '@libp2p/interface'
-
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { peerIdFromString } from '@libp2p/peer-id'
 import { RefreshCw } from 'lucide-react'
@@ -11,8 +9,9 @@ import { PeerWrapper } from './peer'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
-import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/config/constants'
+import { BOOTSTRAP_PEER_IDS } from '@/config/constants'
 import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat/chat-room'
+import { usePeerPresence } from '@/hooks/usePeerPresence'
 
 interface ChatPeerListProps {
   hideHeader?: boolean
@@ -21,59 +20,9 @@ interface ChatPeerListProps {
 export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   const { libp2p, refreshPeerDiscovery } = useLibp2pContext()
   const { roomId, historySyncingPeerIds } = useChatContext()
-  const [subscribers, setSubscribers] = useState<string[]>([])
-  const [connectedPeers, setConnectedPeers] = useState<string[]>([])
-  const [seenPeers, setSeenPeers] = useState<string[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    const onSubscriptionChange = () => {
-      const peers = libp2p.services.pubsub.getSubscribers(CHAT_TOPIC) as unknown as PeerId[]
-
-      setSubscribers(peers.map((peer) => peer.toString()))
-    }
-
-    onSubscriptionChange()
-    libp2p.services.pubsub.addEventListener('subscription-change', onSubscriptionChange)
-
-    return () => {
-      libp2p.services.pubsub.removeEventListener('subscription-change', onSubscriptionChange)
-    }
-  }, [libp2p])
-
-  useEffect(() => {
-    const onMessage = (evt: CustomEvent) => {
-      const from = (evt.detail?.from as PeerId | undefined)?.toString()
-
-      if (!from || from === libp2p.peerId.toString()) {
-        return
-      }
-
-      setSeenPeers((prev) => {
-        if (prev.includes(from)) {
-          return prev
-        }
-
-        return [...prev, from]
-      })
-    }
-
-    libp2p.services.pubsub.addEventListener('message', onMessage)
-
-    return () => {
-      libp2p.services.pubsub.removeEventListener('message', onMessage)
-    }
-  }, [libp2p, setSeenPeers])
-
-  const updateConnections = useCallback(() => {
-    const ids = libp2p
-      .getConnections()
-      .map((conn) => conn.remotePeer.toString())
-      .filter((peerId) => peerId !== libp2p.peerId.toString() && !BOOTSTRAP_PEER_IDS.includes(peerId))
-
-    setConnectedPeers(Array.from(new Set(ids)))
-  }, [libp2p])
+  const peers = usePeerPresence()
 
   const refreshPeers = useCallback(async () => {
     if (refreshing) {
@@ -95,21 +44,6 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   }, [refreshPeerDiscovery, refreshing])
 
   useEffect(() => {
-    updateConnections()
-
-    const onOpen = () => updateConnections()
-    const onClose = () => updateConnections()
-
-    libp2p.addEventListener('connection:open', onOpen)
-    libp2p.addEventListener('connection:close', onClose)
-
-    return () => {
-      libp2p.removeEventListener('connection:open', onOpen)
-      libp2p.removeEventListener('connection:close', onClose)
-    }
-  }, [libp2p, updateConnections])
-
-  useEffect(() => {
     return () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current)
@@ -117,13 +51,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     }
   }, [])
 
-  const peerIds = Array.from(
-    new Set([
-      ...connectedPeers,
-      ...subscribers.filter((peer) => peer !== ''),
-      ...seenPeers, // peers we have seen publish messages, even if not yet connected
-    ]),
-  )
+  const peerIds = peers.map((peer) => peer.peerId)
 
   return (
     <div className="lg:col-span-1 h-full">
@@ -148,7 +76,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
 
-        {peerIds.length === 0 && <div className="px-3 text-xs text-default-500">No peers connected yet.</div>}
+        {peerIds.length === 0 && <div className="text-xs text-default-500">No peers connected yet.</div>}
         {peerIds.map((p) => {
           if (BOOTSTRAP_PEER_IDS.includes(p) || p === libp2p.peerId.toString()) {
             return null

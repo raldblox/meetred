@@ -2,6 +2,7 @@
 
 import { AnimatePresence } from 'framer-motion'
 import { motion } from 'framer-motion'
+
 import { Navbar } from '@/components/ui/navbar'
 
 export default function Grid({
