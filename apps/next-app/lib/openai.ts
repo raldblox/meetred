@@ -76,12 +76,14 @@ export const createOpenAIChatCompletion = async ({
   prompt,
   temperature = 0.2,
   signal,
+  systemPrompt,
 }: {
   baseUrl?: string
   modelId: string
   prompt: string
   temperature?: number
   signal?: AbortSignal
+  systemPrompt?: string
 }): Promise<{ text: string; raw: unknown }> => {
   const response = await fetch(`${normalizeBaseUrl(baseUrl)}/openai/chat`, {
     method: 'POST',
@@ -92,6 +94,7 @@ export const createOpenAIChatCompletion = async ({
       modelId,
       prompt,
       temperature,
+      systemPrompt,
     }),
     signal,
   })

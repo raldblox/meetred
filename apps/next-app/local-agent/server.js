@@ -224,6 +224,7 @@ const createAgentServer = async () => {
       typeof request.body?.temperature === 'number' && Number.isFinite(request.body.temperature)
         ? request.body.temperature
         : 0.2
+    const systemPrompt = typeof request.body?.systemPrompt === 'string' ? request.body.systemPrompt.trim() : ''
 
     if (!modelId || !prompt) {
       reply.status(400).send({ error: 'modelId and prompt are required' })
@@ -240,7 +241,10 @@ const createAgentServer = async () => {
         },
         body: JSON.stringify({
           model: modelId,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            { role: 'user', content: prompt },
+          ],
           temperature,
         }),
       })

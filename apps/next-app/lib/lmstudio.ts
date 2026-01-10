@@ -21,6 +21,7 @@ export interface LMStudioChatOptions {
   prompt: string
   temperature?: number
   signal?: AbortSignal
+  systemPrompt?: string
 }
 
 interface LMStudioProxyOptions {
@@ -116,9 +117,11 @@ export const createLMStudioChatCompletion = async ({
   prompt,
   temperature = 0.2,
   signal,
+  systemPrompt,
 }: LMStudioChatOptions): Promise<LMStudioChatResult> => {
   const normalized = normalizeBaseUrl(baseUrl)
   const target = targetUrl?.trim()
+  const trimmedSystemPrompt = systemPrompt?.trim()
 
   try {
     const response = await fetch(`${normalized}/v1/chat/completions`, {
@@ -132,6 +135,7 @@ export const createLMStudioChatCompletion = async ({
         temperature,
         ...(target ? { target } : {}),
         messages: [
+          ...(trimmedSystemPrompt ? [{ role: 'system', content: trimmedSystemPrompt }] : []),
           {
             role: 'user',
             content: prompt,

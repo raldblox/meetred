@@ -8,10 +8,9 @@ import Blockies from 'react-18-blockies'
 import { Bot, SendIcon } from 'lucide-react'
 import { Button, Input, ScrollShadow } from '@heroui/react'
 import clsx from 'clsx'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
 import ShinyText from '../ui/shiny-text'
+import { AgentChatOutput } from './agent-chat-output'
 
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
@@ -23,6 +22,7 @@ import { createLMStudioChatCompletion } from '@/lib/lmstudio'
 import { createOpenAIChatCompletion } from '@/lib/openai'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
 import { AI_ROOM_COPY } from '@/config/copy'
+import { AGENT_UI_SYSTEM_PROMPT } from '@/lib/agent-ui'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -168,12 +168,14 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
                 baseUrl: lmBaseUrl,
                 modelId: resolvedModelId,
                 prompt: trimmed,
+                systemPrompt: AGENT_UI_SYSTEM_PROMPT,
               })
             : await createLMStudioChatCompletion({
                 baseUrl: lmBaseUrl,
                 targetUrl: lmTargetUrl,
                 modelId: resolvedModelId,
                 prompt: trimmed,
+                systemPrompt: AGENT_UI_SYSTEM_PROMPT,
               })
 
         const responsePayload = buildAgentChatPayload({
@@ -255,6 +257,9 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
                     isHostMessage={payload.senderPeerId === agentPeerId && payload.variant === 'user'}
                     isSelf={payload.senderPeerId === libp2p.peerId.toString()}
                     payload={payload}
+                    onActionPrompt={(prompt) => {
+                      setInput(prompt)
+                    }}
                   />
                 </div>
               </div>
@@ -295,10 +300,12 @@ function ChatBubble({
   payload,
   isHostMessage,
   isSelf,
+  onActionPrompt,
 }: {
   payload: AgentChatPayload
   isHostMessage: boolean
   isSelf: boolean
+  onActionPrompt?: (prompt: string) => void
 }) {
   const isAgentResponse = payload.variant === 'model'
 
@@ -323,8 +330,8 @@ function ChatBubble({
     }
 
     return (
-      <div className={clsx(bubbleClass, 'prose prose-sm text-current')}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{payload.body}</ReactMarkdown>
+      <div className={clsx(bubbleClass, 'text-current')}>
+        <AgentChatOutput text={payload.body} onActionPrompt={onActionPrompt} />
       </div>
     )
   }

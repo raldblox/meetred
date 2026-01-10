@@ -23,6 +23,9 @@
     "@heroui/react": "^2.8.5",
     "@heroui/react-utils": "2.1.14",
     "@heroui/system": "2.4.23",
+    "@llm-ui/json": "^0.13.3",
+    "@llm-ui/markdown": "^0.13.3",
+    "@llm-ui/react": "^0.13.3",
     "@libp2p/bootstrap": "^11.0.28",
     "@libp2p/circuit-relay-v2": "^3.2.4",
     "@libp2p/crypto": "^5.1.13",
@@ -62,7 +65,8 @@
     "remark-gfm": "^4.0.1",
     "uint8arrays": "^5.1.0",
     "usehooks-ts": "^3.1.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^3.25.7"
   },
   "devDependencies": {
     "@eslint/compat": "^1.1.1",

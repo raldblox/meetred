@@ -22,6 +22,7 @@ import { forComponent } from '@/lib/logger'
 import { buildAgentChatPayload, parseAgentChatPayload, type AgentChatPayload } from '@/lib/agent-chat'
 import { AgentManager, createAgentManagerState, type AgentManagerState } from '@/lib/agent-manager'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
+import { AGENT_UI_SYSTEM_PROMPT } from '@/lib/agent-ui'
 
 const textEncoder = new TextEncoder()
 
@@ -245,6 +246,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
               modelId,
               prompt,
               signal: controller.signal,
+              systemPrompt: AGENT_UI_SYSTEM_PROMPT,
             })
           : await createLMStudioChatCompletion({
               baseUrl: lmBaseUrl,
@@ -252,6 +254,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
               modelId,
               prompt,
               signal: controller.signal,
+              systemPrompt: AGENT_UI_SYSTEM_PROMPT,
             })
         const responseText = result.text
 

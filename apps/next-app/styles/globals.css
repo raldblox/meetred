@@ -13,3 +13,59 @@ select,
 button {
   font-size: 16px;
 }
+
+.agent-markdown {
+  font-family: "IBM Plex Sans", "Source Sans 3", "Inter", system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+.agent-markdown pre {
+  @apply bg-primary/10 border border-primary/20;
+  border-radius: 12px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.agent-markdown code {
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+.agent-markdown :not(pre) > code {
+  @apply bg-primary/15;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.agent-markdown table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 14px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  @apply bg-primary/5 border border-primary/15;
+}
+
+.agent-markdown th,
+.agent-markdown td {
+  padding: 10px 12px;
+  @apply border-b border-primary/15;
+  vertical-align: top;
+}
+
+.agent-markdown th {
+  text-align: left;
+  font-weight: 600;
+  @apply bg-primary/15 text-primary-foreground;
+}
+
+.agent-markdown tr:last-child td {
+  border-bottom: none;
+}
+
+.agent-markdown table code {
+  background: transparent;
+  padding: 0;
+}
