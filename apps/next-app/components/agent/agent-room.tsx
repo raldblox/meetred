@@ -424,13 +424,18 @@ function AgentManagerPanel({
               aria-label="Detected models"
               label="Choose a model"
               labelPlacement="outside"
+              itemHeight={50}
+              maxListboxHeight={200}
+              isVirtualized
               selectedKeys={activeModelId ? new Set([activeModelId]) : new Set<string>()}
               selectionMode="single"
+              scrollShadowProps={{ hideScrollBar: true }}
+              listboxProps={{ className: 'py-1' }}
               onSelectionChange={handleModelSelection}
             >
               {models.map((model) => (
-                <SelectItem key={model.id} textValue={model.id}>
-                  <div className="flex flex-col">
+                <SelectItem key={model.id} className="h-12 py-1.5" textValue={model.id}>
+                  <div className="flex flex-col gap-1 leading-tight overflow-hidden">
                     <span className="font-medium text-default-800">{model.id}</span>
                     <span className="text-xs text-default-400">{formatModelDetails(model)}</span>
                   </div>
