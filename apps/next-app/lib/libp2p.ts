@@ -39,6 +39,7 @@ import { directMessage } from './direct-message'
 import { loadOrCreatePrivateKey } from './identity'
 
 const log = forComponent('libp2p')
+const LOCAL_RELAY_ENV = 'NEXT_PUBLIC_LOCAL_RELAY_ADDRS'
 
 const multiaddrDialPriority = (addr: Multiaddr) => {
   const protos = addr.protoNames()
@@ -84,6 +85,19 @@ const ensureRelayReservations = async (libp2p: Libp2p, relayListenAddrs: string[
   }
 }
 
+const parseLocalRelayAddrs = (): string[] => {
+  const raw = process.env[LOCAL_RELAY_ENV] ?? ''
+  if (!raw) {
+    return []
+  }
+
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => (entry.includes('/p2p-circuit') ? entry : `${entry}/p2p-circuit`))
+}
+
 export interface StartLibp2pOptions {
   forceNewIdentity?: boolean
   privateKey?: PrivateKey
@@ -104,13 +118,17 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
   setBootStatus('resolving-relays', 'active', 'Resolving delegated relay addresses')
   const delegatedClient = createDelegatedRoutingV1HttpApiClient('https://delegated-ipfs.dev')
 
-  const relayListenAddrs = await resolveRelayListenAddrs(delegatedClient)
+  const localRelayAddrs = parseLocalRelayAddrs()
+  const delegatedRelayAddrs = await resolveRelayListenAddrs(delegatedClient)
+  const relayListenAddrs = Array.from(new Set([...localRelayAddrs, ...delegatedRelayAddrs]))
 
   setBootStatus(
     'resolving-relays',
     'complete',
     relayListenAddrs.length > 0
-      ? `Resolved ${relayListenAddrs.length} relay${relayListenAddrs.length > 1 ? 's' : ''}`
+      ? `Using ${localRelayAddrs.length} local, ${delegatedRelayAddrs.length} delegated relay${
+          relayListenAddrs.length > 1 ? 's' : ''
+        }`
       : 'No relays resolved (continuing without relays)',
   )
 
