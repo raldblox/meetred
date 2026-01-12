@@ -42,6 +42,50 @@ const loadLibp2pModules = async () => {
   }
 }
 
+const loadEnvFile = () => {
+  const candidates = [path.join(process.cwd(), '.env'), path.join(__dirname, '..', '.env')]
+
+  for (const filePath of candidates) {
+    if (!fs.existsSync(filePath)) {
+      continue
+    }
+
+    const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/)
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) {
+        continue
+      }
+
+      const idx = trimmed.indexOf('=')
+      if (idx === -1) {
+        continue
+      }
+
+      const key = trimmed.slice(0, idx).trim()
+      let value = trimmed.slice(idx + 1).trim()
+
+      if (!key || process.env[key] !== undefined) {
+        continue
+      }
+
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+
+      process.env[key] = value
+    }
+
+    break
+  }
+}
+
+loadEnvFile()
+
 const HOST = (process.env.LIBP2P_RELAY_HOST ?? '127.0.0.1').trim() || '127.0.0.1'
 const PORT = Number.parseInt(process.env.LIBP2P_RELAY_PORT ?? '15002', 10)
 const KEY_PATH = process.env.LIBP2P_RELAY_KEY_PATH ?? path.join(__dirname, 'relay.key')
@@ -51,6 +95,22 @@ const DISCOVERY_TOPIC =
   'universal-connectivity-browser-peer-discovery'
 const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'universal-connectivity').trim() || 'universal-connectivity'
 
+const parseEncodedKey = (value, uint8ArrayFromString) => {
+  const cleaned = (value ?? '').trim()
+  if (!cleaned) {
+    return null
+  }
+
+  const hexPattern = /^(0x)?[0-9a-fA-F]+$/
+
+  if (hexPattern.test(cleaned)) {
+    const normalized = cleaned.startsWith('0x') ? cleaned.slice(2) : cleaned
+    return uint8ArrayFromString(normalized, 'hex')
+  }
+
+  return uint8ArrayFromString(cleaned, 'base64pad')
+}
+
 const loadOrCreateKey = async ({
   generateKeyPair,
   privateKeyFromProtobuf,
@@ -58,12 +118,23 @@ const loadOrCreateKey = async ({
   uint8ArrayFromString,
   uint8ArrayToString,
 }) => {
+  const relayKeyEnv = (process.env.LIBP2P_RELAY_KEY ?? '').trim()
+
+  if (relayKeyEnv) {
+    const bytes = parseEncodedKey(relayKeyEnv, uint8ArrayFromString)
+    if (bytes) {
+      return privateKeyFromProtobuf(bytes)
+    }
+  }
+
   if (fs.existsSync(KEY_PATH)) {
     const encoded = fs.readFileSync(KEY_PATH, 'utf8').trim()
 
     if (encoded) {
-      const bytes = uint8ArrayFromString(encoded, 'base64pad')
-      return privateKeyFromProtobuf(bytes)
+      const bytes = parseEncodedKey(encoded, uint8ArrayFromString)
+      if (bytes) {
+        return privateKeyFromProtobuf(bytes)
+      }
     }
   }
 
@@ -86,7 +157,7 @@ const formatRelayAddrs = (addrs, peerId) =>
     return `${addr}/p2p/${peerId}/p2p-circuit`
   })
 
-const startRelay = async () => {
+const createRelayNode = async () => {
   const modules = await loadLibp2pModules()
   const privateKey = await loadOrCreateKey(modules)
 
@@ -121,19 +192,81 @@ const startRelay = async () => {
   console.log(`relay: ${relayAddrs.join(', ')}`)
   console.log('set NEXT_PUBLIC_LOCAL_RELAY_ADDRS to one or more relay addrs above')
 
-  const shutdown = async () => {
-    try {
-      await node.stop()
-    } finally {
-      process.exit(0)
-    }
-  }
-
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
+  return node
 }
 
-startRelay().catch((error) => {
-  console.error('failed to start relay', error)
-  process.exit(1)
-})
+let instancePromise
+
+const shouldSkipRelay = () => {
+  const flag = (process.env.START_LIBP2P_RELAY ?? '').toLowerCase().trim()
+
+  if (flag === '0' || flag === 'false' || flag === 'off') {
+    return true
+  }
+
+  if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
+    return true
+  }
+
+  return false
+}
+
+async function startLocalRelay() {
+  if (shouldSkipRelay()) {
+    return null
+  }
+
+  if (!instancePromise) {
+    instancePromise = createRelayNode().catch((error) => {
+      instancePromise = undefined
+      throw error
+    })
+  }
+
+  return instancePromise
+}
+
+async function stopLocalRelay() {
+  if (!instancePromise) {
+    return
+  }
+
+  try {
+    const node = await instancePromise
+
+    if (node) {
+      await node.stop()
+    }
+  } catch {
+    // ignore shutdown failures
+  } finally {
+    instancePromise = undefined
+  }
+}
+
+if (require.main === module) {
+  startLocalRelay()
+    .then((node) => {
+      if (!node) {
+        console.warn('[local-relay] skipped starting relay')
+        return
+      }
+
+      const shutdown = async () => {
+        await stopLocalRelay()
+        process.exit(0)
+      }
+
+      process.on('SIGINT', shutdown)
+      process.on('SIGTERM', shutdown)
+    })
+    .catch((error) => {
+      console.error('failed to start relay', error)
+      process.exit(1)
+    })
+}
+
+module.exports = {
+  startLocalRelay,
+  stopLocalRelay,
+}

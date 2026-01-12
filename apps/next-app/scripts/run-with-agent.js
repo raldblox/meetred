@@ -2,6 +2,7 @@ const { spawn } = require('node:child_process')
 const path = require('node:path')
 
 const { startLocalModelAgent, stopLocalModelAgent } = require('../local-agent/server')
+const { startLocalRelay, stopLocalRelay } = require('../local-agent/relay')
 
 const mode = process.argv[2] === 'start' ? 'start' : 'dev'
 const nextArgs =
@@ -29,6 +30,21 @@ async function main() {
     return
   }
 
+  try {
+    const relay = await startLocalRelay()
+
+    if (relay) {
+      const listenAddrs = relay.getMultiaddrs().map((addr) => addr.toString())
+      console.log(`[local-relay] listening on ${listenAddrs.join(', ')}`)
+    } else {
+      console.warn('[local-relay] skipped starting relay')
+    }
+  } catch (error) {
+    console.error('[local-relay] failed to boot', error)
+    process.exit(1)
+    return
+  }
+
   const child = spawn(process.execPath, [nextBin, ...nextArgs], {
     stdio: 'inherit',
     env: process.env,
@@ -37,6 +53,7 @@ async function main() {
 
   const shutdown = async () => {
     await stopLocalModelAgent()
+    await stopLocalRelay()
 
     if (child.killed) {
       return
@@ -59,6 +76,7 @@ async function main() {
 
   child.on('exit', async (code, signal) => {
     await stopLocalModelAgent()
+    await stopLocalRelay()
 
     if (signal) {
       process.kill(process.pid, signal)
