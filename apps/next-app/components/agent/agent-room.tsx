@@ -24,8 +24,12 @@ import { Share2 } from 'lucide-react'
 
 import { useAgentContext } from '@/context/agent-ctx'
 import { AgentChatPanel } from '@/components/agent/agent-chat-panel'
+import { PayPerMinuteChip } from '@/components/payments/pay-per-minute-chip'
+import { PayPerMinuteModal } from '@/components/payments/pay-per-minute-modal'
 import { ShareRoomModal } from '@/components/ui/share-room-modal'
 import { AI_ROOM_COPY } from '@/config/copy'
+import { PAY_PER_MINUTE_CONFIG } from '@/config/payments'
+import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { useSessionTimer } from '@/hooks/useSessionTimer'
 
 const statusColorMap: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'default'> = {
@@ -54,10 +58,13 @@ export function AgentRoom({ peerId }: { peerId: string }) {
     connectOpenAIAgent,
     selectAgentModel,
     hostEvents,
+    paymentRate,
+    setPaymentRate,
+    disconnectViewer,
+    connectViewer,
   } = useAgentContext()
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
-  const allowSessionStart = true // Master gate: replace with wallet/entitlement check later
   const lastTimerStateRef = useRef(false)
 
   const activeModel = useMemo(
@@ -97,9 +104,49 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   )
 
   const modelReady = authorized && agentState.status === 'ready'
+  const sessionActive = modelReady
+  const paymentPromptActive = !isHost && authorized
+  const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.agent.ratePerMinute.toString())
+  const effectiveRate = isHost ? paymentRate ?? PAY_PER_MINUTE_CONFIG.agent.ratePerMinute : paymentRate
+  const paymentGate = usePayPerMinute({
+    config: PAY_PER_MINUTE_CONFIG.agent,
+    elapsedMs: sessionTimer.elapsedMs,
+    sessionActive: paymentPromptActive,
+    ratePerMinute: effectiveRate,
+    requireRateAcceptance: !isHost,
+    autoPrompt: !isHost,
+  })
+  const allowSessionStart = isHost ? true : paymentGate.isReady
+  const paymentBadgeLabel = paymentGate.isReady
+    ? `${isHost ? 'Earned' : 'Paid'} ${paymentGate.badgeLabel}`
+    : isHost
+      ? 'Set payout'
+      : paymentGate.badgeLabel
+  const payoutLabel = paymentGate.payoutAddress.trim() ? 'Payout set' : 'Set payout'
+  const needsPayout = isHost && !paymentGate.isFree && !paymentGate.payoutAddress.trim()
 
   useEffect(() => {
-    const shouldRun = allowSessionStart && modelReady
+    if (!isHost) {
+      return
+    }
+
+    if (paymentRate === null) {
+      setPaymentRate(PAY_PER_MINUTE_CONFIG.agent.ratePerMinute)
+    }
+  }, [isHost, paymentRate, setPaymentRate])
+
+  useEffect(() => {
+    if (!isHost) {
+      return
+    }
+
+    if (typeof paymentRate === 'number') {
+      setRateDraft(paymentRate.toFixed(2))
+    }
+  }, [isHost, paymentRate])
+
+  useEffect(() => {
+    const shouldRun = allowSessionStart && sessionActive
 
     if (shouldRun && !lastTimerStateRef.current) {
       sessionTimer.reset()
@@ -122,6 +169,13 @@ export function AgentRoom({ peerId }: { peerId: string }) {
                 <Chip className="font-mono" size="sm" variant="flat">
                   {sessionTimer.formatted}
                 </Chip>
+                {isHost || !paymentGate.isFree ? (
+                  <PayPerMinuteChip
+                    isReady={paymentGate.isReady}
+                    label={isHost ? payoutLabel : paymentBadgeLabel}
+                    onPress={paymentGate.openModal}
+                  />
+                ) : null}
                 <Button
                   isIconOnly
                   aria-label="Share AI room"
@@ -134,13 +188,92 @@ export function AgentRoom({ peerId }: { peerId: string }) {
               </div>
             </CardHeader>
             <CardBody className="grid md:grid-cols-6 p-0">
-              <div className="col-start-2 col-span-4">
+              <div className="col-start-2 col-span-4 space-y-3">
+                <div className="rounded-2xl border border-default-100 bg-default-50 p-3 text-xs text-default-600">
+                  <div className="flex items-center justify-between">
+                    <span>Rate</span>
+                    <span className="font-mono">
+                      {typeof paymentRate === 'number'
+                        ? paymentRate === 0
+                          ? 'FREE'
+                          : `${paymentRate.toFixed(2)}/min`
+                        : 'Waiting on host'}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span>Consent</span>
+                    <span>{paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      color="primary"
+                      radius="full"
+                      size="sm"
+                      onPress={() => {
+                        paymentGate.resume()
+                        connectViewer()
+                        if (!paymentGate.isFree) {
+                          paymentGate.openModal()
+                        }
+                      }}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      color="warning"
+                      radius="full"
+                      size="sm"
+                      variant="flat"
+                      onPress={() => {
+                        paymentGate.pause()
+                        disconnectViewer()
+                      }}
+                    >
+                      Pause
+                    </Button>
+                    <Button
+                      color="danger"
+                      radius="full"
+                      size="sm"
+                      variant="flat"
+                      onPress={() => {
+                        paymentGate.reset()
+                        disconnectViewer()
+                      }}
+                    >
+                      Stop
+                    </Button>
+                  </div>
+                </div>
                 <AgentChatPanel agentPeerId={hostPeerId} />
               </div>
             </CardBody>
           </Card>
         </div>
         {shareModal}
+        {isHost || !paymentGate.isFree ? (
+          <PayPerMinuteModal
+            config={paymentGate.config}
+            connection={paymentGate.connection}
+            formattedAmount={paymentGate.formattedAmount}
+            formattedRate={paymentGate.formattedRate}
+            isOpen={paymentGate.modalOpen}
+            mode={isHost ? 'host' : 'viewer'}
+            payoutAddress={paymentGate.payoutAddress}
+            onPayoutAddressChange={paymentGate.setPayoutAddress}
+            rateAccepted={paymentGate.rateAccepted}
+            rateAvailable={paymentGate.rateAvailable}
+            requiresRateAcceptance={!isHost}
+            status={paymentGate.status}
+            statusLabel={paymentGate.statusLabel}
+            onAcceptRate={paymentGate.acceptRate}
+            onConnectCoinbase={paymentGate.connectCoinbase}
+            onConnectWallet={paymentGate.connectWallet}
+            onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+            onRequestApproval={paymentGate.requestApproval}
+            onReset={paymentGate.reset}
+          />
+        ) : null}
       </>
     )
   }
@@ -167,6 +300,11 @@ export function AgentRoom({ peerId }: { peerId: string }) {
               <Chip className="font-mono" size="sm" variant="flat">
                 {sessionTimer.formatted}
               </Chip>
+              <PayPerMinuteChip
+                isReady={paymentGate.isReady}
+                label={paymentBadgeLabel}
+                onPress={paymentGate.openModal}
+              />
               <Button
                 isIconOnly
                 aria-label="Share AI room"
@@ -177,6 +315,46 @@ export function AgentRoom({ peerId }: { peerId: string }) {
                 onPress={openShareModal}
               />
             </div>
+            <Card className="border border-default-200 shadow-none bg-default-50/70">
+              <CardBody className="space-y-2">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-default-400">Rate per minute</p>
+                  <p className="text-xs text-default-500">Viewers must accept before approving.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    aria-label="Rate per minute"
+                    className="flex-1"
+                    placeholder="0.00"
+                    size="sm"
+                    value={rateDraft}
+                    onChange={(event) => setRateDraft(event.target.value)}
+                  />
+                  <Button
+                    color="primary"
+                    size="sm"
+                    variant="solid"
+                    onPress={() => {
+                      const next = Number.parseFloat(rateDraft)
+
+                      if (Number.isFinite(next)) {
+                        setPaymentRate(next)
+                      }
+                    }}
+                  >
+                    Update
+                  </Button>
+                </div>
+                {needsPayout ? (
+                  <div className="flex items-center justify-between text-[11px] text-danger">
+                    <span>Add a payout address before hosting.</span>
+                    <Button color="danger" size="sm" variant="flat" onPress={paymentGate.openModal}>
+                      Set payout
+                    </Button>
+                  </div>
+                ) : null}
+              </CardBody>
+            </Card>
             <AgentManagerPanel
               agentState={agentState}
               authorized={authorized}
@@ -194,6 +372,29 @@ export function AgentRoom({ peerId }: { peerId: string }) {
         </div>
       </div>
       {shareModal}
+      {isHost || !paymentGate.isFree ? (
+        <PayPerMinuteModal
+          config={paymentGate.config}
+          connection={paymentGate.connection}
+          formattedAmount={paymentGate.formattedAmount}
+          formattedRate={paymentGate.formattedRate}
+          isOpen={paymentGate.modalOpen}
+          mode={isHost ? 'host' : 'viewer'}
+          payoutAddress={paymentGate.payoutAddress}
+          onPayoutAddressChange={paymentGate.setPayoutAddress}
+          rateAccepted={paymentGate.rateAccepted}
+          rateAvailable={paymentGate.rateAvailable}
+          requiresRateAcceptance={!isHost}
+          status={paymentGate.status}
+          statusLabel={paymentGate.statusLabel}
+          onAcceptRate={paymentGate.acceptRate}
+          onConnectCoinbase={paymentGate.connectCoinbase}
+          onConnectWallet={paymentGate.connectWallet}
+          onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+          onRequestApproval={paymentGate.requestApproval}
+          onReset={paymentGate.reset}
+        />
+      ) : null}
     </>
   )
 }

@@ -1,12 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Blockies from 'react-18-blockies'
-import { Button, Chip, useDisclosure } from '@heroui/react'
+import { Button, Chip, Input, useDisclosure } from '@heroui/react'
 import { Camera, CameraOff, Mic, MicOff, PhoneOff, ScreenShare, Share2 } from 'lucide-react'
 
 import { ShareRoomModal } from '@/components/ui/share-room-modal'
 import { useCallContext } from '@/context/call-ctx'
+import { PAY_PER_MINUTE_CONFIG } from '@/config/payments'
+import { PayPerMinuteChip } from '@/components/payments/pay-per-minute-chip'
+import { PayPerMinuteModal } from '@/components/payments/pay-per-minute-modal'
+import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { useSessionTimer } from '@/hooks/useSessionTimer'
 
 const ringPositions = [
@@ -40,6 +44,8 @@ export function CallRoom({ callId }: { callId: string }) {
     startCallWith,
     endCall,
     error,
+    paymentRate,
+    setPaymentRate,
   } = useCallContext()
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const localPreviewRef = useRef<HTMLVideoElement | null>(null)
@@ -48,8 +54,26 @@ export function CallRoom({ callId }: { callId: string }) {
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
 
   const sessionTimer = useSessionTimer()
-
-  const allowSessionStart = true
+  const sessionActive = status === 'in-call'
+  const paymentPromptActive = !isHost && (status === 'calling' || status === 'connecting' || status === 'in-call')
+  const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.call.ratePerMinute.toString())
+  const effectiveRate = isHost ? paymentRate ?? PAY_PER_MINUTE_CONFIG.call.ratePerMinute : paymentRate
+  const paymentGate = usePayPerMinute({
+    config: PAY_PER_MINUTE_CONFIG.call,
+    elapsedMs: sessionTimer.elapsedMs,
+    sessionActive: paymentPromptActive,
+    ratePerMinute: effectiveRate,
+    requireRateAcceptance: !isHost,
+    autoPrompt: !isHost,
+  })
+  const allowSessionStart = isHost ? true : paymentGate.isReady
+  const paymentBadgeLabel = paymentGate.isReady
+    ? `${isHost ? 'Earned' : 'Paid'} ${paymentGate.badgeLabel}`
+    : isHost
+      ? 'Set payout'
+      : paymentGate.badgeLabel
+  const payoutLabel = paymentGate.payoutAddress.trim() ? 'Payout set' : 'Set payout'
+  const needsPayout = isHost && !paymentGate.isFree && !paymentGate.payoutAddress.trim()
 
   useEffect(() => {
     if (localVideoRef.current) {
@@ -67,7 +91,27 @@ export function CallRoom({ callId }: { callId: string }) {
   }, [remoteStream])
 
   useEffect(() => {
-    const shouldRun = allowSessionStart && status === 'in-call'
+    if (!isHost) {
+      return
+    }
+
+    if (paymentRate === null) {
+      setPaymentRate(PAY_PER_MINUTE_CONFIG.call.ratePerMinute)
+    }
+  }, [isHost, paymentRate, setPaymentRate])
+
+  useEffect(() => {
+    if (!isHost) {
+      return
+    }
+
+    if (typeof paymentRate === 'number') {
+      setRateDraft(paymentRate.toFixed(2))
+    }
+  }, [isHost, paymentRate])
+
+  useEffect(() => {
+    const shouldRun = allowSessionStart && sessionActive
 
     if (shouldRun && !sessionTimer.isRunning) {
       sessionTimer.reset()
@@ -121,6 +165,13 @@ export function CallRoom({ callId }: { callId: string }) {
           <Chip className="font-mono" size="sm" variant="flat">
             {sessionTimer.formatted}
           </Chip>
+          {isHost || !paymentGate.isFree ? (
+            <PayPerMinuteChip
+              isReady={paymentGate.isReady}
+              label={isHost ? payoutLabel : paymentBadgeLabel}
+              onPress={paymentGate.openModal}
+            />
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -178,7 +229,14 @@ export function CallRoom({ callId }: { callId: string }) {
                       disabled={disabled || isBusy}
                       style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
                       type="button"
-                      onClick={() => startCallWith(peer.peerId)}
+                      onClick={() => {
+                        if (needsPayout) {
+                          paymentGate.openModal()
+                          return
+                        }
+
+                        startCallWith(peer.peerId)
+                      }}
                     >
                       <span
                         className={`flex h-12 w-12 items-center justify-center rounded-full border ${
@@ -261,6 +319,95 @@ export function CallRoom({ callId }: { callId: string }) {
                 />
               )}
             </div>
+            {isHost ? (
+              <div className="rounded-xl border border-default-100 bg-white/60 p-3">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-default-400">Rate per minute</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input
+                    aria-label="Rate per minute"
+                    className="flex-1"
+                    placeholder="0.00"
+                    size="sm"
+                    value={rateDraft}
+                    onChange={(event) => setRateDraft(event.target.value)}
+                  />
+                  <Button
+                    color="primary"
+                    size="sm"
+                    variant="solid"
+                    onPress={() => {
+                      const next = Number.parseFloat(rateDraft)
+
+                      if (Number.isFinite(next)) {
+                        setPaymentRate(next)
+                      }
+                    }}
+                  >
+                    Update
+                  </Button>
+                </div>
+                <p className="mt-2 text-[11px] text-default-500">Viewers must accept this rate before approving.</p>
+                {needsPayout ? (
+                  <p className="mt-2 text-[11px] text-danger">Add a payout address before starting calls.</p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-default-100 bg-white/60 p-3">
+                <div className="flex items-center justify-between text-xs text-default-600">
+                  <span>Rate</span>
+                  <span className="font-mono">
+                    {typeof paymentRate === 'number'
+                      ? paymentRate === 0
+                        ? 'FREE'
+                        : `${paymentRate.toFixed(2)}/min`
+                      : 'Waiting on host'}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-default-600">
+                  <span>Consent</span>
+                  <span>{paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    color="primary"
+                    radius="full"
+                    size="sm"
+                    onPress={() => {
+                      paymentGate.resume()
+                      if (!paymentGate.isFree) {
+                        paymentGate.openModal()
+                      }
+                    }}
+                  >
+                    Start
+                  </Button>
+                  <Button
+                    color="warning"
+                    radius="full"
+                    size="sm"
+                    variant="flat"
+                    onPress={() => {
+                      paymentGate.pause()
+                      endCall()
+                    }}
+                  >
+                    Pause
+                  </Button>
+                  <Button
+                    color="danger"
+                    radius="full"
+                    size="sm"
+                    variant="flat"
+                    onPress={() => {
+                      paymentGate.reset()
+                      endCall()
+                    }}
+                  >
+                    Stop
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-default-100 bg-default-50 p-4 space-y-3">
@@ -293,6 +440,29 @@ export function CallRoom({ callId }: { callId: string }) {
         title="Share call room"
         onOpenChange={onShareModalOpenChange}
       />
+      {isHost || !paymentGate.isFree ? (
+        <PayPerMinuteModal
+          config={paymentGate.config}
+          connection={paymentGate.connection}
+          formattedAmount={paymentGate.formattedAmount}
+          formattedRate={paymentGate.formattedRate}
+          isOpen={paymentGate.modalOpen}
+          mode={isHost ? 'host' : 'viewer'}
+          payoutAddress={paymentGate.payoutAddress}
+          onPayoutAddressChange={paymentGate.setPayoutAddress}
+          rateAccepted={paymentGate.rateAccepted}
+          rateAvailable={paymentGate.rateAvailable}
+          requiresRateAcceptance={!isHost}
+          status={paymentGate.status}
+          statusLabel={paymentGate.statusLabel}
+          onAcceptRate={paymentGate.acceptRate}
+          onConnectCoinbase={paymentGate.connectCoinbase}
+          onConnectWallet={paymentGate.connectWallet}
+          onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+          onRequestApproval={paymentGate.requestApproval}
+          onReset={paymentGate.reset}
+        />
+      ) : null}
     </div>
   )
 }

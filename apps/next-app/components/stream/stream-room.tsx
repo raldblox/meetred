@@ -3,8 +3,8 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Chip, useDisclosure } from '@heroui/react'
-import { Gift, LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, Share2, X } from 'lucide-react'
+import { Alert, Button, Chip, Input, useDisclosure } from '@heroui/react'
+import { LucideCircleStop, PlaySquareIcon, ScreenShareIcon, ScreenShareOffIcon, Share2, X } from 'lucide-react'
 
 import { ShareRoomModal } from '../ui/share-room-modal'
 
@@ -12,7 +12,11 @@ import { StreamChatPanel } from './stream-chat-panel'
 
 import { useStreamContext } from '@/context/stream-ctx'
 import { INVITE_CARD_COPY, STREAM_ROOM_COPY } from '@/config/copy'
+import { PAY_PER_MINUTE_CONFIG } from '@/config/payments'
+import { PayPerMinuteChip } from '@/components/payments/pay-per-minute-chip'
+import { PayPerMinuteModal } from '@/components/payments/pay-per-minute-modal'
 import { useSessionTimer } from '@/hooks/useSessionTimer'
+import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { forComponent } from '@/lib/logger'
 
 const log = forComponent('stream-room')
@@ -32,6 +36,10 @@ export function StreamRoom({ streamId }: { streamId: string }) {
     stopViewing,
     isScreenSharing,
     toggleScreenShare,
+    paymentRate,
+    setPaymentRate,
+    viewerAccessEnabled,
+    setViewerAccessEnabled,
   } = useStreamContext()
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -40,7 +48,26 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const viewerStartedRef = useRef(false)
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
-  const allowSessionStart = true // Master gate: future wallet/entitlement check
+  const sessionActive = isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)
+  const paymentPromptActive = !isHost && status === 'live'
+  const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.stream.ratePerMinute.toString())
+  const effectiveRate = isHost ? paymentRate ?? PAY_PER_MINUTE_CONFIG.stream.ratePerMinute : paymentRate
+  const paymentGate = usePayPerMinute({
+    config: PAY_PER_MINUTE_CONFIG.stream,
+    elapsedMs: sessionTimer.elapsedMs,
+    sessionActive: paymentPromptActive,
+    ratePerMinute: effectiveRate,
+    requireRateAcceptance: !isHost,
+    autoPrompt: !isHost,
+  })
+  const allowSessionStart = isHost ? true : paymentGate.isReady
+  const paymentBadgeLabel = paymentGate.isReady
+    ? `${isHost ? 'Earned' : 'Paid'} ${paymentGate.badgeLabel}`
+    : isHost
+      ? 'Set payout'
+      : paymentGate.badgeLabel
+  const payoutLabel = paymentGate.payoutAddress.trim() ? 'Payout set' : 'Set payout'
+  const needsPayout = isHost && !paymentGate.isFree && !paymentGate.payoutAddress.trim()
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -96,7 +123,27 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   }
 
   useEffect(() => {
-    if (isHost) {
+    if (!isHost) {
+      return
+    }
+
+    if (paymentRate === null) {
+      setPaymentRate(PAY_PER_MINUTE_CONFIG.stream.ratePerMinute)
+    }
+  }, [isHost, paymentRate, setPaymentRate])
+
+  useEffect(() => {
+    if (!isHost) {
+      return
+    }
+
+    if (typeof paymentRate === 'number') {
+      setRateDraft(paymentRate.toFixed(2))
+    }
+  }, [isHost, paymentRate])
+
+  useEffect(() => {
+    if (isHost || !viewerAccessEnabled) {
       return
     }
 
@@ -107,7 +154,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
         viewerStartedRef.current = false
       })
     }
-  }, [isHost, startViewing, status])
+  }, [isHost, startViewing, status, viewerAccessEnabled])
 
   useEffect(() => {
     return () => {
@@ -121,7 +168,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const lastTimerStateRef = useRef(false)
 
   useEffect(() => {
-    const shouldRun = allowSessionStart && (isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)) // viewers pay only when consuming
+    const shouldRun = allowSessionStart && sessionActive // viewers pay only when consuming
 
     if (shouldRun && !lastTimerStateRef.current) {
       sessionTimer.reset()
@@ -170,6 +217,13 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           <Chip className="font-mono" size="sm" variant="flat">
             {sessionTimer.formatted}
           </Chip>
+          {isHost || !paymentGate.isFree ? (
+            <PayPerMinuteChip
+              isReady={paymentGate.isReady}
+              label={isHost ? payoutLabel : paymentBadgeLabel}
+              onPress={paymentGate.openModal}
+            />
+          ) : null}
           <Button
             isIconOnly
             aria-label="Share stream room"
@@ -263,39 +317,129 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                 <p className="text-xs text-default-500">{statusDescription}</p>
               </div>
               {isHost ? (
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <Button
-                    color="primary"
-                    disabled={status === 'starting'}
-                    radius="full"
-                    startContent={status === 'live' ? <LucideCircleStop /> : <PlaySquareIcon />}
-                    onPress={status === 'live' ? stopHosting : startHosting}
-                  >
-                    {status === 'live' ? STREAM_ROOM_COPY.controls.stop : STREAM_ROOM_COPY.controls.start}
-                  </Button>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <Button
+                      color="primary"
+                      disabled={status === 'starting'}
+                      radius="full"
+                      startContent={status === 'live' ? <LucideCircleStop /> : <PlaySquareIcon />}
+                      onPress={() => {
+                        if (status === 'live') {
+                          stopHosting()
+                          return
+                        }
 
-                  <Button
-                    color={isScreenSharing ? 'danger' : 'default'}
-                    disabled={status !== 'live'}
-                    radius="full"
-                    startContent={isScreenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
-                    onPress={toggleScreenShare}
-                  >
-                    {isScreenSharing ? 'Stop sharing' : STREAM_ROOM_COPY.controls.shareScreen}
-                  </Button>
+                        if (needsPayout) {
+                          paymentGate.openModal()
+                          return
+                        }
 
-                  {/* <Button
-                    className="px-4 py-2 rounded-full text-sm font-medium border border-default-200 hover:bg-default-100 transition-colors"
-                    onPress={() => navigator.clipboard.writeText(window.location.href)}
-                  >
-                    Copy Link
-                  </Button> */}
+                        startHosting()
+                      }}
+                    >
+                      {status === 'live' ? STREAM_ROOM_COPY.controls.stop : STREAM_ROOM_COPY.controls.start}
+                    </Button>
+
+                    <Button
+                      color={isScreenSharing ? 'danger' : 'default'}
+                      disabled={status !== 'live'}
+                      radius="full"
+                      startContent={isScreenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}
+                      onPress={toggleScreenShare}
+                    >
+                      {isScreenSharing ? 'Stop sharing' : STREAM_ROOM_COPY.controls.shareScreen}
+                    </Button>
+                  </div>
+                  <div className="rounded-2xl border border-default-100 bg-default-50 p-3">
+                    <p className="text-xs uppercase tracking-[0.3em] text-default-400">Rate per minute</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        aria-label="Rate per minute"
+                        className="flex-1"
+                        placeholder="0.00"
+                        size="sm"
+                        value={rateDraft}
+                        onChange={(event) => setRateDraft(event.target.value)}
+                      />
+                      <Button
+                        color="primary"
+                        size="sm"
+                        variant="solid"
+                        onPress={() => {
+                          const next = Number.parseFloat(rateDraft)
+
+                          if (Number.isFinite(next)) {
+                            setPaymentRate(next)
+                          }
+                        }}
+                      >
+                        Update
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-default-500">Viewers must accept this rate before approving.</p>
+                    {needsPayout ? (
+                      <p className="mt-2 text-[11px] text-danger">Add a payout address before going live.</p>
+                    ) : null}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center flex-wrap gap-3">
-                  <Button radius="full" startContent={<Gift />}>
-                    Support the host
-                  </Button>
+                  <div className="w-full rounded-2xl border border-default-100 bg-default-50 p-3 text-xs text-default-600">
+                    <div className="flex items-center justify-between">
+                      <span>Rate</span>
+                      <span className="font-mono">
+                        {typeof paymentRate === 'number'
+                          ? paymentRate === 0
+                            ? 'FREE'
+                            : `${paymentRate.toFixed(2)}/min`
+                          : 'Waiting on host'}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span>Consent</span>
+                      <span>{paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}</span>
+                    </div>
+                  </div>
+                  <div className="flex w-full flex-wrap items-center justify-center gap-3">
+                    <Button
+                      color="primary"
+                      radius="full"
+                      onPress={() => {
+                        setViewerAccessEnabled(true)
+                        paymentGate.resume()
+                        if (!paymentGate.isFree) {
+                          paymentGate.openModal()
+                        }
+                      }}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      color="warning"
+                      radius="full"
+                      variant="flat"
+                      onPress={() => {
+                        setViewerAccessEnabled(false)
+                        paymentGate.pause()
+                        stopViewing()
+                      }}
+                    >
+                      Pause
+                    </Button>
+                    <Button
+                      color="danger"
+                      radius="full"
+                      variant="flat"
+                      onPress={() => {
+                        setViewerAccessEnabled(false)
+                        paymentGate.reset()
+                        stopViewing()
+                      }}
+                    >
+                      Stop
+                    </Button>
+                  </div>
                 </div>
               )}
               {error && (
@@ -327,6 +471,29 @@ export function StreamRoom({ streamId }: { streamId: string }) {
         title="Share stream room"
         onOpenChange={onShareModalOpenChange}
       />
+      {isHost || !paymentGate.isFree ? (
+        <PayPerMinuteModal
+          config={paymentGate.config}
+          connection={paymentGate.connection}
+          formattedAmount={paymentGate.formattedAmount}
+          formattedRate={paymentGate.formattedRate}
+          isOpen={paymentGate.modalOpen}
+          mode={isHost ? 'host' : 'viewer'}
+          payoutAddress={paymentGate.payoutAddress}
+          onPayoutAddressChange={paymentGate.setPayoutAddress}
+          rateAccepted={paymentGate.rateAccepted}
+          rateAvailable={paymentGate.rateAvailable}
+          requiresRateAcceptance={!isHost}
+          status={paymentGate.status}
+          statusLabel={paymentGate.statusLabel}
+          onAcceptRate={paymentGate.acceptRate}
+          onConnectCoinbase={paymentGate.connectCoinbase}
+          onConnectWallet={paymentGate.connectWallet}
+          onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+          onRequestApproval={paymentGate.requestApproval}
+          onReset={paymentGate.reset}
+        />
+      ) : null}
     </div>
   )
 }

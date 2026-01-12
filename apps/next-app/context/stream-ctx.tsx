@@ -155,6 +155,7 @@ interface StreamSignalMessage {
     | 'error'
     | 'viewer-hello'
     | 'log-entry'
+    | 'payment-rate'
   to?: string
   from?: string
   payload?: any
@@ -184,6 +185,10 @@ export interface StreamContextValue {
   roomLogs: { message: string; timestamp: number; id: string }[]
   isScreenSharing: boolean
   toggleScreenShare: () => Promise<void>
+  paymentRate: number | null
+  setPaymentRate: (rate: number) => void
+  viewerAccessEnabled: boolean
+  setViewerAccessEnabled: (enabled: boolean) => void
 }
 
 // Shared STUN config keeps signalling minimal while being supported in every major browser.
@@ -227,6 +232,8 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
   const [remoteHostReady, setRemoteHostReady] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [roomLogs, setRoomLogs] = useState<{ message: string; timestamp: number; id: string }[]>([])
+  const [paymentRate, setPaymentRateState] = useState<number | null>(null)
+  const [viewerAccessEnabled, setViewerAccessEnabled] = useState(true)
 
   const appendStatusLog = useCallback((entry: string) => {
     log('stream status %s', entry)
@@ -323,6 +330,22 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     setRemoteStream(null)
     setViewerStatus((prev) => (prev === 'idle' ? prev : 'idle'))
   }, [cleanupViewerConnection])
+
+  const setPaymentRate = useCallback(
+    (rate: number) => {
+      if (!isHost) {
+        return
+      }
+
+      const normalized = Number.isFinite(rate) ? Math.max(0, Number(rate)) : 0
+      const label = normalized === 0 ? 'FREE' : `${normalized.toFixed(2)} per minute`
+
+      setPaymentRateState(normalized)
+      postRoomLog(`Rate set to ${label}`).catch(() => undefined)
+      publishSignal({ action: 'payment-rate', payload: { ratePerMinute: normalized } }).catch(() => undefined)
+    },
+    [isHost, postRoomLog, publishSignal],
+  )
 
   // Tears down the broadcast state and lets viewers know the host is offline.
   const stopHosting = useCallback(async () => {
@@ -615,8 +638,16 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
         case 'viewer-hello':
           if (isHost && status === 'live') {
             await publishSignal({ action: 'host-ready', payload: { live: true } })
+            if (typeof paymentRate === 'number') {
+              await publishSignal({ action: 'payment-rate', payload: { ratePerMinute: paymentRate } })
+            }
             // Optional: Log that a viewer is attempting to join/hello
             // postRoomLog(`Viewer ${incomingPeerId?.slice(-5)} said hello`)
+          }
+          break
+        case 'payment-rate':
+          if (typeof parsed.payload?.ratePerMinute === 'number') {
+            setPaymentRateState(parsed.payload.ratePerMinute)
           }
           break
         case 'log-entry':
@@ -641,6 +672,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       isHost,
       selfPeerId,
       setSelfStatus,
+      paymentRate,
       topic,
       status,
       publishSignal,
@@ -747,6 +779,10 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       return
     }
 
+    if (!viewerAccessEnabled) {
+      return
+    }
+
     if (viewerPeerConnectionRef.current) {
       return
     }
@@ -806,7 +842,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       stopViewing()
       await recordRoomError('Viewer failed to start stream', e)
     }
-  }, [hostPeerId, isHost, publishSignal, recordRoomError, resetError, setSelfStatus, stopViewing])
+  }, [hostPeerId, isHost, publishSignal, recordRoomError, resetError, setSelfStatus, stopViewing, viewerAccessEnabled])
 
   // If the viewer is idle and the host advertises readiness, attempt to reconnect automatically.
   useEffect(() => {
@@ -822,17 +858,19 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       return
     }
 
-    startViewing().catch((e) => log.error('auto viewer start failed %o', e))
-  }, [isHost, selfPeerId, startViewing, status])
+    if (viewerAccessEnabled) {
+      startViewing().catch((e) => log.error('auto viewer start failed %o', e))
+    }
+  }, [isHost, selfPeerId, startViewing, status, viewerAccessEnabled])
 
   const reconnectTimerRef = useRef<number | null>(null)
 
   // When we detect a viewer stuck in connecting state, tear down the connection so it can retry.
   useEffect(() => {
-    if (!isHost && remoteHostReady && status === 'idle' && !viewerPeerConnectionRef.current) {
+    if (!isHost && remoteHostReady && status === 'idle' && !viewerPeerConnectionRef.current && viewerAccessEnabled) {
       startViewing().catch((err) => log.error('auto viewer start failed %o', err))
     }
-  }, [isHost, remoteHostReady, startViewing, status])
+  }, [isHost, remoteHostReady, startViewing, status, viewerAccessEnabled])
 
   // When the component unmounts (navigation away), clean up both host and viewer state.
   useEffect(() => {
@@ -989,6 +1027,10 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     roomLogs,
     isScreenSharing,
     toggleScreenShare,
+    paymentRate,
+    setPaymentRate,
+    viewerAccessEnabled,
+    setViewerAccessEnabled,
   }
 
   return <StreamContext.Provider value={value}>{children}</StreamContext.Provider>

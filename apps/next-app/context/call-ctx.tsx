@@ -23,6 +23,7 @@ interface CallSignalMessage {
     | 'presence-join'
     | 'presence-leave'
     | 'host-status'
+    | 'payment-rate'
     | 'call-offer'
     | 'call-answer'
     | 'call-ice'
@@ -66,6 +67,8 @@ export interface CallContextValue {
   startCallWith: (peerId: string) => Promise<void>
   endCall: () => Promise<void>
   clearError: () => void
+  paymentRate: number | null
+  setPaymentRate: (rate: number) => void
 }
 
 const ICE_SERVERS: RTCConfiguration['iceServers'] = [{ urls: ['stun:stun.l.google.com:19302'] }]
@@ -84,6 +87,7 @@ export function CallProvider({ callId, children }: { callId: string; children: R
   const [isCameraEnabled, setIsCameraEnabled] = useState(false)
   const [isMicEnabled, setIsMicEnabled] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [paymentRate, setPaymentRateState] = useState<number | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const selfPeerId = useMemo(() => libp2p.peerId?.toString() ?? null, [libp2p])
@@ -133,6 +137,20 @@ export function CallProvider({ callId, children }: { callId: string; children: R
   }, [])
 
   const clearError = useCallback(() => setError(null), [])
+
+  const setPaymentRate = useCallback(
+    (rate: number) => {
+      if (!isHost) {
+        return
+      }
+
+      const normalized = Number.isFinite(rate) ? Math.max(0, Number(rate)) : 0
+
+      setPaymentRateState(normalized)
+      publishSignal({ action: 'payment-rate', payload: { ratePerMinute: normalized } }).catch(() => undefined)
+    },
+    [isHost, publishSignal],
+  )
 
   const ensureLocalStream = useCallback(
     async (needsVideo: boolean, needsAudio: boolean) => {
@@ -507,6 +525,9 @@ export function CallProvider({ callId, children }: { callId: string; children: R
         if (incomingPeerId && incomingPeerId !== selfPeerId) {
           updateParticipant(incomingPeerId, { status: parsed.payload?.status ?? 'waiting', lastSeen: Date.now() })
         }
+        if (isHost && typeof paymentRate === 'number') {
+          publishSignal({ action: 'payment-rate', payload: { ratePerMinute: paymentRate } }).catch(() => undefined)
+        }
 
         return
       }
@@ -522,6 +543,14 @@ export function CallProvider({ callId, children }: { callId: string; children: R
       if (parsed.action === 'host-status') {
         if (!isHost) {
           setHostStatus(parsed.payload?.status ?? 'available')
+        }
+
+        return
+      }
+
+      if (parsed.action === 'payment-rate') {
+        if (!isHost && typeof parsed.payload?.ratePerMinute === 'number') {
+          setPaymentRateState(parsed.payload.ratePerMinute)
         }
 
         return
@@ -566,6 +595,8 @@ export function CallProvider({ callId, children }: { callId: string; children: R
       handleIncomingOffer,
       hostPeerId,
       isHost,
+      paymentRate,
+      publishSignal,
       removeParticipant,
       selfPeerId,
       updateParticipant,
@@ -650,6 +681,8 @@ export function CallProvider({ callId, children }: { callId: string; children: R
     startCallWith,
     endCall,
     clearError,
+    paymentRate,
+    setPaymentRate,
   }
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>

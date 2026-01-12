@@ -77,6 +77,10 @@ export interface AgentContextValue {
   chatHistory: AgentChatMessage[]
   selectedModelId: string | null
   hostEvents: string[]
+  paymentRate: number | null
+  setPaymentRate: (rate: number) => void
+  disconnectViewer: () => void
+  connectViewer: () => void
 }
 
 const AgentContext = createContext<AgentContextValue | undefined>(undefined)
@@ -113,6 +117,7 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
   const [lmBaseUrl, setLmBaseUrl] = useState<string>(LM_STUDIO_DEFAULT_BASE_URL)
   const [lmTargetUrl, setLmTargetUrl] = useState<string>(LM_STUDIO_DEFAULT_TARGET_URL)
   const [hostEvents, setHostEvents] = useState<string[]>([])
+  const [paymentRate, setPaymentRateState] = useState<number | null>(null)
   const [connectedViewers, setConnectedViewers] = useState<string[]>([])
   const agentManagerRef = useRef<AgentManager | null>(null)
   const hostConnectionsRef = useRef<Map<string, HostPeerConnection>>(new Map())
@@ -198,6 +203,19 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     },
     [buildStatusPayload],
   )
+
+  const sendPaymentRateToViewers = useCallback((rate: number) => {
+    const payload = JSON.stringify({
+      type: 'payment_rate',
+      ratePerMinute: rate,
+    })
+
+    hostConnectionsRef.current.forEach(({ channel }) => {
+      if (channel?.readyState === 'open') {
+        channel.send(payload)
+      }
+    })
+  }, [])
 
   const registerViewer = useCallback((peerId: string) => {
     setConnectedViewers((prev) => {
@@ -496,6 +514,22 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     [appendHostEvent, isHost, sendHostStatusToViewers],
   )
 
+  const setPaymentRate = useCallback(
+    (rate: number) => {
+      if (!isHost) {
+        return
+      }
+
+      const normalized = Number.isFinite(rate) ? Math.max(0, Number(rate)) : 0
+      const label = normalized === 0 ? 'FREE' : `${normalized.toFixed(2)} per minute`
+
+      setPaymentRateState(normalized)
+      appendHostEvent(`Rate set to ${label}`)
+      sendPaymentRateToViewers(normalized)
+    },
+    [appendHostEvent, isHost, sendPaymentRateToViewers],
+  )
+
   const handleViewerDataMessage = useCallback(
     async (peerId: string, event: MessageEvent) => {
       if (!isHost) {
@@ -588,6 +622,9 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
       channel.onopen = () => {
         appendHostEvent(`Viewer ${peerId.slice(-6)} connected`)
         sendHostStatusToViewers('Host ready')
+        if (typeof paymentRate === 'number') {
+          sendPaymentRateToViewers(paymentRate)
+        }
         registerViewer(peerId)
       }
       channel.onclose = () => {
@@ -597,7 +634,15 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
       }
       channel.onmessage = (event) => handleViewerDataMessage(peerId, event)
     },
-    [appendHostEvent, handleViewerDataMessage, registerViewer, sendHostStatusToViewers, unregisterViewer],
+    [
+      appendHostEvent,
+      handleViewerDataMessage,
+      paymentRate,
+      registerViewer,
+      sendHostStatusToViewers,
+      sendPaymentRateToViewers,
+      unregisterViewer,
+    ],
   )
 
   const ensureHostPeerConnection = useCallback(
@@ -945,6 +990,11 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
               }
               break
             }
+            case 'payment_rate':
+              if (typeof data?.ratePerMinute === 'number') {
+                setPaymentRateState(data.ratePerMinute)
+              }
+              break
             case 'chat_response':
               setChatHistory((prev): AgentChatMessage[] => {
                 let matched = false
@@ -1063,6 +1113,22 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     }
   }, [cleanupViewerConnection, isHost, startViewerConnection])
 
+  const disconnectViewer = useCallback(() => {
+    if (isHost) {
+      return
+    }
+
+    cleanupViewerConnection()
+  }, [cleanupViewerConnection, isHost])
+
+  const connectViewer = useCallback(() => {
+    if (isHost) {
+      return
+    }
+
+    startViewerConnection().catch((err) => log.error('viewer start failed %o', err))
+  }, [isHost, startViewerConnection])
+
   const markPromptAs = useCallback((promptId: string, update: { content: string; status: 'ready' | 'error' }) => {
     setChatHistory((prev) =>
       prev.map((msg) =>
@@ -1172,6 +1238,10 @@ export function AgentProvider({ hostPeerId, children }: { hostPeerId: string; ch
     chatHistory,
     selectedModelId,
     hostEvents,
+    paymentRate,
+    setPaymentRate,
+    disconnectViewer,
+    connectViewer,
   }
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>
