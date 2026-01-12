@@ -9,6 +9,8 @@ import type { Ping } from '@libp2p/ping'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
+import { multiaddr } from '@multiformats/multiaddr'
+import { peerIdFromString } from '@libp2p/peer-id'
 
 import { refreshPeerDiscovery as refreshPeerDiscoveryLibp2p, startLibp2p, type StartLibp2pOptions } from '../lib/libp2p'
 
@@ -77,6 +79,7 @@ export function Libp2pProvider({ children }: WrapperProps) {
   const bootSequenceRef = useRef(0)
   const bootLogIdRef = useRef(0)
   const overlayDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tabDiscoveryDialRef = useRef<Map<string, number>>(new Map())
 
   const clearOverlayDismiss = useCallback(() => {
     if (overlayDismissTimeoutRef.current) {
@@ -190,6 +193,88 @@ export function Libp2pProvider({ children }: WrapperProps) {
       setError(`failed to start libp2p ${e?.message ?? e}`)
     })
   }, [init])
+
+  useEffect(() => {
+    if (!libp2p || typeof window === 'undefined' || !('BroadcastChannel' in window)) {
+      return
+    }
+
+    const channel = new BroadcastChannel('metered-tab-discovery')
+    const selfPeerId = libp2p.peerId.toString()
+    const dialCooldownMs = 2_000
+
+    const shouldDialPeer = (peerId: string) => {
+      if (peerId === selfPeerId) {
+        return false
+      }
+
+      if (libp2p.getConnections(peerIdFromString(peerId))?.length > 0) {
+        return false
+      }
+
+      const lastDial = tabDiscoveryDialRef.current.get(peerId) ?? 0
+      if (Date.now() - lastDial < dialCooldownMs) {
+        return false
+      }
+
+      tabDiscoveryDialRef.current.set(peerId, Date.now())
+      return true
+    }
+
+    const announce = () => {
+      const addrs = libp2p.getMultiaddrs().map((addr) => addr.toString())
+
+      channel.postMessage({
+        type: 'announce',
+        peerId: selfPeerId,
+        addrs,
+        ts: Date.now(),
+      })
+    }
+
+    const onMessage = async (event: MessageEvent) => {
+      const payload = event.data as { type?: string; peerId?: string; addrs?: string[] }
+
+      if (!payload || typeof payload !== 'object') {
+        return
+      }
+
+      if (payload.type === 'request' && payload.peerId && payload.peerId !== selfPeerId) {
+        announce()
+        return
+      }
+
+      if (payload.type !== 'announce') {
+        return
+      }
+
+      if (!payload.peerId || !shouldDialPeer(payload.peerId)) {
+        return
+      }
+
+      const addrs = Array.isArray(payload.addrs) ? payload.addrs : []
+
+      for (const addr of addrs) {
+        try {
+          await libp2p.dial(multiaddr(addr))
+          return
+        } catch (error) {
+          log.error('tab discovery dial failed %s %o', addr, error)
+        }
+      }
+    }
+
+    channel.addEventListener('message', onMessage)
+    channel.postMessage({ type: 'request', peerId: selfPeerId, ts: Date.now() })
+    announce()
+    const intervalId = setInterval(announce, 5_000)
+
+    return () => {
+      clearInterval(intervalId)
+      channel.removeEventListener('message', onMessage)
+      channel.close()
+    }
+  }, [libp2p])
 
   const performRestart = useCallback(
     async (options?: StartLibp2pOptions) => {
