@@ -18,9 +18,7 @@ async function main() {
 
     if (instance) {
       const address = instance.server.address()
-      console.log(
-        `[lm-agent] proxy listening on http://${address?.address ?? '127.0.0.1'}:${address?.port ?? '4312'}`,
-      )
+      console.log(`[lm-agent] proxy listening on http://${address?.address ?? '127.0.0.1'}:${address?.port ?? '4312'}`)
     } else {
       console.warn('[lm-agent] skipped starting proxy (likely running on Vercel/serverless)')
     }

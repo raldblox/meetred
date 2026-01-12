@@ -70,10 +70,7 @@ const loadEnvFile = () => {
         continue
       }
 
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1)
       }
 
@@ -185,12 +182,6 @@ const createRelayNode = async () => {
 
   node.services.pubsub.subscribe(DISCOVERY_TOPIC)
   node.services.pubsub.subscribe(CHAT_TOPIC)
-
-  console.log('local libp2p relay ready')
-  console.log(`peer id: ${peerId}`)
-  console.log(`listen: ${listenAddrs.join(', ')}`)
-  console.log(`relay: ${relayAddrs.join(', ')}`)
-  console.log('set NEXT_PUBLIC_LOCAL_RELAY_ADDRS to one or more relay addrs above')
 
   return node
 }
