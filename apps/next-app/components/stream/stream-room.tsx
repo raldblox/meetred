@@ -51,7 +51,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const sessionActive = isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)
   const paymentPromptActive = !isHost && status === 'live'
   const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.stream.ratePerMinute.toString())
-  const effectiveRate = isHost ? paymentRate ?? PAY_PER_MINUTE_CONFIG.stream.ratePerMinute : paymentRate
+  const effectiveRate = isHost ? (paymentRate ?? PAY_PER_MINUTE_CONFIG.stream.ratePerMinute) : paymentRate
   const paymentGate = usePayPerMinute({
     config: PAY_PER_MINUTE_CONFIG.stream,
     elapsedMs: sessionTimer.elapsedMs,
@@ -327,11 +327,13 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                       onPress={() => {
                         if (status === 'live') {
                           stopHosting()
+
                           return
                         }
 
                         if (needsPayout) {
                           paymentGate.openModal()
+
                           return
                         }
 
@@ -398,7 +400,9 @@ export function StreamRoom({ streamId }: { streamId: string }) {
                     </div>
                     <div className="mt-1 flex items-center justify-between">
                       <span>Consent</span>
-                      <span>{paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}</span>
+                      <span>
+                        {paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}
+                      </span>
                     </div>
                   </div>
                   <div className="flex w-full flex-wrap items-center justify-center gap-3">
@@ -480,7 +484,6 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           isOpen={paymentGate.modalOpen}
           mode={isHost ? 'host' : 'viewer'}
           payoutAddress={paymentGate.payoutAddress}
-          onPayoutAddressChange={paymentGate.setPayoutAddress}
           rateAccepted={paymentGate.rateAccepted}
           rateAvailable={paymentGate.rateAvailable}
           requiresRateAcceptance={!isHost}
@@ -490,6 +493,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
           onConnectCoinbase={paymentGate.connectCoinbase}
           onConnectWallet={paymentGate.connectWallet}
           onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+          onPayoutAddressChange={paymentGate.setPayoutAddress}
           onRequestApproval={paymentGate.requestApproval}
           onReset={paymentGate.reset}
         />

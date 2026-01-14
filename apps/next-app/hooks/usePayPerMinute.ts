@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-
 import type { PayPerMinuteConfig, PaymentConnection } from '@/lib/payments'
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export type PayPerMinuteStatus =
   | 'disconnected'
@@ -87,11 +87,13 @@ export function usePayPerMinute({
         setConnection(null)
         lastReadyRef.current = false
       }
+
       return
     }
 
     if (lastRateRef.current === null) {
       lastRateRef.current = ratePerMinute
+
       return
     }
 
@@ -203,16 +205,19 @@ export function usePayPerMinute({
 
     if (isFree) {
       setStatus('ready')
+
       return
     }
 
     if (lastReadyRef.current) {
       setStatus('ready')
+
       return
     }
 
     if (connection) {
       setStatus('connected')
+
       return
     }
 
@@ -252,6 +257,7 @@ export function usePayPerMinute({
     if (status === 'error') {
       return 'Resolve payment'
     }
+
     return 'Connect to start'
   }, [formattedAmount, status])
 

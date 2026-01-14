@@ -87,6 +87,7 @@ const ensureRelayReservations = async (libp2p: Libp2p, relayListenAddrs: string[
 
 const parseLocalRelayAddrs = (): string[] => {
   const raw = process.env[LOCAL_RELAY_ENV] ?? ''
+
   if (!raw) {
     return []
   }

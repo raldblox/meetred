@@ -1,9 +1,9 @@
 'use client'
 
-import { Button, Chip, Input, Modal, ModalBody, ModalContent, ModalHeader } from '@heroui/react'
-
 import type { PayPerMinuteConfig, PaymentConnection } from '@/lib/payments'
 import type { PayPerMinuteStatus } from '@/hooks/usePayPerMinute'
+
+import { Button, Chip, Input, Modal, ModalBody, ModalContent, ModalHeader } from '@heroui/react'
 
 interface PayPerMinuteModalProps {
   isOpen: boolean
@@ -93,7 +93,8 @@ export function PayPerMinuteModal({
                 </Chip>
               </div>
               <p className="text-xs text-default-500">
-                {rateAvailable ? formattedRate : 'Rate pending'} on {config.network} via {config.provider} ({config.rail}).
+                {rateAvailable ? formattedRate : 'Rate pending'} on {config.network} via {config.provider} (
+                {config.rail}).
               </p>
             </ModalHeader>
             <ModalBody className="pb-6 pt-0 space-y-4">

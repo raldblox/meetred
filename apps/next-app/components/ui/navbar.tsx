@@ -3,7 +3,7 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button, Tooltip } from '@heroui/react'
-import { Bot, Globe, MessagesSquare, Radio, Video } from 'lucide-react'
+import { Bot, MessagesSquare, Radio, Video } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'

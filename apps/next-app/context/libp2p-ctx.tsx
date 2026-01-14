@@ -213,11 +213,13 @@ export function Libp2pProvider({ children }: WrapperProps) {
       }
 
       const lastDial = tabDiscoveryDialRef.current.get(peerId) ?? 0
+
       if (Date.now() - lastDial < dialCooldownMs) {
         return false
       }
 
       tabDiscoveryDialRef.current.set(peerId, Date.now())
+
       return true
     }
 
@@ -241,6 +243,7 @@ export function Libp2pProvider({ children }: WrapperProps) {
 
       if (payload.type === 'request' && payload.peerId && payload.peerId !== selfPeerId) {
         announce()
+
         return
       }
 
@@ -257,6 +260,7 @@ export function Libp2pProvider({ children }: WrapperProps) {
       for (const addr of addrs) {
         try {
           await libp2p.dial(multiaddr(addr))
+
           return
         } catch (error) {
           log.error('tab discovery dial failed %s %o', addr, error)

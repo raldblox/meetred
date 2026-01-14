@@ -60,7 +60,13 @@ const MarkdownBlock: LLMOutputComponent = ({ blockMatch }) => (
   </div>
 )
 
-const ButtonsBlock = ({ blockMatch, onActionPrompt }: { blockMatch: any; onActionPrompt?: (prompt: string) => void }) => {
+const ButtonsBlock = ({
+  blockMatch,
+  onActionPrompt,
+}: {
+  blockMatch: any
+  onActionPrompt?: (prompt: string) => void
+}) => {
   const parsed = useMemo(() => {
     try {
       return parseJson5(blockMatch.output) as ButtonsBlockData
@@ -147,6 +153,7 @@ const useSmoothStream = (text: string) => {
     if (!text) {
       setOutput('')
       setIsFinished(true)
+
       return
     }
 

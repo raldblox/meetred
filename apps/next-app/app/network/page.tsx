@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-import { Navbar } from '@/components/ui/navbar'
 import { NetworkHero } from '@/components/network/NetworkHero'
 import { usePeerPresence, type PeerPresence } from '@/hooks/usePeerPresence'
 import Grid from '@/components/grid'

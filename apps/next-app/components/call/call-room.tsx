@@ -57,7 +57,7 @@ export function CallRoom({ callId }: { callId: string }) {
   const sessionActive = status === 'in-call'
   const paymentPromptActive = !isHost && (status === 'calling' || status === 'connecting' || status === 'in-call')
   const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.call.ratePerMinute.toString())
-  const effectiveRate = isHost ? paymentRate ?? PAY_PER_MINUTE_CONFIG.call.ratePerMinute : paymentRate
+  const effectiveRate = isHost ? (paymentRate ?? PAY_PER_MINUTE_CONFIG.call.ratePerMinute) : paymentRate
   const paymentGate = usePayPerMinute({
     config: PAY_PER_MINUTE_CONFIG.call,
     elapsedMs: sessionTimer.elapsedMs,
@@ -232,6 +232,7 @@ export function CallRoom({ callId }: { callId: string }) {
                       onClick={() => {
                         if (needsPayout) {
                           paymentGate.openModal()
+
                           return
                         }
 
@@ -365,7 +366,9 @@ export function CallRoom({ callId }: { callId: string }) {
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-default-600">
                   <span>Consent</span>
-                  <span>{paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}</span>
+                  <span>
+                    {paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}
+                  </span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
@@ -449,7 +452,6 @@ export function CallRoom({ callId }: { callId: string }) {
           isOpen={paymentGate.modalOpen}
           mode={isHost ? 'host' : 'viewer'}
           payoutAddress={paymentGate.payoutAddress}
-          onPayoutAddressChange={paymentGate.setPayoutAddress}
           rateAccepted={paymentGate.rateAccepted}
           rateAvailable={paymentGate.rateAvailable}
           requiresRateAcceptance={!isHost}
@@ -459,6 +461,7 @@ export function CallRoom({ callId }: { callId: string }) {
           onConnectCoinbase={paymentGate.connectCoinbase}
           onConnectWallet={paymentGate.connectWallet}
           onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+          onPayoutAddressChange={paymentGate.setPayoutAddress}
           onRequestApproval={paymentGate.requestApproval}
           onReset={paymentGate.reset}
         />

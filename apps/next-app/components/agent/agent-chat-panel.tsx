@@ -10,6 +10,7 @@ import { Button, Input, ScrollShadow } from '@heroui/react'
 import clsx from 'clsx'
 
 import ShinyText from '../ui/shiny-text'
+
 import { AgentChatOutput } from './agent-chat-output'
 
 import { useChatContext } from '@/context/chat-ctx'

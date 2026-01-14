@@ -107,7 +107,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   const sessionActive = modelReady
   const paymentPromptActive = !isHost && authorized
   const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.agent.ratePerMinute.toString())
-  const effectiveRate = isHost ? paymentRate ?? PAY_PER_MINUTE_CONFIG.agent.ratePerMinute : paymentRate
+  const effectiveRate = isHost ? (paymentRate ?? PAY_PER_MINUTE_CONFIG.agent.ratePerMinute) : paymentRate
   const paymentGate = usePayPerMinute({
     config: PAY_PER_MINUTE_CONFIG.agent,
     elapsedMs: sessionTimer.elapsedMs,
@@ -202,7 +202,9 @@ export function AgentRoom({ peerId }: { peerId: string }) {
                   </div>
                   <div className="mt-1 flex items-center justify-between">
                     <span>Consent</span>
-                    <span>{paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}</span>
+                    <span>
+                      {paymentGate.isFree ? 'Not required' : paymentGate.rateAccepted ? 'Accepted' : 'Not accepted'}
+                    </span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -260,7 +262,6 @@ export function AgentRoom({ peerId }: { peerId: string }) {
             isOpen={paymentGate.modalOpen}
             mode={isHost ? 'host' : 'viewer'}
             payoutAddress={paymentGate.payoutAddress}
-            onPayoutAddressChange={paymentGate.setPayoutAddress}
             rateAccepted={paymentGate.rateAccepted}
             rateAvailable={paymentGate.rateAvailable}
             requiresRateAcceptance={!isHost}
@@ -270,6 +271,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
             onConnectCoinbase={paymentGate.connectCoinbase}
             onConnectWallet={paymentGate.connectWallet}
             onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+            onPayoutAddressChange={paymentGate.setPayoutAddress}
             onRequestApproval={paymentGate.requestApproval}
             onReset={paymentGate.reset}
           />
@@ -381,7 +383,6 @@ export function AgentRoom({ peerId }: { peerId: string }) {
           isOpen={paymentGate.modalOpen}
           mode={isHost ? 'host' : 'viewer'}
           payoutAddress={paymentGate.payoutAddress}
-          onPayoutAddressChange={paymentGate.setPayoutAddress}
           rateAccepted={paymentGate.rateAccepted}
           rateAvailable={paymentGate.rateAvailable}
           requiresRateAcceptance={!isHost}
@@ -391,6 +392,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
           onConnectCoinbase={paymentGate.connectCoinbase}
           onConnectWallet={paymentGate.connectWallet}
           onOpenChange={(open) => (open ? paymentGate.openModal() : paymentGate.closeModal())}
+          onPayoutAddressChange={paymentGate.setPayoutAddress}
           onRequestApproval={paymentGate.requestApproval}
           onReset={paymentGate.reset}
         />
@@ -622,16 +624,16 @@ function AgentManagerPanel({
           ) : (
             <Select
               disallowEmptySelection
+              isVirtualized
               aria-label="Detected models"
+              itemHeight={50}
               label="Choose a model"
               labelPlacement="outside"
-              itemHeight={50}
+              listboxProps={{ className: 'py-1' }}
               maxListboxHeight={200}
-              isVirtualized
+              scrollShadowProps={{ hideScrollBar: true }}
               selectedKeys={activeModelId ? new Set([activeModelId]) : new Set<string>()}
               selectionMode="single"
-              scrollShadowProps={{ hideScrollBar: true }}
-              listboxProps={{ className: 'py-1' }}
               onSelectionChange={handleModelSelection}
             >
               {models.map((model) => (
