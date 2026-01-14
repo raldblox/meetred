@@ -94,7 +94,7 @@ export function Peer({ peer, self, withName, withUnread, syncing = false, showCo
       <span className="relative inline-flex">
         <Blockies className="h-8 rounded-sm" scale={4} seed={peerIdStr} size={8} />
         {showCountBadge && totalCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] px-1 rounded-full bg-default-900 text-[10px] leading-4 text-default-50 text-center shadow-sm">
+          <span className="absolute -top-1 -right-1 font-bold min-w-[16px] p-0 rounded-full text-default-800 bg-default-100 border border-default-500 text-[10px] leading-4 text-center drop-shadow-md">
             {totalCount}
           </span>
         )}
