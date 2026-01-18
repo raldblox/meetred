@@ -85,7 +85,24 @@ const ensureRelayReservations = async (libp2p: Libp2p, relayListenAddrs: string[
   }
 }
 
+const shouldUseLocalRelay = (): boolean => {
+  if (process.env.NEXT_PUBLIC_NODE_ENV === 'development' || process.env.NODE_ENV === 'development') {
+    return true
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    return host === 'localhost' || host === '127.0.0.1'
+  }
+
+  return false
+}
+
 const parseLocalRelayAddrs = (): string[] => {
+  if (!shouldUseLocalRelay()) {
+    return []
+  }
+
   const raw = process.env[LOCAL_RELAY_ENV] ?? ''
 
   if (!raw) {

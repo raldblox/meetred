@@ -192,19 +192,7 @@ export interface StreamContextValue {
 }
 
 // Shared STUN config keeps signalling minimal while being supported in every major browser.
-const TURN_URLS = (process.env.NEXT_PUBLIC_TURN_URLS ?? '')
-  .split(',')
-  .map((entry) => entry.trim())
-  .filter(Boolean)
-const TURN_USERNAME = (process.env.NEXT_PUBLIC_TURN_USERNAME ?? '').trim()
-const TURN_CREDENTIAL = (process.env.NEXT_PUBLIC_TURN_CREDENTIAL ?? '').trim()
-
-const ICE_SERVERS: RTCConfiguration['iceServers'] = [
-  { urls: ['stun:stun.l.google.com:19302'] },
-  ...(TURN_URLS.length > 0 && TURN_USERNAME && TURN_CREDENTIAL
-    ? [{ urls: TURN_URLS, username: TURN_USERNAME, credential: TURN_CREDENTIAL }]
-    : []),
-]
+const ICE_SERVERS: RTCConfiguration['iceServers'] = [{ urls: ['stun:stun.l.google.com:19302'] }]
 
 const VIDEO_TRACK_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 1280 },

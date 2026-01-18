@@ -28,19 +28,24 @@ async function main() {
     return
   }
 
-  try {
-    const relay = await startLocalRelay()
+  const allowLocalRelay =
+    process.env.NEXT_PUBLIC_NODE_ENV === 'development' || process.env.NODE_ENV === 'development'
 
-    if (relay) {
-      const listenAddrs = relay.getMultiaddrs().map((addr) => addr.toString())
-      console.log(`[local-relay] listening on ${listenAddrs.join(', ')}`)
-    } else {
-      console.warn('[local-relay] skipped starting relay')
+  if (allowLocalRelay) {
+    try {
+      const relay = await startLocalRelay()
+
+      if (relay) {
+        const listenAddrs = relay.getMultiaddrs().map((addr) => addr.toString())
+        console.log(`[local-relay] listening on ${listenAddrs.join(', ')}`)
+      } else {
+        console.warn('[local-relay] skipped starting relay')
+      }
+    } catch (error) {
+      console.error('[local-relay] failed to boot', error)
+      process.exit(1)
+      return
     }
-  } catch (error) {
-    console.error('[local-relay] failed to boot', error)
-    process.exit(1)
-    return
   }
 
   const child = spawn(process.execPath, [nextBin, ...nextArgs], {
