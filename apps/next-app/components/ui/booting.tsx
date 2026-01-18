@@ -151,7 +151,7 @@ export function Booting({ error, steps = [], variant = 'standalone', logLines = 
             borderColor="red"
             manualMode={false}
             pauseBetweenAnimations={0.1}
-            sentence="Meet red .io"
+            sentence="Meet red .app"
           />
           <p className="text-sm text-default-500 font-semibold">No sign-up. No installs. You&apos;re joining live.</p>
         </div>

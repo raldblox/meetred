@@ -18,7 +18,7 @@ export default function Home() {
     <Grid
       footer={
         <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between">
-          <div className="text-xs">Metered</div>
+          <div className="text-xs">Meetred</div>
           <ConnectionInfoButton onClick={handleOpenConnectionPanel} />
         </footer>
       }
