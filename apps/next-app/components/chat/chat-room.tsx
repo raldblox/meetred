@@ -18,6 +18,7 @@ import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/config/constants'
 import { UI_COPY } from '@/config/copy'
 import { wrapMeteredMessage } from '@/lib/metered-envelope'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { publishAnalyticsEvent } from '@/lib/analytics'
 
 const log = forComponent('chat')
 
@@ -81,6 +82,13 @@ export default function ChatContainer() {
         setMessageHistory((prev) =>
           prev.map((message) => (message.msgId === pendingMessage.msgId ? { ...message, status: 'sent' } : message)),
         )
+        await publishAnalyticsEvent(libp2p, {
+          event: 'chat_message_sent',
+          peerId: myPeerId,
+          roomType: 'public',
+          roomId: 'public',
+          channel: 'public',
+        })
       } catch (error) {
         log.error('failed to send public message %o', error)
         setMessageHistory((prev) =>
@@ -141,6 +149,13 @@ export default function ChatContainer() {
               message.msgId === pendingMessage.msgId ? { ...message, status: 'sent' } : message,
             ),
           }
+        })
+        await publishAnalyticsEvent(libp2p, {
+          event: 'chat_message_sent',
+          peerId: myPeerId,
+          roomType: 'dm',
+          roomId: targetRoomId,
+          channel: 'dm',
         })
       } catch (error) {
         log.error('failed to send direct message %o', error)
@@ -291,6 +306,13 @@ export default function ChatContainer() {
       } else {
         await sendDirectMessage(meetingInvite)
       }
+      await publishAnalyticsEvent(libp2p, {
+        event: 'invite_sent',
+        peerId: hostPeerId,
+        roomType: 'call',
+        roomId: hostPeerId,
+        channel: roomId === PUBLIC_CHAT_ROOM_ID ? 'public' : 'dm',
+      })
     } catch (error) {
       log.error('failed to send meeting invite %o', error)
     } finally {
@@ -318,6 +340,13 @@ export default function ChatContainer() {
       } else {
         await sendDirectMessage(streamInvite)
       }
+      await publishAnalyticsEvent(libp2p, {
+        event: 'invite_sent',
+        peerId: hostPeerId,
+        roomType: 'stream',
+        roomId: hostPeerId,
+        channel: roomId === PUBLIC_CHAT_ROOM_ID ? 'public' : 'dm',
+      })
     } catch (error) {
       log.error('failed to send stream invite %o', error)
     } finally {
@@ -342,6 +371,13 @@ export default function ChatContainer() {
       } else {
         await sendDirectMessage(agentInvite)
       }
+      await publishAnalyticsEvent(libp2p, {
+        event: 'invite_sent',
+        peerId: hostPeerId,
+        roomType: 'ai',
+        roomId: hostPeerId,
+        channel: roomId === PUBLIC_CHAT_ROOM_ID ? 'public' : 'dm',
+      })
     } catch (error) {
       log.error('failed to send agent invite %o', error)
     } finally {

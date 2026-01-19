@@ -10,6 +10,7 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 import { encodeZeroWidth, decodeZeroWidth } from '@/lib/metered-envelope'
+import { publishAnalyticsEvent } from '@/lib/analytics'
 
 const log = forComponent('stream-context')
 
@@ -223,6 +224,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
   const pendingViewerIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
   const presenceLoggedRef = useRef(false)
   const hostWentLiveRef = useRef(false)
+  const viewerWentLiveRef = useRef(false)
   const topic = STREAM_SIGNAL_TOPIC
 
   const selfPeerId = useMemo(() => libp2p.peerId?.toString() ?? null, [libp2p])
@@ -329,7 +331,17 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
     cleanupViewerConnection()
     setRemoteStream(null)
     setViewerStatus((prev) => (prev === 'idle' ? prev : 'idle'))
-  }, [cleanupViewerConnection])
+    if (viewerWentLiveRef.current && selfPeerId) {
+      viewerWentLiveRef.current = false
+      publishAnalyticsEvent(libp2p, {
+        event: 'stream_viewer_ended',
+        peerId: selfPeerId,
+        roomType: 'stream',
+        roomId: hostPeerId,
+        role: 'viewer',
+      })
+    }
+  }, [cleanupViewerConnection, hostPeerId, libp2p, selfPeerId])
 
   const setPaymentRate = useCallback(
     (rate: number) => {
@@ -385,8 +397,17 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       } catch (error) {
         log.error('failed to log host stop %o', error)
       }
+      if (selfPeerId) {
+        await publishAnalyticsEvent(libp2p, {
+          event: 'stream_ended',
+          peerId: selfPeerId,
+          roomType: 'stream',
+          roomId: hostPeerId,
+          role: 'host',
+        })
+      }
     }
-  }, [appendStatusLog, isHost, postRoomLog, publishSignal, recordRoomError])
+  }, [appendStatusLog, hostPeerId, isHost, libp2p, postRoomLog, publishSignal, recordRoomError, selfPeerId])
 
   // Lazily creates or reuses a host->viewer connection whenever we receive an offer.
   const createHostPeerConnection = useCallback(
@@ -532,6 +553,16 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
         await pc.setRemoteDescription({ type: 'answer', sdp: signal.payload?.sdp })
         appendStatusLog('viewer applied host answer')
         setSelfStatus('live')
+        if (!viewerWentLiveRef.current && selfPeerId) {
+          viewerWentLiveRef.current = true
+          await publishAnalyticsEvent(libp2p, {
+            event: 'stream_viewer_started',
+            peerId: selfPeerId,
+            roomType: 'stream',
+            roomId: hostPeerId,
+            role: 'viewer',
+          })
+        }
       } catch (e: any) {
         log.error('failed to handle host answer %o', e)
         setError(e?.message ?? 'failed to apply host answer')
@@ -539,7 +570,7 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
         await recordRoomError('Viewer failed to apply host answer', e)
       }
     },
-    [recordRoomError, setSelfStatus, appendStatusLog],
+    [appendStatusLog, hostPeerId, libp2p, recordRoomError, selfPeerId, setSelfStatus],
   )
 
   // Pushes host ICE into the viewer peer connection.
@@ -761,6 +792,15 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       await publishSignal({ action: 'host-ready', payload: { live: true } })
       await postRoomLog('Stream started')
       hostWentLiveRef.current = true
+      if (selfPeerId) {
+        await publishAnalyticsEvent(libp2p, {
+          event: 'stream_started',
+          peerId: selfPeerId,
+          roomType: 'stream',
+          roomId: hostPeerId,
+          role: 'host',
+        })
+      }
       await flushPendingViewerOffers()
     } catch (e: any) {
       log.error('failed to start hosting %o', e)
@@ -768,7 +808,18 @@ export function StreamProvider({ streamId, children }: { streamId: string; child
       setSelfStatus('error')
       await recordRoomError('Host failed to start stream', e)
     }
-  }, [appendStatusLog, flushPendingViewerOffers, isHost, publishSignal, recordRoomError, resetError, setSelfStatus])
+  }, [
+    appendStatusLog,
+    flushPendingViewerOffers,
+    hostPeerId,
+    isHost,
+    libp2p,
+    publishSignal,
+    recordRoomError,
+    resetError,
+    selfPeerId,
+    setSelfStatus,
+  ])
 
   // Viewer entrypoint: creates a recvonly offer and waits for the host to answer.
   const startViewing = useCallback(async () => {

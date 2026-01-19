@@ -3,6 +3,7 @@ const path = require('node:path')
 
 const { startLocalModelAgent, stopLocalModelAgent } = require('../local-agent/server')
 const { startLocalRelay, stopLocalRelay } = require('../local-agent/relay')
+const { startArchivalNode, stopArchivalNode } = require('../local-agent/archival')
 
 const mode = process.argv[2] === 'start' ? 'start' : 'dev'
 const nextArgs =
@@ -48,6 +49,23 @@ async function main() {
     }
   }
 
+  if (allowLocalRelay) {
+    try {
+      const archival = await startArchivalNode()
+
+      if (archival?.node) {
+        const listenAddrs = archival.node.getMultiaddrs().map((addr) => addr.toString())
+        console.log(`[archival] listening on ${listenAddrs.join(', ')}`)
+      } else {
+        console.warn('[archival] skipped starting archival node')
+      }
+    } catch (error) {
+      console.error('[archival] failed to boot', error)
+      process.exit(1)
+      return
+    }
+  }
+
   const child = spawn(process.execPath, [nextBin, ...nextArgs], {
     stdio: 'inherit',
     env: process.env,
@@ -57,6 +75,7 @@ async function main() {
   const shutdown = async () => {
     await stopLocalModelAgent()
     await stopLocalRelay()
+    await stopArchivalNode()
 
     if (child.killed) {
       return
@@ -80,6 +99,7 @@ async function main() {
   child.on('exit', async (code, signal) => {
     await stopLocalModelAgent()
     await stopLocalRelay()
+    await stopArchivalNode()
 
     if (signal) {
       process.kill(process.pid, signal)

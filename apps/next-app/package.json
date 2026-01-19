@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "node scripts/run-with-agent.js start",
     "relay:local": "node local-agent/relay.js",
+    "archival:local": "node local-agent/archival.js",
     "format": "prettier --write src",
     "lint": "eslint --fix",
     "protobuf": "protons lib/protobuf/*.proto",

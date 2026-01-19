@@ -7,6 +7,7 @@ export type AgentChatPayload = {
   body: string
   senderPeerId: string
   variant: 'user' | 'model'
+  provider?: string
   modelId?: string
   status?: 'pending' | 'complete' | 'error'
   promptId?: string
@@ -18,6 +19,7 @@ export interface AgentChatPayloadInput {
   body: string
   senderPeerId: string
   variant: 'user' | 'model'
+  provider?: string
   modelId?: string
   status?: 'pending' | 'complete' | 'error'
   promptId?: string
@@ -28,6 +30,7 @@ export const buildAgentChatPayload = ({
   body,
   senderPeerId,
   variant,
+  provider,
   modelId,
   status,
   promptId,
@@ -38,6 +41,7 @@ export const buildAgentChatPayload = ({
   body,
   senderPeerId,
   variant,
+  provider,
   modelId,
   status,
   promptId,
@@ -62,6 +66,7 @@ export const parseAgentChatPayload = (msg: string): AgentChatPayload | null => {
         body: parsed.body,
         senderPeerId: typeof parsed.senderPeerId === 'string' ? parsed.senderPeerId : '',
         variant: parsed.variant,
+        provider: typeof parsed.provider === 'string' ? parsed.provider : undefined,
         modelId: typeof parsed.modelId === 'string' ? parsed.modelId : undefined,
         status: parsed.status === 'pending' || parsed.status === 'error' ? parsed.status : 'complete',
         promptId: typeof parsed.promptId === 'string' ? parsed.promptId : undefined,

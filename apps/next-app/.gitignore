@@ -19,6 +19,7 @@
 .DS_Store
 *.pem
 local-agent/relay.key
+local-agent/archival.key
 
 # debug
 npm-debug.log*

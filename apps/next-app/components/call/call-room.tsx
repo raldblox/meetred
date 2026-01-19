@@ -12,6 +12,7 @@ import { PayPerMinuteChip } from '@/components/payments/pay-per-minute-chip'
 import { PayPerMinuteModal } from '@/components/payments/pay-per-minute-modal'
 import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { useSessionTimer } from '@/hooks/useSessionTimer'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 const ringPositions = [
   { x: 0, y: -120 },
@@ -25,6 +26,7 @@ const ringPositions = [
 ]
 
 export function CallRoom({ callId }: { callId: string }) {
+  const { libp2p } = useLibp2pContext()
   const {
     isHost,
     hostPeerId,
@@ -65,6 +67,12 @@ export function CallRoom({ callId }: { callId: string }) {
     ratePerMinute: effectiveRate,
     requireRateAcceptance: !isHost,
     autoPrompt: !isHost,
+    analytics: {
+      libp2p,
+      peerId: selfPeerId ?? 'unknown',
+      roomId: callId,
+      roomType: 'call',
+    },
   })
   const allowSessionStart = isHost ? true : paymentGate.isReady
   const paymentBadgeLabel = paymentGate.isReady

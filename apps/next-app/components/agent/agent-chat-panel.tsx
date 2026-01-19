@@ -24,6 +24,7 @@ import { createOpenAIChatCompletion } from '@/lib/openai'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
 import { AI_ROOM_COPY } from '@/config/copy'
 import { AGENT_UI_SYSTEM_PROMPT } from '@/lib/agent-ui'
+import { publishAnalyticsEvent } from '@/lib/analytics'
 
 interface AgentChatPanelProps {
   agentPeerId: string
@@ -117,12 +118,15 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
     setSending(true)
 
     try {
+      const analyticsProvider =
+        agentState.sourceType === 'openai' ? 'openai' : agentState.sourceType === 'lmstudio-local' ? 'lmstudio' : 'unknown'
       const senderPeerId = selfPeerId
       const payload = buildAgentChatPayload({
         agentPeerId,
         body: trimmed,
         senderPeerId,
         variant: 'user',
+        provider: analyticsProvider,
         modelId: resolvedModelId,
         promptId,
         status: 'complete',
@@ -130,6 +134,16 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
       const encoded = appendLocalChatPayload(payload)
 
       await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(encoded)))
+      await publishAnalyticsEvent(libp2p, {
+        event: 'agent_chat_message',
+        peerId: senderPeerId,
+        roomType: 'ai',
+        roomId: agentPeerId,
+        variant: 'user',
+        provider: analyticsProvider,
+        modelId: resolvedModelId,
+        status: 'complete',
+      })
       setInput('')
 
       if (isHost) {
@@ -139,12 +153,22 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
             body: 'No local model selected. Please choose one first.',
             senderPeerId,
             variant: 'model',
+            provider: analyticsProvider,
             promptId,
             status: 'error',
           })
           const errorEncoded = appendLocalChatPayload(errorPayload)
 
           await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(errorEncoded)))
+          await publishAnalyticsEvent(libp2p, {
+            event: 'agent_chat_message',
+            peerId: senderPeerId,
+            roomType: 'ai',
+            roomId: agentPeerId,
+            variant: 'model',
+            provider: analyticsProvider,
+            status: 'error',
+          })
 
           return
         }
@@ -154,6 +178,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
           body: 'Agent is thinking...',
           senderPeerId,
           variant: 'model',
+          provider: analyticsProvider,
           modelId: resolvedModelId,
           promptId,
           status: 'pending',
@@ -184,6 +209,7 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
           body: completion.text,
           senderPeerId,
           variant: 'model',
+          provider: analyticsProvider,
           modelId: resolvedModelId,
           promptId,
           status: 'complete',
@@ -191,6 +217,16 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         const responseEncoded = appendLocalChatPayload(responsePayload)
 
         await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(responseEncoded)))
+        await publishAnalyticsEvent(libp2p, {
+          event: 'agent_chat_message',
+          peerId: senderPeerId,
+          roomType: 'ai',
+          roomId: agentPeerId,
+          variant: 'model',
+          provider: analyticsProvider,
+          modelId: resolvedModelId,
+          status: 'complete',
+        })
       } else {
         const promptOptions = resolvedModelId ? { promptId, modelId: resolvedModelId } : { promptId }
 
@@ -204,6 +240,8 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         body: error instanceof Error ? error.message : 'Failed to contact host model.',
         senderPeerId,
         variant: 'model',
+        provider:
+          agentState.sourceType === 'openai' ? 'openai' : agentState.sourceType === 'lmstudio-local' ? 'lmstudio' : 'unknown',
         modelId: resolvedModelId,
         promptId,
         status: 'error',
@@ -211,6 +249,18 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
       const responseEncoded = appendLocalChatPayload(responsePayload)
 
       await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(responseEncoded)))
+      const analyticsProvider =
+        agentState.sourceType === 'openai' ? 'openai' : agentState.sourceType === 'lmstudio-local' ? 'lmstudio' : 'unknown'
+      await publishAnalyticsEvent(libp2p, {
+        event: 'agent_chat_message',
+        peerId: senderPeerId,
+        roomType: 'ai',
+        roomId: agentPeerId,
+        variant: 'model',
+        provider: analyticsProvider,
+        modelId: resolvedModelId,
+        status: 'error',
+      })
     } finally {
       setSending(false)
     }

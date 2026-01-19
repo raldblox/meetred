@@ -1,8 +1,10 @@
 'use client'
 
 import type { PayPerMinuteConfig, PaymentConnection } from '@/lib/payments'
+import type { Libp2pType } from '@/context/libp2p-ctx'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { publishAnalyticsEvent } from '@/lib/analytics'
 
 export type PayPerMinuteStatus =
   | 'disconnected'
@@ -20,6 +22,12 @@ interface UsePayPerMinuteOptions {
   ratePerMinute?: number | null
   requireRateAcceptance?: boolean
   autoPrompt?: boolean
+  analytics?: {
+    libp2p: Libp2pType
+    peerId: string
+    roomId: string
+    roomType: string
+  }
 }
 
 const statusLabels: Record<PayPerMinuteStatus, string> = {
@@ -39,6 +47,7 @@ export function usePayPerMinute({
   ratePerMinute,
   requireRateAcceptance = false,
   autoPrompt = false,
+  analytics,
 }: UsePayPerMinuteOptions) {
   const [status, setStatus] = useState<PayPerMinuteStatus>('disconnected')
   const [connection, setConnection] = useState<PaymentConnection | null>(null)
@@ -49,6 +58,9 @@ export function usePayPerMinute({
   const transitionRef = useRef<NodeJS.Timeout | null>(null)
   const lastReadyRef = useRef(false)
   const lastRateRef = useRef<number | null>(null)
+  const lastMinuteRef = useRef(0)
+  const gateApprovedRef = useRef(false)
+  const receiptConfirmedRef = useRef(false)
 
   const clearTransition = () => {
     if (transitionRef.current) {
@@ -78,6 +90,23 @@ export function usePayPerMinute({
       setRateAccepted(true)
     }
   }, [isFree, requiresAcceptance])
+
+  useEffect(() => {
+    if (!analytics || isFree) {
+      return
+    }
+
+    if (rateAccepted && !gateApprovedRef.current) {
+      gateApprovedRef.current = true
+      publishAnalyticsEvent(analytics.libp2p, {
+        event: 'paid_gating_approved',
+        peerId: analytics.peerId,
+        roomType: analytics.roomType,
+        roomId: analytics.roomId,
+        ratePerMinute: effectiveRate,
+      })
+    }
+  }, [analytics, effectiveRate, isFree, rateAccepted])
 
   useEffect(() => {
     if (typeof ratePerMinute !== 'number') {
@@ -125,6 +154,27 @@ export function usePayPerMinute({
   }, [status])
 
   useEffect(() => {
+    if (!analytics || isFree) {
+      return
+    }
+
+    if (status === 'ready' && !receiptConfirmedRef.current) {
+      receiptConfirmedRef.current = true
+      publishAnalyticsEvent(analytics.libp2p, {
+        event: 'receipt_confirmed',
+        peerId: analytics.peerId,
+        roomType: analytics.roomType,
+        roomId: analytics.roomId,
+        ratePerMinute: effectiveRate,
+      })
+    }
+
+    if (status !== 'ready') {
+      receiptConfirmedRef.current = false
+    }
+  }, [analytics, effectiveRate, isFree, status])
+
+  useEffect(() => {
     if (!autoPrompt) {
       return
     }
@@ -142,6 +192,33 @@ export function usePayPerMinute({
       autoPromptedRef.current = false
     }
   }, [autoPrompt, isFree, sessionActive, status])
+
+  useEffect(() => {
+    if (!analytics || !sessionActive) {
+      lastMinuteRef.current = 0
+      return
+    }
+
+    const minute = Math.floor(elapsedMs / 60000)
+
+    if (minute <= lastMinuteRef.current) {
+      return
+    }
+
+    for (let i = lastMinuteRef.current + 1; i <= minute; i += 1) {
+      publishAnalyticsEvent(analytics.libp2p, {
+        event: 'billing_minute',
+        peerId: analytics.peerId,
+        roomType: analytics.roomType,
+        roomId: analytics.roomId,
+        minutes: 1,
+        isFree,
+        ratePerMinute: effectiveRate,
+      })
+    }
+
+    lastMinuteRef.current = minute
+  }, [analytics, elapsedMs, effectiveRate, isFree, sessionActive])
 
   const formatCurrency = useCallback(
     (value: number) =>

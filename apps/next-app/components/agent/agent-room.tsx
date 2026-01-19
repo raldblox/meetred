@@ -31,6 +31,7 @@ import { AI_ROOM_COPY } from '@/config/copy'
 import { PAY_PER_MINUTE_CONFIG } from '@/config/payments'
 import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { useSessionTimer } from '@/hooks/useSessionTimer'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 const statusColorMap: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'default'> = {
   idle: 'default',
@@ -42,6 +43,7 @@ const statusColorMap: Record<string, 'primary' | 'secondary' | 'success' | 'warn
 }
 
 export function AgentRoom({ peerId }: { peerId: string }) {
+  const { libp2p } = useLibp2pContext()
   const {
     isHost,
     hostPeerId,
@@ -115,6 +117,12 @@ export function AgentRoom({ peerId }: { peerId: string }) {
     ratePerMinute: effectiveRate,
     requireRateAcceptance: !isHost,
     autoPrompt: !isHost,
+    analytics: {
+      libp2p,
+      peerId: libp2p.peerId.toString(),
+      roomId: shareTargetPeerId,
+      roomType: 'ai',
+    },
   })
   const allowSessionStart = isHost ? true : paymentGate.isReady
   const paymentBadgeLabel = paymentGate.isReady

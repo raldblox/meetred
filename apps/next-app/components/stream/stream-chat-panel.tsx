@@ -15,6 +15,7 @@ import { buildStreamChatPayload, parseStreamChatPayload } from '@/lib/stream-cha
 import { forComponent } from '@/lib/logger'
 import { encodeZeroWidth } from '@/lib/metered-envelope'
 import { STREAM_ROOM_COPY } from '@/config/copy'
+import { publishAnalyticsEvent } from '@/lib/analytics'
 
 interface StreamChatPanelProps {
   streamId: string
@@ -59,6 +60,12 @@ export function StreamChatPanel({ streamId }: StreamChatPanelProps) {
 
       // Publish to the shared UC topic so discovery keeps working even if peers only subscribe there.
       await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(obfuscated))
+      await publishAnalyticsEvent(libp2p, {
+        event: 'stream_chat_message',
+        peerId: senderPeerId,
+        roomType: 'stream',
+        roomId: streamId,
+      })
 
       const optimisticMessage: ChatMessage = {
         msgId: crypto.randomUUID(),

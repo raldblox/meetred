@@ -18,10 +18,12 @@ import { PayPerMinuteModal } from '@/components/payments/pay-per-minute-modal'
 import { useSessionTimer } from '@/hooks/useSessionTimer'
 import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { forComponent } from '@/lib/logger'
+import { useLibp2pContext } from '@/context/libp2p-ctx'
 
 const log = forComponent('stream-room')
 
 export function StreamRoom({ streamId }: { streamId: string }) {
+  const { libp2p } = useLibp2pContext()
   const {
     isHost,
     status,
@@ -48,6 +50,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const viewerStartedRef = useRef(false)
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
+  const selfPeerId = libp2p.peerId?.toString() ?? 'unknown'
   const sessionActive = isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)
   const paymentPromptActive = !isHost && status === 'live'
   const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.stream.ratePerMinute.toString())
@@ -59,6 +62,12 @@ export function StreamRoom({ streamId }: { streamId: string }) {
     ratePerMinute: effectiveRate,
     requireRateAcceptance: !isHost,
     autoPrompt: !isHost,
+    analytics: {
+      libp2p,
+      peerId: selfPeerId,
+      roomId: streamId,
+      roomType: 'stream',
+    },
   })
   const allowSessionStart = isHost ? true : paymentGate.isReady
   const paymentBadgeLabel = paymentGate.isReady
