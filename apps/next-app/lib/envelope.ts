@@ -1,6 +1,6 @@
 import { CHAT_MESSAGE_APP_ID, CHAT_MESSAGE_WRAPPER } from '@/config/constants'
 
-interface MeteredEnvelope {
+interface MeetredEnvelope {
   type: typeof CHAT_MESSAGE_WRAPPER
   app: typeof CHAT_MESSAGE_APP_ID
   payload: {
@@ -63,8 +63,8 @@ export const decodeZeroWidth = (zw: string): string | null => {
   }
 }
 
-export const wrapMeteredMessage = (message: string): string => {
-  const envelope: MeteredEnvelope = {
+export const wrapMeetredMessage = (message: string): string => {
+  const envelope: MeetredEnvelope = {
     type: CHAT_MESSAGE_WRAPPER,
     app: CHAT_MESSAGE_APP_ID,
     payload: {
@@ -75,11 +75,11 @@ export const wrapMeteredMessage = (message: string): string => {
   return encodeZeroWidth(JSON.stringify(envelope))
 }
 
-export const unwrapMeteredMessage = (raw: string): string | null => {
+export const unwrapMeetredMessage = (raw: string): string | null => {
   try {
     // zero-width encoded payloads
     const decoded = decodeZeroWidth(raw) ?? raw
-    const parsed = JSON.parse(decoded) as MeteredEnvelope
+    const parsed = JSON.parse(decoded) as MeetredEnvelope
 
     if (parsed?.type === CHAT_MESSAGE_WRAPPER && parsed?.app === CHAT_MESSAGE_APP_ID) {
       const inner = parsed.payload?.message

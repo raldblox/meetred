@@ -88,9 +88,8 @@ const PORT = Number.parseInt(process.env.LIBP2P_RELAY_PORT ?? '15002', 10)
 const KEY_PATH = process.env.LIBP2P_RELAY_KEY_PATH ?? path.join(__dirname, 'relay.key')
 
 const DISCOVERY_TOPIC =
-  (process.env.LIBP2P_DISCOVERY_TOPIC ?? 'universal-connectivity-browser-peer-discovery').trim() ||
-  'universal-connectivity-browser-peer-discovery'
-const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'universal-connectivity').trim() || 'universal-connectivity'
+  (process.env.LIBP2P_DISCOVERY_TOPIC ?? 'meetred-browser-peer-discovery').trim() || 'meetred-browser-peer-discovery'
+const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'meetred').trim() || 'meetred'
 
 const parseEncodedKey = (value, uint8ArrayFromString) => {
   const cleaned = (value ?? '').trim()

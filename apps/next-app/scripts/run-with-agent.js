@@ -4,6 +4,7 @@ const path = require('node:path')
 const { startLocalModelAgent, stopLocalModelAgent } = require('../local-agent/server')
 const { startLocalRelay, stopLocalRelay } = require('../local-agent/relay')
 const { startArchivalNode, stopArchivalNode } = require('../local-agent/archival')
+const { createLogger } = require('../lib/table‑logger.ts')
 
 const mode = process.argv[2] === 'start' ? 'start' : 'dev'
 const nextArgs =
@@ -14,12 +15,13 @@ const nextArgs =
 const nextBin = require.resolve('next/dist/bin/next')
 
 async function main() {
+  const log = createLogger()
   try {
     const instance = await startLocalModelAgent()
 
     if (instance) {
       const address = instance.server.address()
-      console.log(`[lm-agent] proxy listening on http://${address?.address ?? '127.0.0.1'}:${address?.port ?? '4312'}`)
+      log('[lm-agent]', `http://${address?.address ?? '127.0.0.1'}:${address?.port ?? '4312'}`)
     } else {
       console.warn('[lm-agent] skipped starting proxy (likely running on Vercel/serverless)')
     }
@@ -29,33 +31,34 @@ async function main() {
     return
   }
 
-  const allowLocalRelay =
-    process.env.NEXT_PUBLIC_NODE_ENV === 'development' || process.env.NODE_ENV === 'development'
+  const allowLocalRelay = process.env.NEXT_PUBLIC_NODE_ENV === 'development' || process.env.NODE_ENV === 'development'
 
   if (allowLocalRelay) {
+    // for local testing
     try {
       const relay = await startLocalRelay()
 
       if (relay) {
         const listenAddrs = relay.getMultiaddrs().map((addr) => addr.toString())
-        console.log(`[local-relay] listening on ${listenAddrs.join(', ')}`)
+        log('[relay]', `${listenAddrs.join(', ')}`)
       } else {
-        console.warn('[local-relay] skipped starting relay')
+        console.warn('[relay] skipped starting relay')
       }
     } catch (error) {
-      console.error('[local-relay] failed to boot', error)
+      console.error('[relay] failed to boot', error)
       process.exit(1)
       return
     }
   }
 
   if (allowLocalRelay) {
+    // init archival/analytics node
     try {
       const archival = await startArchivalNode()
 
       if (archival?.node) {
         const listenAddrs = archival.node.getMultiaddrs().map((addr) => addr.toString())
-        console.log(`[archival] listening on ${listenAddrs.join(', ')}`)
+        log('[archival]', `${listenAddrs.join(', ')}`)
       } else {
         console.warn('[archival] skipped starting archival node')
       }

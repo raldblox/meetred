@@ -7,7 +7,7 @@ type MetricsPayload = {
   peerId: string
   topics: string[]
   onlinePeers?: { count: number; byTopic?: Record<string, number> }
-  counters?: { totalMessages?: number; byTopic?: Record<string, number> }
+  counters?: { totalMessages?: number; totalEvents?: number; byTopic?: Record<string, number> }
   invites?: {
     total?: number
     byType?: Record<string, number>
@@ -119,11 +119,11 @@ export function MetricsDashboard() {
   const billing = data?.analytics?.billing
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-6 py-8">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-8">
       <div className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-default-500">Archival Node Metrics</p>
-        <h1 className="text-2xl font-semibold text-default-900">Network Activity</h1>
-        <p className="text-sm text-default-500">Live metrics from ARN at {METRICS_URL}</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-default-500">Analytics Agent</p>
+        <h1 className="text-2xl font-semibold text-default-900">Tracks network activities in real-time</h1>
+        <p>Archival Node: {data?.peerId}</p>
       </div>
 
       {loading ? <p className="text-sm text-default-500">Loading metrics...</p> : null}
@@ -139,7 +139,7 @@ export function MetricsDashboard() {
                 <span className="font-semibold">{formatNumber(data.onlinePeers?.count)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Total Messages</span>
+                <span>Total Events</span>
                 <span className="font-semibold">{formatNumber(data.counters?.totalMessages)}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -155,17 +155,8 @@ export function MetricsDashboard() {
               <p className="text-2xl font-semibold text-default-900">{formatNumber(totalStreamMinutes)}</p>
             </div>
             <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Billing Minutes</p>
-              <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
-                <div className="flex items-center justify-between">
-                  <span>Free</span>
-                  <span className="font-semibold">{formatNumber(billing?.freeMinutes ?? 0)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Paid</span>
-                  <span className="font-semibold">{formatNumber(billing?.paidMinutes ?? 0)}</span>
-                </div>
-              </div>
+              <p className="text-xs uppercase text-default-400">Paid Minutes</p>
+              <p className="text-2xl font-semibold text-default-900">{formatNumber(billing?.paidMinutes ?? 0)}</p>
             </div>
             <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
               <p className="text-xs uppercase text-default-400">Stream Chat Messages</p>
@@ -175,7 +166,7 @@ export function MetricsDashboard() {
 
           <div className="grid gap-2 md:grid-cols-2">
             <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Invites</p>
+              <p className="text-xs uppercase text-default-400">Room Invites</p>
               <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
                 <div className="flex items-center justify-between">
                   <span>Total</span>

@@ -3,7 +3,7 @@
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
 import { Button, Tooltip } from '@heroui/react'
-import { Bot, MessagesSquare, Radio, Video } from 'lucide-react'
+import { BarChart, Bot, MessagesSquare, Radio, Video } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
@@ -20,7 +20,7 @@ export const Navbar = () => {
 
   const navLinks = [
     // { label: UI_COPY.nav.network, href: '/network', icon: Globe, tooltip: UI_COPY.tooltips.nav.network },
-    { label: UI_COPY.nav.chat, href: '/', icon: MessagesSquare, tooltip: UI_COPY.tooltips.nav.chat },
+    { label: UI_COPY.nav.chat, href: '/chat', icon: MessagesSquare, tooltip: UI_COPY.tooltips.nav.chat },
     {
       label: UI_COPY.nav.stream,
       href: selfId ? `/stream/${selfId}` : '/stream',
@@ -37,6 +37,12 @@ export const Navbar = () => {
       label: UI_COPY.nav.ai,
       href: selfId ? `/agent/${selfId}` : '/agent',
       icon: Bot,
+      tooltip: UI_COPY.tooltips.nav.ai,
+    },
+    {
+      label: 'Metrics',
+      href: selfId ? `/metrics` : '/metrics',
+      icon: BarChart,
       tooltip: UI_COPY.tooltips.nav.ai,
     },
   ]

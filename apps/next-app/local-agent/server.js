@@ -5,7 +5,10 @@ const crypto = require('node:crypto')
 const DEFAULT_TARGET = (process.env.LM_AGENT_TARGET ?? 'http://127.0.0.1:1234').trim() || 'http://127.0.0.1:1234'
 const PORT = Number.parseInt(process.env.LM_AGENT_PORT ?? '4312', 10)
 const HOST = (process.env.LM_AGENT_HOST ?? '127.0.0.1').trim() || '127.0.0.1'
-const OPENAI_SECRET = crypto.createHash('sha256').update(process.env.LM_AGENT_SECRET ?? 'metered-local-agent').digest()
+const OPENAI_SECRET = crypto
+  .createHash('sha256')
+  .update(process.env.LM_AGENT_SECRET ?? 'meetred-local-agent')
+  .digest()
 
 let instancePromise
 let encryptedOpenAIKey = null

@@ -41,7 +41,7 @@ All events should have:
 - `peer_id` (string; optional for room-level events)
 - `session_id` (string; logical session per room + host lifecycle)
 - `client_id` (string; optional anonymized ID)
-- `app_id` (string; e.g., "metered")
+- `app_id` (string; e.g., "meetred")
 - `version` (string; schema version)
 - `props` (object; event-specific fields)
 

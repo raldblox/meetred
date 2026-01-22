@@ -199,7 +199,7 @@ export function Libp2pProvider({ children }: WrapperProps) {
       return
     }
 
-    const channel = new BroadcastChannel('metered-tab-discovery')
+    const channel = new BroadcastChannel('meetred-tab-discovery')
     const selfPeerId = libp2p.peerId.toString()
     const dialCooldownMs = 2_000
 

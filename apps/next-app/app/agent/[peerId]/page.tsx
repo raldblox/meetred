@@ -18,7 +18,7 @@ export default async function AgentPage({ params }: { params: Promise<{ peerId: 
         </main>
 
         <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between shrink-0">
-          <div className="text-xs">Metered</div>
+          <div className="text-xs">Meetred</div>
         </footer>
       </div>
     </AgentProvider>

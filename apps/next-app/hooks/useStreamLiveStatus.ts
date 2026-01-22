@@ -6,7 +6,7 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
-import { encodeZeroWidth, decodeZeroWidth } from '@/lib/metered-envelope'
+import { encodeZeroWidth, decodeZeroWidth } from '@/lib/envelope'
 
 type StreamLiveState = 'checking' | 'live' | 'offline'
 

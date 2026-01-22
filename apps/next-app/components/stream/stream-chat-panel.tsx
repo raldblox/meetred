@@ -13,7 +13,7 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { CHAT_TOPIC } from '@/config/constants'
 import { buildStreamChatPayload, parseStreamChatPayload } from '@/lib/stream-chat'
 import { forComponent } from '@/lib/logger'
-import { encodeZeroWidth } from '@/lib/metered-envelope'
+import { encodeZeroWidth } from '@/lib/envelope'
 import { STREAM_ROOM_COPY } from '@/config/copy'
 import { publishAnalyticsEvent } from '@/lib/analytics'
 

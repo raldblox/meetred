@@ -9,7 +9,7 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { STREAM_SIGNAL_APP_ID, STREAM_SIGNAL_TOPIC, STREAM_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
-import { encodeZeroWidth, decodeZeroWidth } from '@/lib/metered-envelope'
+import { encodeZeroWidth, decodeZeroWidth } from '@/lib/envelope'
 import { publishAnalyticsEvent } from '@/lib/analytics'
 
 const log = forComponent('stream-context')

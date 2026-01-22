@@ -18,7 +18,7 @@ export default async function Call({ params }: { params: Promise<{ callId: strin
         </main>
 
         <footer className="w-full border-primary !px-6 py-3 bg-background flex items-center justify-between">
-          <div className="text-xs">Metered</div>
+          <div className="text-xs">Meetred</div>
         </footer>
       </div>
     </CallProvider>

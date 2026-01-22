@@ -16,7 +16,7 @@ import { Message } from './message'
 import { forComponent } from '@/lib/logger'
 import { CHAT_FILE_TOPIC, CHAT_TOPIC } from '@/config/constants'
 import { UI_COPY } from '@/config/copy'
-import { wrapMeteredMessage } from '@/lib/metered-envelope'
+import { wrapMeetredMessage } from '@/lib/envelope'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { publishAnalyticsEvent } from '@/lib/analytics'
 
@@ -71,7 +71,7 @@ export default function ChatContainer() {
       setMessageHistory((prev) => [...prev, pendingMessage])
 
       try {
-        const envelope = wrapMeteredMessage(trimmedMessage)
+        const envelope = wrapMeetredMessage(trimmedMessage)
         const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(envelope))
 
         log(

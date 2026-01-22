@@ -1,10 +1,10 @@
 import type { Libp2pType } from '@/context/libp2p-ctx'
 
 import { CHAT_TOPIC } from '@/config/constants'
-import { encodeZeroWidth } from '@/lib/metered-envelope'
+import { encodeZeroWidth } from '@/lib/envelope'
 
-const ANALYTICS_WRAPPER = 'metered-analytics'
-const ANALYTICS_APP_ID = 'metered'
+const ANALYTICS_WRAPPER = 'meetred-analytics'
+const ANALYTICS_APP_ID = 'meetred'
 
 export type AnalyticsEvent = {
   event: string

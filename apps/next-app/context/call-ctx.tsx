@@ -9,7 +9,7 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { CALL_SIGNAL_APP_ID, CALL_SIGNAL_TOPIC, CALL_SIGNAL_WRAPPER } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
-import { decodeZeroWidth, encodeZeroWidth } from '@/lib/metered-envelope'
+import { decodeZeroWidth, encodeZeroWidth } from '@/lib/envelope'
 
 const log = forComponent('call-context')
 

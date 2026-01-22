@@ -3,16 +3,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Blockies from 'react-18-blockies'
 import Link from 'next/link'
-import { Button, Textarea } from '@heroui/react'
-import { RefreshCw, SendHorizontal } from 'lucide-react'
+import { Button, Textarea, Tooltip } from '@heroui/react'
+import { Paperclip, RefreshCw, SendHorizontal } from 'lucide-react'
 import { Space_Grotesk, Newsreader } from 'next/font/google'
 
 import type { ChatMessage } from '@/context/chat-ctx'
 import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { CHAT_TOPIC } from '@/config/constants'
-import { wrapMeteredMessage } from '@/lib/metered-envelope'
+import { wrapMeetredMessage } from '@/lib/envelope'
 import { parseStreamChatPayload } from '@/lib/stream-chat'
+import { PUBLIC_CHAT_ROOM_ID } from '../chat/chat-room'
+import { UI_COPY } from '@/config/copy'
 
 const displayFont = Space_Grotesk({
   subsets: ['latin'],
@@ -370,7 +372,7 @@ export default function FeedRoom() {
       setVisibleMessages((prev) => [...prev, pendingMessage])
 
       try {
-        const envelope = wrapMeteredMessage(trimmedMessage)
+        const envelope = wrapMeetredMessage(trimmedMessage)
 
         await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(envelope))
 

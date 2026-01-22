@@ -25,7 +25,7 @@ import {
 } from '@/config/constants'
 import { forComponent } from '@/lib/logger'
 import { DirectMessageEvent, directMessageEvent } from '@/lib/direct-message'
-import { decodeZeroWidth, unwrapMeteredMessage, wrapMeteredMessage } from '@/lib/metered-envelope'
+import { decodeZeroWidth, unwrapMeetredMessage, wrapMeetredMessage } from '@/lib/envelope'
 import { parseStreamChatPayload } from '@/lib/stream-chat'
 import { parseAgentChatPayload } from '@/lib/agent-chat'
 
@@ -46,7 +46,7 @@ const isStreamSignal = (content: string) => {
 }
 
 const unwrapPublicMessage = (raw: string): string | null => {
-  return unwrapMeteredMessage(raw)
+  return unwrapMeetredMessage(raw)
 }
 
 const parseHistoryControlMessage = (content: string): HistoryControlMessage | null => {
@@ -331,7 +331,7 @@ export const ChatProvider = ({ children }: any) => {
       }
 
       try {
-        const encoded = wrapMeteredMessage(JSON.stringify(payload))
+        const encoded = wrapMeetredMessage(JSON.stringify(payload))
 
         await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(encoded))
       } catch (e) {
@@ -386,7 +386,7 @@ export const ChatProvider = ({ children }: any) => {
     }
 
     try {
-      const encoded = wrapMeteredMessage(JSON.stringify(payload))
+      const encoded = wrapMeetredMessage(JSON.stringify(payload))
 
       await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(encoded))
     } catch (e) {

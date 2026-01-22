@@ -44,7 +44,7 @@ export class DirectMessage extends TypedEventEmitter<DirectMessageEvents> implem
     '@libp2p/stream-multiplexing',
   ]
 
-  readonly [serviceCapabilities]: string[] = ['@universal-connectivity/direct-message']
+  readonly [serviceCapabilities]: string[] = ['@meetred/direct-message']
 
   private topologyId?: string
   private readonly components: DirectMessageComponents

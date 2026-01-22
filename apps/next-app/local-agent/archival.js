@@ -71,10 +71,7 @@ const loadEnvFile = () => {
         continue
       }
 
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1)
       }
 
@@ -92,25 +89,23 @@ const PORT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_PORT ?? '15012', 10)
 const KEY_PATH = process.env.LIBP2P_ARCHIVAL_KEY_PATH ?? path.join(__dirname, 'archival.key')
 const METRICS_HOST = (process.env.LIBP2P_ARCHIVAL_METRICS_HOST ?? HOST).trim() || HOST
 const METRICS_PORT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_METRICS_PORT ?? '15013', 10)
-const STREAM_APP_ID = (process.env.LIBP2P_STREAM_APP_ID ?? 'metered').trim() || 'metered'
-const AGENT_APP_ID = (process.env.LIBP2P_AGENT_APP_ID ?? 'metered-agent').trim() || 'metered-agent'
+const STREAM_APP_ID = (process.env.LIBP2P_STREAM_APP_ID ?? 'meetred').trim() || 'meetred'
+const AGENT_APP_ID = (process.env.LIBP2P_AGENT_APP_ID ?? 'meetred-agent').trim() || 'meetred-agent'
 const STREAM_SIGNAL_WRAPPER = (process.env.LIBP2P_STREAM_SIGNAL_WRAPPER ?? 'stream-signal').trim() || 'stream-signal'
 const CALL_SIGNAL_WRAPPER = (process.env.LIBP2P_CALL_SIGNAL_WRAPPER ?? 'call-signal').trim() || 'call-signal'
 const AGENT_SIGNAL_WRAPPER = (process.env.LIBP2P_AGENT_SIGNAL_WRAPPER ?? 'agent-signal').trim() || 'agent-signal'
-const STREAM_SIGNAL_APP_ID = (process.env.LIBP2P_STREAM_SIGNAL_APP_ID ?? 'metered').trim() || 'metered'
-const CALL_SIGNAL_APP_ID = (process.env.LIBP2P_CALL_SIGNAL_APP_ID ?? 'metered-call').trim() || 'metered-call'
-const AGENT_SIGNAL_APP_ID = (process.env.LIBP2P_AGENT_SIGNAL_APP_ID ?? 'metered-agent').trim() || 'metered-agent'
+const STREAM_SIGNAL_APP_ID = (process.env.LIBP2P_STREAM_SIGNAL_APP_ID ?? 'meetred').trim() || 'meetred'
+const CALL_SIGNAL_APP_ID = (process.env.LIBP2P_CALL_SIGNAL_APP_ID ?? 'meetred-call').trim() || 'meetred-call'
+const AGENT_SIGNAL_APP_ID = (process.env.LIBP2P_AGENT_SIGNAL_APP_ID ?? 'meetred-agent').trim() || 'meetred-agent'
 const ARCHIVAL_BOOTSTRAP_ADDRS = (process.env.LIBP2P_ARCHIVAL_BOOTSTRAP_ADDRS ?? '').trim()
 const DEFAULT_BOOTSTRAP_ADDRS = (process.env.NEXT_PUBLIC_LOCAL_RELAY_ADDRS ?? '').trim()
-const ANALYTICS_WRAPPER = (process.env.LIBP2P_ANALYTICS_WRAPPER ?? 'metered-analytics').trim() || 'metered-analytics'
-const ANALYTICS_APP_ID = (process.env.LIBP2P_ANALYTICS_APP_ID ?? 'metered').trim() || 'metered'
+const ANALYTICS_WRAPPER = (process.env.LIBP2P_ANALYTICS_WRAPPER ?? 'meetred-analytics').trim() || 'meetred-analytics'
+const ANALYTICS_APP_ID = (process.env.LIBP2P_ANALYTICS_APP_ID ?? 'meetred').trim() || 'meetred'
 
 const DISCOVERY_TOPIC =
-  (process.env.LIBP2P_DISCOVERY_TOPIC ?? 'universal-connectivity-browser-peer-discovery').trim() ||
-  'universal-connectivity-browser-peer-discovery'
-const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'universal-connectivity').trim() || 'universal-connectivity'
-const FILE_TOPIC =
-  (process.env.LIBP2P_FILE_TOPIC ?? 'universal-connectivity-file').trim() || 'universal-connectivity-file'
+  (process.env.LIBP2P_DISCOVERY_TOPIC ?? 'meetred-browser-peer-discovery').trim() || 'meetred-browser-peer-discovery'
+const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'meetred').trim() || 'meetred'
+const FILE_TOPIC = (process.env.LIBP2P_FILE_TOPIC ?? 'meetred-file').trim() || 'meetred-file'
 
 const parseEncodedKey = (value, uint8ArrayFromString) => {
   const cleaned = (value ?? '').trim()
@@ -189,7 +184,7 @@ const decodeZeroWidth = (value) => {
   }
 }
 
-const unwrapMeteredMessage = (raw) => {
+const unwrapMeetredMessage = (raw) => {
   try {
     const decoded = decodeZeroWidth(raw) ?? raw
     const parsed = JSON.parse(decoded)
@@ -230,11 +225,7 @@ const parseStreamChat = (message) => {
   try {
     const parsed = JSON.parse(message)
 
-    if (
-      parsed?.type === 'stream_chat' &&
-      parsed?.app === STREAM_APP_ID &&
-      typeof parsed.streamId === 'string'
-    ) {
+    if (parsed?.type === 'stream_chat' && parsed?.app === STREAM_APP_ID && typeof parsed.streamId === 'string') {
       return { roomType: 'stream', roomId: parsed.streamId }
     }
   } catch {
@@ -286,11 +277,7 @@ const parseAgentChat = (message) => {
   try {
     const parsed = JSON.parse(message)
 
-    if (
-      parsed?.type === 'agent_chat' &&
-      parsed?.app === AGENT_APP_ID &&
-      typeof parsed.agentPeerId === 'string'
-    ) {
+    if (parsed?.type === 'agent_chat' && parsed?.app === AGENT_APP_ID && typeof parsed.agentPeerId === 'string') {
       return { roomType: 'ai', roomId: parsed.agentPeerId }
     }
   } catch {
@@ -413,6 +400,9 @@ const createArchivalNode = async () => {
     },
   })
 
+  node.services.pubsub.subscribe(DISCOVERY_TOPIC)
+  node.services.pubsub.subscribe(CHAT_TOPIC)
+
   const state = {
     startedAt: Date.now(),
     peerId: node.peerId.toString(),
@@ -495,8 +485,7 @@ const createArchivalNode = async () => {
 
     if (event === 'chat_message_sent') {
       state.analytics.chatMessages.total += 1
-      state.analytics.chatMessages.byRoomType[roomType] =
-        (state.analytics.chatMessages.byRoomType[roomType] ?? 0) + 1
+      state.analytics.chatMessages.byRoomType[roomType] = (state.analytics.chatMessages.byRoomType[roomType] ?? 0) + 1
       return
     }
 
@@ -600,8 +589,8 @@ const createArchivalNode = async () => {
     }
 
     const decodedRaw = decodeZeroWidth(raw) ?? raw
-    const meteredMessage = unwrapMeteredMessage(raw)
-    const invite = meteredMessage ? parseInvite(meteredMessage) : null
+    const meetredMessage = unwrapMeetredMessage(raw)
+    const invite = meetredMessage ? parseInvite(meetredMessage) : null
     const streamChat = parseStreamChat(decodedRaw)
     const agentChat = parseAgentChat(decodedRaw)
 
@@ -613,15 +602,13 @@ const createArchivalNode = async () => {
 
     if (streamChat) {
       state.roomTypes.messagesByType.stream += 1
-      state.roomTypes.messagesByRoom[streamChat.roomId] =
-        (state.roomTypes.messagesByRoom[streamChat.roomId] ?? 0) + 1
+      state.roomTypes.messagesByRoom[streamChat.roomId] = (state.roomTypes.messagesByRoom[streamChat.roomId] ?? 0) + 1
       return
     }
 
     if (agentChat) {
       state.roomTypes.messagesByType.ai += 1
-      state.roomTypes.messagesByRoom[agentChat.roomId] =
-        (state.roomTypes.messagesByRoom[agentChat.roomId] ?? 0) + 1
+      state.roomTypes.messagesByRoom[agentChat.roomId] = (state.roomTypes.messagesByRoom[agentChat.roomId] ?? 0) + 1
       return
     }
 
@@ -630,7 +617,7 @@ const createArchivalNode = async () => {
       return
     }
 
-    if (topic === CHAT_TOPIC && meteredMessage) {
+    if (topic === CHAT_TOPIC && meetredMessage) {
       state.roomTypes.messagesByType.public += 1
     }
   })
@@ -666,13 +653,6 @@ const createArchivalNode = async () => {
       console.warn('[archival] failed to dial bootstrap addr', addr, error?.message ?? error)
     }
   }
-
-  console.log('archival node ready')
-  console.log(`peer id: ${state.peerId}`)
-  console.log(`listen: ${node.getMultiaddrs().map((addr) => addr.toString()).join(', ')}`)
-  console.log(`bootstrap: ${bootstrapAddrs.join(', ') || 'none'}`)
-  console.log(`metrics: http://${METRICS_HOST}:${METRICS_PORT}/metrics`)
-
   return { node, metricsServer, onlineInterval }
 }
 
