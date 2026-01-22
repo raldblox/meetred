@@ -87,9 +87,10 @@ const HOST = (process.env.LIBP2P_RELAY_HOST ?? '127.0.0.1').trim() || '127.0.0.1
 const PORT = Number.parseInt(process.env.LIBP2P_RELAY_PORT ?? '15002', 10)
 const KEY_PATH = process.env.LIBP2P_RELAY_KEY_PATH ?? path.join(__dirname, 'relay.key')
 
-const DISCOVERY_TOPIC =
-  (process.env.LIBP2P_DISCOVERY_TOPIC ?? 'meetred-browser-peer-discovery').trim() || 'meetred-browser-peer-discovery'
-const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'meetred').trim() || 'meetred'
+const { CHAT_TOPIC: DEFAULT_CHAT_TOPIC, PUBSUB_PEER_DISCOVERY: DEFAULT_DISCOVERY_TOPIC } = require('./constants')
+
+const DISCOVERY_TOPIC = (process.env.LIBP2P_DISCOVERY_TOPIC ?? DEFAULT_DISCOVERY_TOPIC).trim() || DEFAULT_DISCOVERY_TOPIC
+const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? DEFAULT_CHAT_TOPIC).trim() || DEFAULT_CHAT_TOPIC
 
 const parseEncodedKey = (value, uint8ArrayFromString) => {
   const cleaned = (value ?? '').trim()

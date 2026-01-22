@@ -29,6 +29,14 @@ type MetricsPayload = {
     }
     streamChat?: { total?: number; byRoom?: Record<string, number> }
     streamSessions?: { totalMsByPeer?: Record<string, number>; totalMsByRoom?: Record<string, number> }
+    streamMinutes?: {
+      total?: number
+      freeTotal?: number
+      paidTotal?: number
+      byRoom?: Record<string, number>
+      byRoomFree?: Record<string, number>
+      byRoomPaid?: Record<string, number>
+    }
     billing?: { freeMinutes?: number; paidMinutes?: number; byPeer?: Record<string, number> }
   }
   derived?: {
@@ -106,16 +114,22 @@ export function MetricsDashboard() {
   const agentByRoom = data?.analytics?.agentChat?.byRoom ?? {}
   const streamChatTotal = data?.analytics?.streamChat?.total ?? 0
   const streamChatByRoom = data?.analytics?.streamChat?.byRoom ?? {}
+  const streamMinutes = data?.analytics?.streamMinutes
   const fallbackStreamMinutesByRoom = Object.fromEntries(
     Object.entries(data?.analytics?.streamSessions?.totalMsByRoom ?? {}).map(([roomId, ms]) => [
       roomId,
       Math.round((Number(ms) || 0) / 60000),
     ]),
   )
-  const streamMinutesByRoom = data?.analytics?.streamSessions?.totalMsByRoom ?? fallbackStreamMinutesByRoom
+  const streamMinutesByRoom = streamMinutes?.byRoom ?? data?.derived?.streamMinutesByRoom ?? fallbackStreamMinutesByRoom
+  const streamMinutesByRoomFree = streamMinutes?.byRoomFree ?? {}
+  const streamMinutesByRoomPaid = streamMinutes?.byRoomPaid ?? {}
   const totalStreamMinutes =
+    streamMinutes?.total ??
     data?.derived?.totalStreamMinutes ??
     Object.values(streamMinutesByRoom).reduce((acc, value) => acc + (value ?? 0), 0)
+  const freeStreamMinutes = streamMinutes?.freeTotal ?? 0
+  const paidStreamMinutes = streamMinutes?.paidTotal ?? 0
   const billing = data?.analytics?.billing
 
   return (
@@ -153,10 +167,32 @@ export function MetricsDashboard() {
             <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
               <p className="text-xs uppercase text-default-400">Stream Minutes</p>
               <p className="text-2xl font-semibold text-default-900">{formatNumber(totalStreamMinutes)}</p>
+              <div className="mt-2 flex flex-col gap-1 text-xs text-default-500">
+                <div className="flex items-center justify-between">
+                  <span>Free</span>
+                  <span className="font-semibold">{formatNumber(freeStreamMinutes)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Paid</span>
+                  <span className="font-semibold">{formatNumber(paidStreamMinutes)}</span>
+                </div>
+              </div>
             </div>
             <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Paid Minutes</p>
-              <p className="text-2xl font-semibold text-default-900">{formatNumber(billing?.paidMinutes ?? 0)}</p>
+              <p className="text-xs uppercase text-default-400">Billing Minutes</p>
+              <p className="text-2xl font-semibold text-default-900">
+                {formatNumber((billing?.freeMinutes ?? 0) + (billing?.paidMinutes ?? 0))}
+              </p>
+              <div className="mt-2 flex flex-col gap-1 text-xs text-default-500">
+                <div className="flex items-center justify-between">
+                  <span>Free</span>
+                  <span className="font-semibold">{formatNumber(billing?.freeMinutes ?? 0)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Paid</span>
+                  <span className="font-semibold">{formatNumber(billing?.paidMinutes ?? 0)}</span>
+                </div>
+              </div>
             </div>
             <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
               <p className="text-xs uppercase text-default-400">Stream Chat Messages</p>
@@ -302,6 +338,10 @@ export function MetricsDashboard() {
                     <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
                       {roomId}
                     </a>
+                    <span className="text-xs text-default-500">
+                      {formatNumber(streamMinutesByRoomFree[roomId] ?? 0)} free ·{' '}
+                      {formatNumber(streamMinutesByRoomPaid[roomId] ?? 0)} paid
+                    </span>
                     <span className="font-semibold">{formatNumber(minutes)}</span>
                   </div>
                 ))}

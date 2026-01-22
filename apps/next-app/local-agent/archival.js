@@ -89,23 +89,43 @@ const PORT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_PORT ?? '15012', 10)
 const KEY_PATH = process.env.LIBP2P_ARCHIVAL_KEY_PATH ?? path.join(__dirname, 'archival.key')
 const METRICS_HOST = (process.env.LIBP2P_ARCHIVAL_METRICS_HOST ?? HOST).trim() || HOST
 const METRICS_PORT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_METRICS_PORT ?? '15013', 10)
-const STREAM_APP_ID = (process.env.LIBP2P_STREAM_APP_ID ?? 'meetred').trim() || 'meetred'
-const AGENT_APP_ID = (process.env.LIBP2P_AGENT_APP_ID ?? 'meetred-agent').trim() || 'meetred-agent'
-const STREAM_SIGNAL_WRAPPER = (process.env.LIBP2P_STREAM_SIGNAL_WRAPPER ?? 'stream-signal').trim() || 'stream-signal'
-const CALL_SIGNAL_WRAPPER = (process.env.LIBP2P_CALL_SIGNAL_WRAPPER ?? 'call-signal').trim() || 'call-signal'
-const AGENT_SIGNAL_WRAPPER = (process.env.LIBP2P_AGENT_SIGNAL_WRAPPER ?? 'agent-signal').trim() || 'agent-signal'
-const STREAM_SIGNAL_APP_ID = (process.env.LIBP2P_STREAM_SIGNAL_APP_ID ?? 'meetred').trim() || 'meetred'
-const CALL_SIGNAL_APP_ID = (process.env.LIBP2P_CALL_SIGNAL_APP_ID ?? 'meetred-call').trim() || 'meetred-call'
-const AGENT_SIGNAL_APP_ID = (process.env.LIBP2P_AGENT_SIGNAL_APP_ID ?? 'meetred-agent').trim() || 'meetred-agent'
+const {
+  CHAT_TOPIC: DEFAULT_CHAT_TOPIC,
+  CHAT_FILE_TOPIC: DEFAULT_FILE_TOPIC,
+  PUBSUB_PEER_DISCOVERY: DEFAULT_DISCOVERY_TOPIC,
+  STREAM_SIGNAL_WRAPPER: DEFAULT_STREAM_SIGNAL_WRAPPER,
+  STREAM_SIGNAL_APP_ID: DEFAULT_STREAM_SIGNAL_APP_ID,
+  CALL_SIGNAL_WRAPPER: DEFAULT_CALL_SIGNAL_WRAPPER,
+  CALL_SIGNAL_APP_ID: DEFAULT_CALL_SIGNAL_APP_ID,
+  AGENT_SIGNAL_WRAPPER: DEFAULT_AGENT_SIGNAL_WRAPPER,
+  AGENT_SIGNAL_APP_ID: DEFAULT_AGENT_SIGNAL_APP_ID,
+  ANALYTICS_WRAPPER: DEFAULT_ANALYTICS_WRAPPER,
+  ANALYTICS_APP_ID: DEFAULT_ANALYTICS_APP_ID,
+} = require('./constants')
+
+const STREAM_APP_ID = (process.env.LIBP2P_STREAM_APP_ID ?? DEFAULT_STREAM_SIGNAL_APP_ID).trim() || DEFAULT_STREAM_SIGNAL_APP_ID
+const AGENT_APP_ID = (process.env.LIBP2P_AGENT_APP_ID ?? DEFAULT_AGENT_SIGNAL_APP_ID).trim() || DEFAULT_AGENT_SIGNAL_APP_ID
+const STREAM_SIGNAL_WRAPPER =
+  (process.env.LIBP2P_STREAM_SIGNAL_WRAPPER ?? DEFAULT_STREAM_SIGNAL_WRAPPER).trim() || DEFAULT_STREAM_SIGNAL_WRAPPER
+const CALL_SIGNAL_WRAPPER =
+  (process.env.LIBP2P_CALL_SIGNAL_WRAPPER ?? DEFAULT_CALL_SIGNAL_WRAPPER).trim() || DEFAULT_CALL_SIGNAL_WRAPPER
+const AGENT_SIGNAL_WRAPPER =
+  (process.env.LIBP2P_AGENT_SIGNAL_WRAPPER ?? DEFAULT_AGENT_SIGNAL_WRAPPER).trim() || DEFAULT_AGENT_SIGNAL_WRAPPER
+const STREAM_SIGNAL_APP_ID =
+  (process.env.LIBP2P_STREAM_SIGNAL_APP_ID ?? DEFAULT_STREAM_SIGNAL_APP_ID).trim() || DEFAULT_STREAM_SIGNAL_APP_ID
+const CALL_SIGNAL_APP_ID =
+  (process.env.LIBP2P_CALL_SIGNAL_APP_ID ?? DEFAULT_CALL_SIGNAL_APP_ID).trim() || DEFAULT_CALL_SIGNAL_APP_ID
+const AGENT_SIGNAL_APP_ID =
+  (process.env.LIBP2P_AGENT_SIGNAL_APP_ID ?? DEFAULT_AGENT_SIGNAL_APP_ID).trim() || DEFAULT_AGENT_SIGNAL_APP_ID
 const ARCHIVAL_BOOTSTRAP_ADDRS = (process.env.LIBP2P_ARCHIVAL_BOOTSTRAP_ADDRS ?? '').trim()
 const DEFAULT_BOOTSTRAP_ADDRS = (process.env.NEXT_PUBLIC_LOCAL_RELAY_ADDRS ?? '').trim()
-const ANALYTICS_WRAPPER = (process.env.LIBP2P_ANALYTICS_WRAPPER ?? 'meetred-analytics').trim() || 'meetred-analytics'
-const ANALYTICS_APP_ID = (process.env.LIBP2P_ANALYTICS_APP_ID ?? 'meetred').trim() || 'meetred'
+const ANALYTICS_WRAPPER = (process.env.LIBP2P_ANALYTICS_WRAPPER ?? DEFAULT_ANALYTICS_WRAPPER).trim() || DEFAULT_ANALYTICS_WRAPPER
+const ANALYTICS_APP_ID = (process.env.LIBP2P_ANALYTICS_APP_ID ?? DEFAULT_ANALYTICS_APP_ID).trim() || DEFAULT_ANALYTICS_APP_ID
 
 const DISCOVERY_TOPIC =
-  (process.env.LIBP2P_DISCOVERY_TOPIC ?? 'meetred-browser-peer-discovery').trim() || 'meetred-browser-peer-discovery'
-const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? 'meetred').trim() || 'meetred'
-const FILE_TOPIC = (process.env.LIBP2P_FILE_TOPIC ?? 'meetred-file').trim() || 'meetred-file'
+  (process.env.LIBP2P_DISCOVERY_TOPIC ?? DEFAULT_DISCOVERY_TOPIC).trim() || DEFAULT_DISCOVERY_TOPIC
+const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? DEFAULT_CHAT_TOPIC).trim() || DEFAULT_CHAT_TOPIC
+const FILE_TOPIC = (process.env.LIBP2P_FILE_TOPIC ?? DEFAULT_FILE_TOPIC).trim() || DEFAULT_FILE_TOPIC
 
 const parseEncodedKey = (value, uint8ArrayFromString) => {
   const cleaned = (value ?? '').trim()
@@ -459,6 +479,14 @@ const createArchivalNode = async () => {
         paidMinutes: 0,
         byPeer: {},
       },
+      streamMinutes: {
+        total: 0,
+        freeTotal: 0,
+        paidTotal: 0,
+        byRoom: {},
+        byRoomFree: {},
+        byRoomPaid: {},
+      },
       signals: {
         total: 0,
         byType: {},
@@ -564,6 +592,23 @@ const createArchivalNode = async () => {
         state.analytics.billing.paidMinutes += minutes
       }
       state.analytics.billing.byPeer[peerId] = (state.analytics.billing.byPeer[peerId] ?? 0) + minutes
+      return
+    }
+
+    if (event === 'stream_minute') {
+      const minutes = typeof payload.minutes === 'number' ? payload.minutes : 1
+      state.analytics.streamMinutes.total += minutes
+      state.analytics.streamMinutes.byRoom[roomId] = (state.analytics.streamMinutes.byRoom[roomId] ?? 0) + minutes
+
+      if (payload.isFree) {
+        state.analytics.streamMinutes.freeTotal += minutes
+        state.analytics.streamMinutes.byRoomFree[roomId] =
+          (state.analytics.streamMinutes.byRoomFree[roomId] ?? 0) + minutes
+      } else {
+        state.analytics.streamMinutes.paidTotal += minutes
+        state.analytics.streamMinutes.byRoomPaid[roomId] =
+          (state.analytics.streamMinutes.byRoomPaid[roomId] ?? 0) + minutes
+      }
     }
   }
 

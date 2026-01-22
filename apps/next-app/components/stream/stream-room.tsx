@@ -19,6 +19,7 @@ import { useSessionTimer } from '@/hooks/useSessionTimer'
 import { usePayPerMinute } from '@/hooks/usePayPerMinute'
 import { forComponent } from '@/lib/logger'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
+import { publishAnalyticsEvent } from '@/lib/analytics'
 
 const log = forComponent('stream-room')
 
@@ -51,6 +52,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
   const selfPeerId = libp2p.peerId?.toString() ?? 'unknown'
+  const lastStreamMinuteRef = useRef(0)
   const sessionActive = isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)
   const paymentPromptActive = !isHost && status === 'live'
   const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.stream.ratePerMinute.toString())
@@ -188,6 +190,37 @@ export function StreamRoom({ streamId }: { streamId: string }) {
       lastTimerStateRef.current = false
     }
   }, [allowSessionStart, isHost, remoteStream, sessionTimer, status])
+
+  useEffect(() => {
+    if (!allowSessionStart || !sessionActive) {
+      lastStreamMinuteRef.current = 0
+      return
+    }
+
+    const minute = Math.floor(sessionTimer.elapsedMs / 60000)
+
+    if (minute <= lastStreamMinuteRef.current) {
+      return
+    }
+
+    const ratePerMinute = typeof effectiveRate === 'number' ? effectiveRate : undefined
+    const isFree = ratePerMinute === 0
+
+    for (let i = lastStreamMinuteRef.current + 1; i <= minute; i += 1) {
+      publishAnalyticsEvent(libp2p, {
+        event: 'stream_minute',
+        peerId: selfPeerId,
+        roomType: 'stream',
+        roomId: streamId,
+        role: isHost ? 'host' : 'viewer',
+        minutes: 1,
+        isFree: isFree ? true : undefined,
+        ratePerMinute,
+      })
+    }
+
+    lastStreamMinuteRef.current = minute
+  }, [allowSessionStart, effectiveRate, isHost, libp2p, selfPeerId, sessionActive, sessionTimer.elapsedMs, streamId])
 
   const viewerWaitingMessage = INVITE_CARD_COPY.stream.waiting.body
 

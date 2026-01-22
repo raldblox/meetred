@@ -2,7 +2,9 @@ const Fastify = require('fastify')
 const cors = require('@fastify/cors')
 const crypto = require('node:crypto')
 
-const DEFAULT_TARGET = (process.env.LM_AGENT_TARGET ?? 'http://127.0.0.1:1234').trim() || 'http://127.0.0.1:1234'
+const { LM_STUDIO_DEFAULT_TARGET_URL } = require('./constants')
+const DEFAULT_TARGET =
+  (process.env.LM_AGENT_TARGET ?? LM_STUDIO_DEFAULT_TARGET_URL).trim() || LM_STUDIO_DEFAULT_TARGET_URL
 const PORT = Number.parseInt(process.env.LM_AGENT_PORT ?? '4312', 10)
 const HOST = (process.env.LM_AGENT_HOST ?? '127.0.0.1').trim() || '127.0.0.1'
 const OPENAI_SECRET = crypto
