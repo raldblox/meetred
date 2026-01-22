@@ -1,8 +1,8 @@
-export const CHAT_TOPIC = 'meetred'
-export const CHAT_FILE_TOPIC = 'meetred-file'
-export const PUBSUB_PEER_DISCOVERY = 'meetred-browser-peer-discovery'
-export const FILE_EXCHANGE_PROTOCOL = '/meetred-file/1'
-export const DIRECT_MESSAGE_PROTOCOL = '/meetred/dm/1.0.0'
+export const CHAT_TOPIC = 'universal-connectivity'
+export const CHAT_FILE_TOPIC = 'universal-connectivity-file'
+export const PUBSUB_PEER_DISCOVERY = 'universal-connectivity-browser-peer-discovery'
+export const FILE_EXCHANGE_PROTOCOL = '/universal-connectivity-file/1'
+export const DIRECT_MESSAGE_PROTOCOL = '/universal-connectivity/dm/1.0.0'
 export const STREAM_SIGNAL_WRAPPER = 'stream-signal'
 export const STREAM_SIGNAL_APP_ID = 'meetred'
 export const STREAM_SIGNAL_TOPIC = CHAT_TOPIC
