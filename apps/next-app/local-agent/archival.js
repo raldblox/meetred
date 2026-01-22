@@ -346,19 +346,11 @@ const loadOrCreateKey = async ({
 const shouldSkipArchival = () => {
   const flag = (process.env.START_LIBP2P_ARCHIVAL ?? '').toLowerCase().trim()
 
-  if (flag === '1' || flag === 'true' || flag === 'on') {
-    return false
-  }
-
   if (flag === '0' || flag === 'false' || flag === 'off') {
     return true
   }
 
   if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-    return true
-  }
-
-  if (process.env.NEXT_PUBLIC_NODE_ENV !== 'development' && process.env.NODE_ENV !== 'development') {
     return true
   }
 

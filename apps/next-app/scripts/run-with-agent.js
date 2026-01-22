@@ -51,22 +51,20 @@ async function main() {
     }
   }
 
-  if (allowLocalRelay) {
-    // init archival/analytics node
-    try {
-      const archival = await startArchivalNode()
+  // init archival/analytics node
+  try {
+    const archival = await startArchivalNode()
 
-      if (archival?.node) {
-        const listenAddrs = archival.node.getMultiaddrs().map((addr) => addr.toString())
-        log('[archival]', `${listenAddrs.join(', ')}`)
-      } else {
-        console.warn('[archival] skipped starting archival node')
-      }
-    } catch (error) {
-      console.error('[archival] failed to boot', error)
-      process.exit(1)
-      return
+    if (archival?.node) {
+      const listenAddrs = archival.node.getMultiaddrs().map((addr) => addr.toString())
+      log('[archival]', `${listenAddrs.join(', ')}`)
+    } else {
+      console.warn('[archival] skipped starting archival node')
     }
+  } catch (error) {
+    console.error('[archival] failed to boot', error)
+    process.exit(1)
+    return
   }
 
   const child = spawn(process.execPath, [nextBin, ...nextArgs], {
