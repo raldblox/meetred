@@ -584,7 +584,7 @@ export default function ChatContainer() {
     <div
       ref={chatShellRef}
       className={`w-full px-6 relative transition-all mx-auto gap-6 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6 ${
-        roomId === PUBLIC_CHAT_ROOM_ID ? 'bg-zinc-950' : ''
+        roomId === PUBLIC_CHAT_ROOM_ID ? '' : ''
       }`}
     >
       <div ref={peerListRef} className="hidden rounded-sm h-full lg:block">
