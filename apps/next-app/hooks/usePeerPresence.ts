@@ -6,7 +6,7 @@ import type { MutableRefObject } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { BOOTSTRAP_PEER_IDS, CHAT_TOPIC } from '@/config/constants'
+import { CHAT_TOPIC } from '@/config/constants'
 
 export type PeerPresenceStatus = 'online' | 'recent' | 'offline'
 
@@ -38,7 +38,7 @@ export function usePeerPresence(): PeerPresence[] {
     const ids = libp2p
       .getConnections()
       .map((conn) => conn.remotePeer.toString())
-      .filter((peerId) => peerId !== libp2p.peerId.toString() && !BOOTSTRAP_PEER_IDS.includes(peerId))
+      .filter((peerId) => peerId !== libp2p.peerId.toString())
 
     ids.forEach((peerId) => recordLastSeen(lastSeenRef, peerId))
     setConnectedPeers(Array.from(new Set(ids)))
@@ -114,7 +114,7 @@ export function usePeerPresence(): PeerPresence[] {
   return useMemo(() => {
     const ids = Array.from(
       new Set([...connectedPeers, ...subscribers.filter((peer) => peer !== ''), ...seenPeers]),
-    ).filter((peerId) => peerId !== libp2p.peerId.toString() && !BOOTSTRAP_PEER_IDS.includes(peerId))
+    ).filter((peerId) => peerId !== libp2p.peerId.toString())
 
     const now = Date.now()
 

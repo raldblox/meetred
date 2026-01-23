@@ -16,9 +16,18 @@ export interface PeerProps {
   withUnread: boolean
   syncing?: boolean
   showCountBadge?: boolean
+  label?: string
 }
 
-export function PeerWrapper({ peer, self, withName, withUnread, syncing = false, showCountBadge = true }: PeerProps) {
+export function PeerWrapper({
+  peer,
+  self,
+  withName,
+  withUnread,
+  syncing = false,
+  showCountBadge = true,
+  label,
+}: PeerProps) {
   const { libp2p } = useLibp2pContext()
   const [identified, setIdentified] = useState(false)
   const { setRoomId } = useChatContext()
@@ -53,6 +62,7 @@ export function PeerWrapper({ peer, self, withName, withUnread, syncing = false,
       syncing={syncing}
       withName={withName}
       withUnread={withUnread}
+      label={label}
     />
   )
   const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
@@ -82,7 +92,15 @@ export function PeerWrapper({ peer, self, withName, withUnread, syncing = false,
   return clickableBody
 }
 
-export function Peer({ peer, self, withName, withUnread, syncing = false, showCountBadge = true }: PeerProps) {
+export function Peer({
+  peer,
+  self,
+  withName,
+  withUnread,
+  syncing = false,
+  showCountBadge = true,
+  label,
+}: PeerProps) {
   const { directMessages } = useChatContext()
   const peerIdStr = peer.toString()
   const messagesForPeer = directMessages[peerIdStr] ?? []
@@ -110,6 +128,11 @@ export function Peer({ peer, self, withName, withUnread, syncing = false, showCo
               {peerIdStr.slice(-7)}
               {self && ' (You)'}
             </span>
+            {label ? (
+              <span className="rounded-full bg-default-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-default-700">
+                {label}
+              </span>
+            ) : null}
             {syncing && <RotateCw aria-label="Syncing history" className="h-3 w-3 animate-spin text-success" />}
           </div>
           {withUnread && (

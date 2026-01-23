@@ -14,6 +14,7 @@ const loadLibp2pModules = async () => {
     cryptoKeysModule,
     uint8FromModule,
     multiaddrModule,
+    pubsubPeerDiscoveryModule,
   ] = await Promise.all([
     import('libp2p'),
     import('@libp2p/identify'),
@@ -25,6 +26,7 @@ const loadLibp2pModules = async () => {
     import('@libp2p/crypto/keys'),
     import('uint8arrays/from-string'),
     import('@multiformats/multiaddr'),
+    import('@libp2p/pubsub-peer-discovery'),
   ])
 
   return {
@@ -40,6 +42,7 @@ const loadLibp2pModules = async () => {
     privateKeyToProtobuf: cryptoKeysModule.privateKeyToProtobuf,
     uint8ArrayFromString: uint8FromModule.fromString,
     multiaddr: multiaddrModule.multiaddr,
+    pubsubPeerDiscovery: pubsubPeerDiscoveryModule.pubsubPeerDiscovery,
   }
 }
 
@@ -84,11 +87,12 @@ const loadEnvFile = () => {
 
 loadEnvFile()
 
-const HOST = (process.env.LIBP2P_ARCHIVAL_HOST ?? '127.0.0.1').trim() || '127.0.0.1'
-const PORT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_PORT ?? '15012', 10)
-const KEY_PATH = process.env.LIBP2P_ARCHIVAL_KEY_PATH ?? path.join(__dirname, 'archival.key')
-const METRICS_HOST = (process.env.LIBP2P_ARCHIVAL_METRICS_HOST ?? HOST).trim() || HOST
-const METRICS_PORT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_METRICS_PORT ?? '15013', 10)
+const getHost = (value) => (value ?? process.env.LIBP2P_ARCHIVAL_HOST ?? '127.0.0.1').trim() || '127.0.0.1'
+const getPort = (value) => Number.parseInt(value ?? process.env.LIBP2P_ARCHIVAL_PORT ?? '15012', 10)
+const getKeyPath = (value) => value ?? process.env.LIBP2P_ARCHIVAL_KEY_PATH ?? path.join(__dirname, 'archival.key')
+const getMetricsHost = (value, fallbackHost) =>
+  (value ?? process.env.LIBP2P_ARCHIVAL_METRICS_HOST ?? fallbackHost).trim() || fallbackHost
+const getMetricsPort = (value) => Number.parseInt(value ?? process.env.LIBP2P_ARCHIVAL_METRICS_PORT ?? '15013', 10)
 const {
   CHAT_TOPIC: DEFAULT_CHAT_TOPIC,
   CHAT_FILE_TOPIC: DEFAULT_FILE_TOPIC,
@@ -307,12 +311,10 @@ const parseAgentChat = (message) => {
   return null
 }
 
-const loadOrCreateKey = async ({
-  generateKeyPair,
-  privateKeyFromProtobuf,
-  privateKeyToProtobuf,
-  uint8ArrayFromString,
-}) => {
+const loadOrCreateKey = async (
+  { generateKeyPair, privateKeyFromProtobuf, privateKeyToProtobuf, uint8ArrayFromString },
+  keyPath,
+) => {
   const envKey = (process.env.LIBP2P_ARCHIVAL_KEY ?? '').trim()
 
   if (envKey) {
@@ -322,8 +324,8 @@ const loadOrCreateKey = async ({
     }
   }
 
-  if (fs.existsSync(KEY_PATH)) {
-    const encoded = fs.readFileSync(KEY_PATH, 'utf8').trim()
+  if (fs.existsSync(keyPath)) {
+    const encoded = fs.readFileSync(keyPath, 'utf8').trim()
 
     if (encoded) {
       const bytes = parseEncodedKey(encoded, uint8ArrayFromString)
@@ -337,8 +339,8 @@ const loadOrCreateKey = async ({
   const bytes = privateKeyToProtobuf(key)
   const encoded = Buffer.from(bytes).toString('base64')
 
-  fs.mkdirSync(path.dirname(KEY_PATH), { recursive: true })
-  fs.writeFileSync(KEY_PATH, encoded, 'utf8')
+  fs.mkdirSync(path.dirname(keyPath), { recursive: true })
+  fs.writeFileSync(keyPath, encoded, 'utf8')
 
   return key
 }
@@ -359,6 +361,16 @@ const shouldSkipArchival = () => {
 
 const createMetricsServer = (state) =>
   http.createServer((req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      })
+      res.end()
+      return
+    }
+
     if (req.method !== 'GET') {
       res.writeHead(405)
       res.end()
@@ -386,18 +398,28 @@ const createMetricsServer = (state) =>
       uptimeMs: Date.now() - state.startedAt,
     }
 
-    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    })
     res.end(JSON.stringify(payload))
   })
 
-const createArchivalNode = async () => {
+const createArchivalNode = async (options = {}) => {
   const modules = await loadLibp2pModules()
-  const privateKey = await loadOrCreateKey(modules)
+  const host = getHost(options.host)
+  const port = getPort(options.port)
+  const keyPath = getKeyPath(options.keyPath)
+  const metricsHost = getMetricsHost(options.metricsHost, host)
+  const metricsPort = getMetricsPort(options.metricsPort)
+  const privateKey = await loadOrCreateKey(modules, keyPath)
 
   const node = await modules.createLibp2p({
     privateKey,
     addresses: {
-      listen: [`/ip4/${HOST}/tcp/${PORT}/ws`],
+      listen: [`/ip4/${host}/tcp/${port}/ws`],
     },
     transports: [modules.webSockets()],
     connectionEncrypters: [modules.noise()],
@@ -410,6 +432,13 @@ const createArchivalNode = async () => {
       }),
       circuitRelay: modules.circuitRelayServer(),
     },
+    peerDiscovery: [
+      modules.pubsubPeerDiscovery({
+        interval: 3_000,
+        topics: [DISCOVERY_TOPIC],
+        listenOnly: false,
+      }),
+    ],
   })
 
   node.services.pubsub.subscribe(DISCOVERY_TOPIC)
@@ -679,7 +708,7 @@ const createArchivalNode = async () => {
 
   const metricsServer = createMetricsServer(state)
 
-  await new Promise((resolve) => metricsServer.listen(METRICS_PORT, METRICS_HOST, resolve))
+  await new Promise((resolve) => metricsServer.listen(metricsPort, metricsHost, resolve))
 
   const bootstrapAddrs = parseBootstrapAddrs()
 
@@ -756,6 +785,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  createArchivalNode,
   startArchivalNode,
   stopArchivalNode,
 }

@@ -4,6 +4,7 @@ const path = require('node:path')
 const { startLocalModelAgent, stopLocalModelAgent } = require('../local-agent/server')
 const { startLocalRelay, stopLocalRelay } = require('../local-agent/relay')
 const { startArchivalNode, stopArchivalNode } = require('../local-agent/archival')
+const { startMetricsNode, stopMetricsNode } = require('../local-agent/metrics')
 const { createLogger } = require('../lib/table‑logger.ts')
 
 const mode = process.argv[2] === 'start' ? 'start' : 'dev'
@@ -67,6 +68,22 @@ async function main() {
     return
   }
 
+  // init metrics node
+  try {
+    const metrics = await startMetricsNode()
+
+    if (metrics?.node) {
+      const listenAddrs = metrics.node.getMultiaddrs().map((addr) => addr.toString())
+      log('[metrics]', `${listenAddrs.join(', ')}`)
+    } else {
+      console.warn('[metrics] skipped starting metrics node')
+    }
+  } catch (error) {
+    console.error('[metrics] failed to boot', error)
+    process.exit(1)
+    return
+  }
+
   const child = spawn(process.execPath, [nextBin, ...nextArgs], {
     stdio: 'inherit',
     env: process.env,
@@ -77,6 +94,7 @@ async function main() {
     await stopLocalModelAgent()
     await stopLocalRelay()
     await stopArchivalNode()
+    await stopMetricsNode()
 
     if (child.killed) {
       return
@@ -101,6 +119,7 @@ async function main() {
     await stopLocalModelAgent()
     await stopLocalRelay()
     await stopArchivalNode()
+    await stopMetricsNode()
 
     if (signal) {
       process.kill(process.pid, signal)

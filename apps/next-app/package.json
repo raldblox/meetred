@@ -9,6 +9,7 @@
     "start": "node scripts/run-with-agent.js start",
     "relay:local": "node local-agent/relay.js",
     "archival:local": "node local-agent/archival.js",
+    "metrics:local": "node local-agent/metrics.js",
     "format": "prettier --write src",
     "lint": "eslint --fix",
     "protobuf": "protons lib/protobuf/*.proto",

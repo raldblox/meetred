@@ -1,4 +1,4 @@
-import shared = require('./constants.shared.js')
+import * as shared from './constants.shared.js'
 
 export const CHAT_TOPIC = shared.CHAT_TOPIC
 export const CHAT_FILE_TOPIC = shared.CHAT_FILE_TOPIC
@@ -26,3 +26,25 @@ export const WEBTRANSPORT_BOOTSTRAP_PEER_ID = shared.WEBTRANSPORT_BOOTSTRAP_PEER
 export const BOOTSTRAP_PEER_IDS = shared.BOOTSTRAP_PEER_IDS
 export const ANALYTICS_WRAPPER = shared.ANALYTICS_WRAPPER
 export const ANALYTICS_APP_ID = shared.ANALYTICS_APP_ID
+
+type SpecialPeerKind = 'relay' | 'archival' | 'metrics' | 'analytics' | 'agent'
+export const SPECIAL_PEERS: Record<string, SpecialPeerKind> = (() => {
+  const raw = process.env.NEXT_PUBLIC_SPECIAL_PEERS ?? ''
+  const map: Record<string, SpecialPeerKind> = {}
+
+  raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .forEach((entry) => {
+      const [peerId, kind] = entry.split('=').map((part) => part.trim())
+      if (!peerId || !kind) {
+        return
+      }
+      if (kind === 'relay' || kind === 'archival' || kind === 'metrics' || kind === 'analytics' || kind === 'agent') {
+        map[peerId] = kind
+      }
+    })
+
+  return map
+})()

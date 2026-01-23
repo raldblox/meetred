@@ -9,7 +9,7 @@ import { PeerWrapper } from './peer'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { useChatContext } from '@/context/chat-ctx'
-import { BOOTSTRAP_PEER_IDS } from '@/config/constants'
+import { useSpecialPeers } from '@/hooks/useSpecialPeers'
 import { PUBLIC_CHAT_ROOM_ID } from '@/components/chat/chat-room'
 import { usePeerPresence } from '@/hooks/usePeerPresence'
 
@@ -23,6 +23,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
   const [refreshing, setRefreshing] = useState(false)
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const peers = usePeerPresence()
+  const specialPeers = useSpecialPeers()
 
   const refreshPeers = useCallback(async () => {
     if (refreshing) {
@@ -51,7 +52,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
     }
   }, [])
 
-  const peerIds = peers.map((peer) => peer.peerId)
+  const peerIds = Array.from(new Set(peers.map((peer) => peer.peerId)))
 
   return (
     <div className="lg:col-span-1 h-full">
@@ -78,13 +79,14 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
 
         {peerIds.length === 0 && <div className="text-xs text-default-500">No peers connected yet.</div>}
         {peerIds.map((p) => {
-          if (BOOTSTRAP_PEER_IDS.includes(p) || p === libp2p.peerId.toString()) {
+          if (p === libp2p.peerId.toString()) {
             return null
           }
 
           try {
             const id = peerIdFromString(p)
             const isSelected = roomId === p
+            const specialKind = specialPeers[p]
 
             return (
               <div
@@ -98,6 +100,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
                   syncing={historySyncingPeerIds.includes(p)}
                   withName={true}
                   withUnread={true}
+                  label={specialKind}
                 />
               </div>
             )

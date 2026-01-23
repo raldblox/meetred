@@ -20,6 +20,7 @@
 *.pem
 local-agent/relay.key
 local-agent/archival.key
+local-agent/metrics.key
 
 # debug
 npm-debug.log*

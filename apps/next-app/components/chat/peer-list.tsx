@@ -5,7 +5,7 @@ import { Button, Chip } from '@heroui/react'
 import { useCallback } from 'react'
 
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { BOOTSTRAP_PEER_IDS } from '@/config/constants'
+import { useSpecialPeers } from '@/hooks/useSpecialPeers'
 
 interface PeerListProps {
   connections: Connection[]
@@ -15,10 +15,6 @@ export default function PeerList({ connections }: PeerListProps) {
   return (
     <ul className="divide-y divide-default-100 space-y-2">
       {connections.map((connection) => {
-        if (BOOTSTRAP_PEER_IDS.includes(connection.remotePeer.toString())) {
-          return null
-        }
-
         return <Peer key={connection.id} connection={connection} />
       })}
     </ul>
@@ -30,6 +26,7 @@ interface PeerProps {
 }
 function Peer({ connection }: PeerProps) {
   const { libp2p } = useLibp2pContext()
+  const specialPeers = useSpecialPeers()
 
   const handleDisconnectPeer = useCallback(
     (peerId: PeerId) => {
@@ -57,6 +54,11 @@ function Peer({ connection }: PeerProps) {
             <span className="text-sm font-semibold leading-6 text-default-900 break-all">
               {connection.remotePeer.toString()}
             </span>
+            {specialPeers[connection.remotePeer.toString()] ? (
+              <Chip className="min-w-fit" color="secondary" size="sm" variant="flat">
+                {specialPeers[connection.remotePeer.toString()]}
+              </Chip>
+            ) : null}
             {connection.remoteAddr.protoNames().includes('webrtc') ? (
               <Chip className="min-w-fit" color="primary" size="sm" variant="flat">
                 P2P Browser
