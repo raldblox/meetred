@@ -163,8 +163,11 @@ export async function startLibp2p(options: StartLibp2pOptions = {}): Promise<Lib
   libp2p = await createLibp2p({
     privateKey,
     addresses: {
-      // Only listen on local transports; relay reservations are created via dial below.
-      listen: ['/webrtc'],
+      listen: [
+        // 👇 Listen for webRTC connection
+        '/webrtc',
+        ...relayListenAddrs,
+      ],
     },
     transportManager: {
       // tolerate individual listen failures instead of aborting startup
