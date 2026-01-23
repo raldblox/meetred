@@ -1,6 +1,7 @@
 import '@/styles/globals.css'
 import { Metadata, Viewport } from 'next'
 import clsx from 'clsx'
+import { Analytics } from '@vercel/analytics/react'
 
 import { Providers } from './providers'
 
@@ -40,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         )}
       >
         <Providers themeProps={{ attribute: 'class', defaultTheme: 'dark' }}>{children}</Providers>
-        
+        <Analytics />
       </body>
     </html>
   )
