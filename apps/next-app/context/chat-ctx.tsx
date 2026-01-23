@@ -132,6 +132,14 @@ export interface ChatContextInterface {
   files: Map<string, ChatFile>
   setFiles: (files: Map<string, ChatFile>) => void
   historySyncingPeerIds: string[]
+  networkTotals: NetworkTotals
+  recordNetworkUsage: (
+    direction: 'sent' | 'received',
+    category: NetworkCategory,
+    bytes: number,
+    cachedBytesDelta?: number,
+    cachedFilesDelta?: number,
+  ) => void
 }
 
 export const ChatContext = createContext<ChatContextInterface>({
@@ -144,11 +152,72 @@ export const ChatContext = createContext<ChatContextInterface>({
   files: new Map<string, ChatFile>(),
   setFiles: () => {},
   historySyncingPeerIds: [],
+  networkTotals: {
+    sentBytes: 0,
+    receivedBytes: 0,
+    sentByCategory: {
+      dm: 0,
+      'pubsub-chat': 0,
+      'pubsub-file-meta': 0,
+      'pubsub-signal': 0,
+      'file-transfer': 0,
+    },
+    receivedByCategory: {
+      dm: 0,
+      'pubsub-chat': 0,
+      'pubsub-file-meta': 0,
+      'pubsub-signal': 0,
+      'file-transfer': 0,
+    },
+    cachedBytes: 0,
+    cachedFiles: 0,
+    lastUpdatedAt: 0,
+  },
+  recordNetworkUsage: () => {},
 })
 
 export const useChatContext = () => {
   return useContext(ChatContext)
 }
+
+type NetworkCategory =
+  | 'dm'
+  | 'pubsub-chat'
+  | 'pubsub-file-meta'
+  | 'pubsub-signal'
+  | 'file-transfer'
+
+export interface NetworkTotals {
+  sentBytes: number
+  receivedBytes: number
+  sentByCategory: Record<NetworkCategory, number>
+  receivedByCategory: Record<NetworkCategory, number>
+  cachedBytes: number
+  cachedFiles: number
+  lastUpdatedAt: number
+}
+
+const buildEmptyStats = (): NetworkTotals => ({
+  sentBytes: 0,
+  receivedBytes: 0,
+  sentByCategory: {
+    dm: 0,
+    'pubsub-chat': 0,
+    'pubsub-file-meta': 0,
+    'pubsub-signal': 0,
+    'file-transfer': 0,
+  },
+  receivedByCategory: {
+    dm: 0,
+    'pubsub-chat': 0,
+    'pubsub-file-meta': 0,
+    'pubsub-signal': 0,
+    'file-transfer': 0,
+  },
+  cachedBytes: 0,
+  cachedFiles: 0,
+  lastUpdatedAt: 0,
+})
 
 export const ChatProvider = ({ children }: any) => {
   const [messageHistory, setMessageHistory] = useState<ChatMessage[]>([])
@@ -156,6 +225,7 @@ export const ChatProvider = ({ children }: any) => {
   const [files, setFiles] = useState<Map<string, ChatFile>>(new Map<string, ChatFile>())
   const [roomId, setRoomId] = useState<Chatroom>('')
   const [historySyncingPeerIds, setHistorySyncingPeerIds] = useState<string[]>([])
+  const [networkTotals, setNetworkTotals] = useState<NetworkTotals>(() => buildEmptyStats())
   const messageHistoryRef = useRef<ChatMessage[]>([])
   const directMessagesRef = useRef<DirectMessages>({})
   const requestedHistoryPeers = useRef<Set<string>>(new Set())
@@ -167,6 +237,39 @@ export const ChatProvider = ({ children }: any) => {
   const dmPurgeAttempts = useRef<Map<string, number>>(new Map())
 
   const { libp2p } = useLibp2pContext()
+  const textEncoderRef = useRef<TextEncoder>(new TextEncoder())
+
+  const bumpNetworkTotals = useCallback(
+    (
+      direction: 'sent' | 'received',
+      category: NetworkCategory,
+      bytes: number,
+      cachedBytesDelta = 0,
+      cachedFilesDelta = 0,
+    ) => {
+      if (bytes <= 0) {
+        return
+      }
+
+      setNetworkTotals((current) => ({
+        ...current,
+        sentBytes: direction === 'sent' ? current.sentBytes + bytes : current.sentBytes,
+        receivedBytes: direction === 'received' ? current.receivedBytes + bytes : current.receivedBytes,
+        sentByCategory:
+          direction === 'sent'
+            ? { ...current.sentByCategory, [category]: (current.sentByCategory[category] ?? 0) + bytes }
+            : current.sentByCategory,
+        receivedByCategory:
+          direction === 'received'
+            ? { ...current.receivedByCategory, [category]: (current.receivedByCategory[category] ?? 0) + bytes }
+            : current.receivedByCategory,
+        cachedBytes: current.cachedBytes + cachedBytesDelta,
+        cachedFiles: current.cachedFiles + cachedFilesDelta,
+        lastUpdatedAt: Date.now(),
+      }))
+    },
+    [],
+  )
 
   useEffect(() => {
     messageHistoryRef.current = messageHistory
@@ -475,6 +578,22 @@ export const ChatProvider = ({ children }: any) => {
   const messageCB = (evt: CustomEvent<Message>) => {
     // FIXME: Why does 'from' not exist on type 'Message'?
     const { topic, data } = evt.detail
+    const detail = evt.detail
+    const raw = new TextDecoder().decode(data)
+
+    if (detail.type === 'signed' && hasFromPeer(detail)) {
+      let category: NetworkCategory = 'pubsub-chat'
+
+      if (topic === CHAT_FILE_TOPIC) {
+        category = 'pubsub-file-meta'
+      } else if (topic === PUBSUB_PEER_DISCOVERY) {
+        return
+      } else if (topic === CHAT_TOPIC && isStreamSignal(raw)) {
+        category = 'pubsub-signal'
+      }
+
+      bumpNetworkTotals('received', category, data.length)
+    }
 
     switch (topic) {
       case CHAT_TOPIC:
@@ -646,6 +765,7 @@ export const ChatProvider = ({ children }: any) => {
               channel: 'public',
             }
 
+            bumpNetworkTotals('received', 'file-transfer', body.length, body.length, 1)
             setMessageHistory((prev) => [...prev, { ...msg, status: 'sent' }])
           }
         },
@@ -688,6 +808,8 @@ export const ChatProvider = ({ children }: any) => {
 
       const messageWithStatus: ChatMessage = { ...message, status: 'sent' }
 
+      const incomingBytes = textEncoderRef.current.encode(evt.detail.content).length
+      bumpNetworkTotals('received', 'dm', incomingBytes)
       setDirectMessages((prev) => {
         const existing = prev[peerId] ?? []
 
@@ -911,7 +1033,7 @@ export const ChatProvider = ({ children }: any) => {
   useEffect(() => {
     libp2p.services.pubsub.addEventListener('message', messageCB)
 
-    libp2p.handle(FILE_EXCHANGE_PROTOCOL, ({ stream }) => {
+    libp2p.handle(FILE_EXCHANGE_PROTOCOL, ({ stream }: any) => {
       pipe(
         stream.source,
         (source) => lp.decode(source),
@@ -926,6 +1048,7 @@ export const ChatProvider = ({ children }: any) => {
               return new Uint8Array(0)
             }
 
+            bumpNetworkTotals('sent', 'file-transfer', file.body.length)
             return file.body
           }),
         (source) => lp.encode(source),
@@ -954,6 +1077,8 @@ export const ChatProvider = ({ children }: any) => {
         files,
         setFiles,
         historySyncingPeerIds,
+        networkTotals,
+        recordNetworkUsage: bumpNetworkTotals,
       }}
     >
       {children}

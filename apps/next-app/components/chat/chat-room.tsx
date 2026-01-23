@@ -27,8 +27,8 @@ export const PUBLIC_CHAT_ROOM_ID = ''
 export const getIsMobile = () => (typeof window !== 'undefined' ? window.innerWidth < 640 : false)
 
 export default function ChatContainer() {
-  const { libp2p } = useLibp2pContext()
-  const { roomId, setRoomId } = useChatContext()
+  const { libp2p, refreshPeerDiscovery } = useLibp2pContext()
+  const { roomId, setRoomId, recordNetworkUsage } = useChatContext()
   const { messageHistory, setMessageHistory, directMessages, setDirectMessages, files, setFiles } = useChatContext()
   const [input, setInput] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -72,7 +72,9 @@ export default function ChatContainer() {
 
       try {
         const envelope = wrapMeetredMessage(trimmedMessage)
-        const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(envelope))
+        const encoded = new TextEncoder().encode(envelope)
+        recordNetworkUsage('sent', 'pubsub-chat', encoded.length)
+        const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, encoded)
 
         log(
           'sent message to: ',
@@ -97,7 +99,32 @@ export default function ChatContainer() {
         throw error
       }
     },
-    [libp2p, setMessageHistory],
+    [libp2p, recordNetworkUsage, setMessageHistory],
+  )
+
+  const ensurePeerConnected = useCallback(
+    async (peerId: string) => {
+      try {
+        const peer = peerIdFromString(peerId)
+        if (libp2p.getConnections(peer)?.length > 0) {
+          return true
+        }
+
+        await refreshPeerDiscovery()
+
+        try {
+          await libp2p.dial(peer)
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+          await libp2p.dial(peer)
+        }
+
+        return (libp2p.getConnections(peer) ?? []).length > 0
+      } catch {
+        return false
+      }
+    },
+    [libp2p, refreshPeerDiscovery],
   )
 
   // Send direct message over custom protocol
@@ -130,6 +157,11 @@ export default function ChatContainer() {
       })
 
       try {
+        await ensurePeerConnected(targetRoomId)
+        const outgoingBytes = new TextEncoder().encode(trimmedMessage).length
+        if (outgoingBytes > 0) {
+          recordNetworkUsage('sent', 'dm', outgoingBytes)
+        }
         const res = await libp2p.services.directMessage.send(peerIdFromString(targetRoomId), trimmedMessage)
 
         if (!res) {
@@ -177,7 +209,7 @@ export default function ChatContainer() {
         throw error
       }
     },
-    [libp2p, roomId, setDirectMessages],
+    [ensurePeerConnected, libp2p, recordNetworkUsage, roomId, setDirectMessages],
   )
 
   const sendFile = useCallback(
@@ -201,7 +233,9 @@ export default function ChatContainer() {
       )
 
       const payload = JSON.stringify({ id: file.id, name: file.name, type: file.type })
-      const res = await libp2p.services.pubsub.publish(CHAT_FILE_TOPIC, new TextEncoder().encode(payload))
+      const encoded = new TextEncoder().encode(payload)
+      recordNetworkUsage('sent', 'pubsub-file-meta', encoded.length)
+      const res = await libp2p.services.pubsub.publish(CHAT_FILE_TOPIC, encoded)
 
       log(
         'sent file to: ',
