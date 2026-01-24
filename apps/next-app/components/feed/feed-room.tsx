@@ -11,7 +11,7 @@ import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
 import { parseStreamChatPayload } from '@/lib/stream-chat'
 import { parseAgentChatPayload } from '@/lib/agent-chat'
-import { usePeerPresence } from '@/hooks/usePeerPresence'
+import { usePeerPresence, type PeerPresenceStatus } from '@/hooks/usePeerPresence'
 import { useCreateSessionModal } from '@/context/create-session-ctx'
 
 const displayFont = Space_Grotesk({
@@ -271,11 +271,11 @@ export default function FeedRoom() {
   const [filter, setFilter] = useState<'all' | FeedInvite['kind']>('all')
   const { open } = useCreateSessionModal()
 
-  const onlinePeers = useMemo(() => {
-    const map = new Map<string, boolean>()
+  const presenceStatusByPeer = useMemo(() => {
+    const map = new Map<string, PeerPresenceStatus>()
 
     presence.forEach((peer) => {
-      map.set(peer.peerId, peer.status === 'online')
+      map.set(peer.peerId, peer.status)
     })
 
     return map
@@ -371,7 +371,18 @@ export default function FeedRoom() {
       }
     })
 
-    return invites
+    const latestByHost = new Map<string, FeedInvite>()
+
+    invites.forEach((invite) => {
+      const key = `${invite.kind}:${invite.hostPeerId}`
+      const existing = latestByHost.get(key)
+
+      if (!existing || invite.createdAt > existing.createdAt) {
+        latestByHost.set(key, invite)
+      }
+    })
+
+    return Array.from(latestByHost.values())
   }, [messageHistory])
 
   const visibleInvites = useMemo(() => {
@@ -380,13 +391,13 @@ export default function FeedRoom() {
         return true
       }
 
-      return onlinePeers.get(invite.hostPeerId) === true
+      return presenceStatusByPeer.get(invite.hostPeerId) !== 'offline'
     })
 
     const filteredByType = filter === 'all' ? filtered : filtered.filter((invite) => invite.kind === filter)
 
     return filteredByType.sort((a, b) => b.createdAt - a.createdAt)
-  }, [feedInvites, filter, libp2p.peerId, onlinePeers])
+  }, [feedInvites, filter, libp2p.peerId, presenceStatusByPeer])
 
   const handleShare = useCallback(async (invite: FeedInvite) => {
     const url = `${window.location.origin}${buildShareUrl(invite.kind, invite.roomId)}`
@@ -506,7 +517,7 @@ export default function FeedRoom() {
                 key={invite.id}
                 chatCount={chatCounts.get(invite.roomId) ?? 0}
                 invite={invite}
-                online={onlinePeers.get(invite.hostPeerId) ?? false}
+                online={presenceStatusByPeer.get(invite.hostPeerId) === 'online'}
                 onOpen={handleOpenPreview}
                 onShare={handleShare}
               />
@@ -523,7 +534,7 @@ export default function FeedRoom() {
                 <FeedCard
                   chatCount={chatCounts.get(previewInvite.roomId) ?? 0}
                   invite={previewInvite}
-                  online={onlinePeers.get(previewInvite.hostPeerId) ?? false}
+                  online={presenceStatusByPeer.get(previewInvite.hostPeerId) === 'online'}
                   onOpen={() => {}}
                   onShare={handleShare}
                 />

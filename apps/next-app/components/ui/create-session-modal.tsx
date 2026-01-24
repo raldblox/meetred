@@ -257,21 +257,21 @@ export function CreateSessionModal() {
       isOpen={isOpen}
       isDismissable={false}
       placement="center"
-      size="full"
+      size="5xl"
       onOpenChange={(open) => {
         if (!open) {
           close()
         }
       }}
     >
-      <ModalContent className="bg-[#0c1018] text-white mx-4 my-4 max-w-6xl h-[85vh]">
+      <ModalContent className="bg-[#0c1018] min-h-[85vh] text-white mx-4 my-4 max-w-6xl">
         <ModalHeader className="flex flex-col gap-1">
           <span className="text-xs uppercase tracking-[0.3em] text-white/50">Create session</span>
           <span className="text-xl font-semibold">Set up and launch your room</span>
         </ModalHeader>
         <ModalBody className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="rounded-2xl">
               <p className="text-[11px] uppercase tracking-[0.3em] text-white/40">Session type</p>
               <div className="mt-3 grid gap-2">
                 <Button
@@ -536,7 +536,6 @@ export function CreateSessionModal() {
                   onChange={(event) => updateDraft({ note: event.target.value })}
                 />
               </div>
-
             </div>
           </div>
         </ModalBody>
