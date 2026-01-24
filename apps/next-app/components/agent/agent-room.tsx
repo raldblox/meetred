@@ -68,6 +68,7 @@ export function AgentRoom({ peerId }: { peerId: string }) {
   const { isOpen: isShareModalOpen, onOpen: openShareModal, onOpenChange: onShareModalOpenChange } = useDisclosure()
   const sessionTimer = useSessionTimer()
   const lastTimerStateRef = useRef(false)
+  const autoConnectRef = useRef(false)
 
   const activeModel = useMemo(
     () => models.find((model) => model.id === agentState.selectedModelId),
@@ -165,6 +166,79 @@ export function AgentRoom({ peerId }: { peerId: string }) {
       lastTimerStateRef.current = false
     }
   }, [allowSessionStart, modelReady, sessionTimer])
+
+  useEffect(() => {
+    if (!isHost || authorized || autoConnectRef.current) {
+      return
+    }
+
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const raw = sessionStorage.getItem('meetred:create-session')
+
+    if (!raw) {
+      return
+    }
+
+    try {
+      const payload = JSON.parse(raw)
+      const selfPeerId = libp2p.peerId?.toString()
+
+      if (payload?.kind !== 'ai' || !selfPeerId || payload.hostPeerId !== selfPeerId) {
+        return
+      }
+
+      if (typeof payload.createdAt === 'number' && Date.now() - payload.createdAt > 10 * 60 * 1000) {
+        sessionStorage.removeItem('meetred:create-session')
+        return
+      }
+
+      autoConnectRef.current = true
+      sessionStorage.removeItem('meetred:create-session')
+
+      const draft = payload.draft ?? {}
+
+      if (typeof draft.agentBaseUrl === 'string' && draft.agentBaseUrl.trim()) {
+        setLmBaseUrl(draft.agentBaseUrl)
+      }
+
+      if (typeof draft.lmStudioUrl === 'string' && draft.lmStudioUrl.trim()) {
+        setLmTargetUrl(draft.lmStudioUrl)
+      }
+
+      const provider = draft.provider === 'openai' ? 'openai' : 'lmstudio'
+      const apiKey = provider === 'openai' ? String(draft.openAIKey ?? '') : ''
+
+      setTimeout(async () => {
+        try {
+          if (provider === 'openai') {
+            await connectOpenAIAgent(apiKey)
+          } else {
+            await connectLocalAgent()
+          }
+
+          if (typeof draft.modelId === 'string' && draft.modelId.trim()) {
+            selectAgentModel(draft.modelId.trim())
+          }
+        } catch {
+          autoConnectRef.current = false
+        }
+      }, 0)
+    } catch {
+      // ignore malformed payload
+    }
+  }, [
+    authorized,
+    connectLocalAgent,
+    connectOpenAIAgent,
+    isHost,
+    libp2p.peerId,
+    setLmBaseUrl,
+    setLmTargetUrl,
+    selectAgentModel,
+  ])
 
   if (!isHost) {
     return (

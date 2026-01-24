@@ -3,17 +3,16 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import Blockies from 'react-18-blockies'
 import Link from 'next/link'
-import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Textarea } from '@heroui/react'
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@heroui/react'
 import { Plus, Share2, Users, Sparkles, Video, FileText, MessageSquareText } from 'lucide-react'
 import { Space_Grotesk, Newsreader } from 'next/font/google'
 
-import { ChatMessage, useChatContext } from '@/context/chat-ctx'
+import { useChatContext } from '@/context/chat-ctx'
 import { useLibp2pContext } from '@/context/libp2p-ctx'
-import { CHAT_TOPIC } from '@/config/constants'
-import { wrapMeetredMessage } from '@/lib/envelope'
 import { parseStreamChatPayload } from '@/lib/stream-chat'
 import { parseAgentChatPayload } from '@/lib/agent-chat'
 import { usePeerPresence } from '@/hooks/usePeerPresence'
+import { useCreateSessionModal } from '@/context/create-session-ctx'
 
 const displayFont = Space_Grotesk({
   subsets: ['latin'],
@@ -265,19 +264,12 @@ const FeedCard = ({
 
 export default function FeedRoom() {
   const { libp2p } = useLibp2pContext()
-  const { messageHistory, setMessageHistory } = useChatContext()
+  const { messageHistory } = useChatContext()
   const presence = usePeerPresence()
-  const [isCreatorOpen, setIsCreatorOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState(0)
-  const [selectedType, setSelectedType] = useState<FeedInvite['kind']>('stream')
   const [filter, setFilter] = useState<'all' | FeedInvite['kind']>('all')
-  const [note, setNote] = useState('')
-  const [modelId, setModelId] = useState('')
-  const [provider, setProvider] = useState('')
-  const [label, setLabel] = useState('')
-  const [sending, setSending] = useState(false)
-  const [lastCreated, setLastCreated] = useState<FeedInvite | null>(null)
+  const { open } = useCreateSessionModal()
 
   const onlinePeers = useMemo(() => {
     const map = new Map<string, boolean>()
@@ -396,144 +388,6 @@ export default function FeedRoom() {
     return filteredByType.sort((a, b) => b.createdAt - a.createdAt)
   }, [feedInvites, filter, libp2p.peerId, onlinePeers])
 
-  const publishInvite = useCallback(
-    async (payload: object) => {
-      const envelope = wrapMeetredMessage(JSON.stringify(payload))
-
-      await libp2p.services.pubsub.publish(CHAT_TOPIC, new TextEncoder().encode(envelope))
-    },
-    [libp2p.services.pubsub],
-  )
-
-  const addLocalInvite = useCallback(
-    (payload: object) => {
-      const now = Date.now()
-      const message: ChatMessage = {
-        msgId: crypto.randomUUID(),
-        msg: JSON.stringify(payload),
-        fileObjectUrl: undefined,
-        peerId: libp2p.peerId.toString(),
-        read: true,
-        receivedAt: now,
-        status: 'sent',
-        channel: 'public',
-      }
-
-      setMessageHistory((prev) => [...prev, message])
-    },
-    [libp2p.peerId, setMessageHistory],
-  )
-
-  const handleCreate = useCallback(async () => {
-    if (sending) return
-
-    setSending(true)
-    const hostPeerId = libp2p.peerId.toString()
-    const createdAt = Date.now()
-
-    try {
-      if (selectedType === 'stream') {
-        const payload = {
-          type: 'stream_invite',
-          streamId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: note || undefined,
-        }
-
-        await publishInvite(payload)
-        addLocalInvite(payload)
-        setLastCreated({
-          id: crypto.randomUUID(),
-          kind: 'stream',
-          title: 'Live stream',
-          roomId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: payload.note,
-        })
-      }
-
-      if (selectedType === 'ai') {
-        const payload = {
-          type: 'agent_invite',
-          agentPeerId: hostPeerId,
-          createdAt,
-          note: note || undefined,
-          modelId: modelId || undefined,
-          provider: provider || undefined,
-        }
-
-        await publishInvite(payload)
-        addLocalInvite(payload)
-        setLastCreated({
-          id: crypto.randomUUID(),
-          kind: 'ai',
-          title: 'AI room',
-          roomId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: payload.note,
-          modelId: payload.modelId,
-          provider: payload.provider,
-        })
-      }
-
-      if (selectedType === 'call') {
-        const payload = {
-          type: 'meeting_invite',
-          roomId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: note || undefined,
-          visibility: 'private',
-        }
-
-        await publishInvite(payload)
-        addLocalInvite(payload)
-        setLastCreated({
-          id: crypto.randomUUID(),
-          kind: 'call',
-          title: 'Private call',
-          roomId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: payload.note,
-        })
-      }
-
-      if (selectedType === 'file') {
-        const payload = {
-          type: 'file_share_invite',
-          roomId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: note || undefined,
-          label: label || undefined,
-        }
-
-        await publishInvite(payload)
-        addLocalInvite(payload)
-        setLastCreated({
-          id: crypto.randomUUID(),
-          kind: 'file',
-          title: payload.label ? `File share: ${payload.label}` : 'File share',
-          roomId: hostPeerId,
-          hostPeerId,
-          createdAt,
-          note: payload.note,
-        })
-      }
-
-      setNote('')
-      setLabel('')
-      setModelId('')
-      setProvider('')
-    } finally {
-      setSending(false)
-    }
-  }, [addLocalInvite, label, libp2p.peerId, modelId, note, provider, publishInvite, selectedType, sending])
-
   const handleShare = useCallback(async (invite: FeedInvite) => {
     const url = `${window.location.origin}${buildShareUrl(invite.kind, invite.roomId)}`
 
@@ -586,7 +440,7 @@ export default function FeedRoom() {
             className="h-11 rounded-full border border-white/20 bg-white/10 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-white"
             startContent={<Plus size={16} />}
             variant="flat"
-            onPress={() => setIsCreatorOpen(true)}
+            onPress={() => open('stream')}
           >
             Create
           </Button>
@@ -660,122 +514,6 @@ export default function FeedRoom() {
           </div>
         )}
       </section>
-      <Modal isOpen={isCreatorOpen} onOpenChange={setIsCreatorOpen}>
-        <ModalContent className="bg-[#0c1018] text-white">
-          <ModalHeader className="flex flex-col gap-1">Create a live session</ModalHeader>
-          <ModalBody>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                className={selectedType === 'stream' ? 'bg-sky-500 text-white' : 'border border-white/20 text-white/70'}
-                size="sm"
-                startContent={<Video size={14} />}
-                variant={selectedType === 'stream' ? 'solid' : 'bordered'}
-                onPress={() => setSelectedType('stream')}
-              >
-                Stream
-              </Button>
-              <Button
-                className={selectedType === 'ai' ? 'bg-emerald-500 text-white' : 'border border-white/20 text-white/70'}
-                size="sm"
-                startContent={<Sparkles size={14} />}
-                variant={selectedType === 'ai' ? 'solid' : 'bordered'}
-                onPress={() => setSelectedType('ai')}
-              >
-                AI
-              </Button>
-              <Button
-                className={selectedType === 'call' ? 'bg-amber-500 text-white' : 'border border-white/20 text-white/70'}
-                size="sm"
-                startContent={<Users size={14} />}
-                variant={selectedType === 'call' ? 'solid' : 'bordered'}
-                onPress={() => setSelectedType('call')}
-              >
-                Private Call
-              </Button>
-              <Button
-                className={
-                  selectedType === 'file' ? 'bg-fuchsia-500 text-white' : 'border border-white/20 text-white/70'
-                }
-                size="sm"
-                startContent={<FileText size={14} />}
-                variant={selectedType === 'file' ? 'solid' : 'bordered'}
-                onPress={() => setSelectedType('file')}
-              >
-                File Share
-              </Button>
-            </div>
-            <Textarea
-              classNames={{
-                inputWrapper: 'bg-black/30 border border-white/10 hover:border-white/30',
-                input: 'text-white/90 text-[15px] leading-relaxed',
-              }}
-              maxLength={500}
-              minRows={3}
-              placeholder="Add a short note for the feed..."
-              value={note}
-              variant="flat"
-              onChange={(event) => setNote(event.target.value)}
-            />
-            {selectedType === 'ai' && (
-              <>
-                <Input
-                  classNames={{
-                    inputWrapper: 'bg-black/30 border border-white/10',
-                    input: 'text-white/80',
-                  }}
-                  placeholder="Model id (e.g. gpt-4o-mini)"
-                  value={modelId}
-                  onChange={(event) => setModelId(event.target.value)}
-                />
-                <Input
-                  classNames={{
-                    inputWrapper: 'bg-black/30 border border-white/10',
-                    input: 'text-white/80',
-                  }}
-                  placeholder="Provider (optional)"
-                  value={provider}
-                  onChange={(event) => setProvider(event.target.value)}
-                />
-              </>
-            )}
-            {selectedType === 'file' && (
-              <Input
-                classNames={{
-                  inputWrapper: 'bg-black/30 border border-white/10',
-                  input: 'text-white/80',
-                }}
-                placeholder="File label (optional)"
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-              />
-            )}
-            {lastCreated && (
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">Next steps</p>
-                <p className="mt-2">Open your room and finish setup. Share the link when you are ready.</p>
-                <Link
-                  className="mt-2 inline-flex text-white underline"
-                  href={buildShareUrl(lastCreated.kind, lastCreated.roomId)}
-                >
-                  {buildShareUrl(lastCreated.kind, lastCreated.roomId)}
-                </Link>
-              </div>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="flat" onPress={() => setIsCreatorOpen(false)}>
-              Close
-            </Button>
-            <Button
-              className="rounded-full bg-white text-xs font-semibold uppercase tracking-[0.2em] text-black"
-              isDisabled={sending}
-              onPress={handleCreate}
-            >
-              {sending ? 'Publishing...' : 'Go live'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
       <Modal isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <ModalContent className="bg-[#0c1018] text-white">
           {previewInvite ? (

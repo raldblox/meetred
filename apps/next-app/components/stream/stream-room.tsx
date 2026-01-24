@@ -53,6 +53,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   const sessionTimer = useSessionTimer()
   const selfPeerId = libp2p.peerId?.toString() ?? 'unknown'
   const lastStreamMinuteRef = useRef(0)
+  const autoHostRef = useRef(false)
   const sessionActive = isHost ? status === 'live' : status === 'live' && Boolean(remoteStream)
   const paymentPromptActive = !isHost && status === 'live'
   const [rateDraft, setRateDraft] = useState(() => PAY_PER_MINUTE_CONFIG.stream.ratePerMinute.toString())
@@ -142,6 +143,45 @@ export function StreamRoom({ streamId }: { streamId: string }) {
       setPaymentRate(PAY_PER_MINUTE_CONFIG.stream.ratePerMinute)
     }
   }, [isHost, paymentRate, setPaymentRate])
+
+  useEffect(() => {
+    if (!isHost || autoHostRef.current || status !== 'idle') {
+      return
+    }
+
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const raw = sessionStorage.getItem('meetred:create-session')
+
+    if (!raw) {
+      return
+    }
+
+    try {
+      const payload = JSON.parse(raw)
+
+      if (payload?.kind !== 'stream' || payload.hostPeerId !== selfPeerId) {
+        return
+      }
+
+      if (typeof payload.createdAt === 'number' && Date.now() - payload.createdAt > 10 * 60 * 1000) {
+        sessionStorage.removeItem('meetred:create-session')
+        return
+      }
+
+      autoHostRef.current = true
+      sessionStorage.removeItem('meetred:create-session')
+
+      startHosting().catch((error) => {
+        log.error('auto host start failed %o', error)
+        autoHostRef.current = false
+      })
+    } catch {
+      // ignore malformed payload
+    }
+  }, [isHost, selfPeerId, startHosting, status])
 
   useEffect(() => {
     if (!isHost) {

@@ -23,6 +23,7 @@ type MeetingInvitePayload = {
   roomId: string
   hostPeerId: string
   createdAt?: number
+  note?: string
 }
 
 type StreamInvitePayload = {
@@ -31,12 +32,16 @@ type StreamInvitePayload = {
   hostPeerId: string
   multiaddrs?: string[]
   createdAt?: number
+  note?: string
 }
 
 type AgentInvitePayload = {
   type: 'agent_invite'
   agentPeerId: string
   createdAt?: number
+  note?: string
+  modelId?: string
+  provider?: string
 }
 
 const parseMeetingInvite = (msg: string): MeetingInvitePayload | null => {
@@ -153,6 +158,7 @@ export const Message = ({
     const hostShortId = streamInvite.hostPeerId.slice(-7)
     const streamStatusKey: InviteStatus = streamStatus.state === 'live' ? 'live' : isStreamHost ? 'ready' : 'waiting'
     const streamCopy = INVITE_CARD_COPY.stream[streamStatusKey]
+    const streamDescription = streamInvite.note?.trim() || streamCopy.body
 
     if (isStreamHost) {
       return (
@@ -198,7 +204,7 @@ export const Message = ({
                     {streamCopy.cta}
                   </Button>
                 </div>
-                <p className="mt-3 text-sm text-left text-default-500">{streamCopy.body}</p>
+                <p className="mt-3 text-sm text-left text-default-500">{streamDescription}</p>
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] uppercase text-default-500">
                   <span className="flex items-center gap-1">
                     Host
@@ -260,7 +266,7 @@ export const Message = ({
             <div className="w-full">
               <StreamInvitePreview
                 ctaLabel={streamCopy.cta}
-                description={streamCopy.body}
+                description={streamDescription}
                 hostPeerId={streamInvite.hostPeerId}
                 status={streamStatus.state}
                 title={streamCopy.title(hostShortId)}
@@ -341,6 +347,7 @@ export const Message = ({
   if (meetingInvite) {
     const hostShortId = meetingInvite.hostPeerId.slice(-7)
     const callCopy = INVITE_CARD_COPY.call.ready
+    const callDescription = meetingInvite.note?.trim() || callCopy.body
 
     return (
       <li className={`flex text-left items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'mr-10'}`}>
@@ -372,7 +379,7 @@ export const Message = ({
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2">
                   <p className="text-lg font-semibold uppercase text-foreground">{callCopy.title(hostShortId)}</p>
-                  <p className="text-sm text-default-600">{callCopy.body}</p>
+                  <p className="text-sm text-default-600">{callDescription}</p>
                 </div>
 
                 <Button
@@ -407,6 +414,8 @@ export const Message = ({
   if (agentInvite) {
     const agentShortId = agentInvite.agentPeerId.slice(-7)
     const aiCopy = INVITE_CARD_COPY.ai.ready
+    const aiDescription = agentInvite.note?.trim() || aiCopy.body
+    const aiMeta = [agentInvite.modelId, agentInvite.provider].filter(Boolean).join(' - ')
 
     return (
       <li className={`flex items-start gap-x-2 ${isSelf ? 'flex-row-reverse text-right ml-10' : 'text-left mr-10'}`}>
@@ -451,8 +460,12 @@ export const Message = ({
                   {aiCopy.cta}
                 </Button>
               </div>
-              <p className="mt-2 text-sm text-left text-default-500">{aiCopy.body}</p>
-              {aiCopy.meta && <p className="text-[11px] uppercase text-default-400 mt-2">{aiCopy.meta}</p>}
+              <p className="mt-2 text-sm text-left text-default-500">{aiDescription}</p>
+              {aiMeta ? (
+                <p className="text-[11px] uppercase text-default-400 mt-2">{aiMeta}</p>
+              ) : aiCopy.meta ? (
+                <p className="text-[11px] uppercase text-default-400 mt-2">{aiCopy.meta}</p>
+              ) : null}
             </div>
           </div>
           {isSelf && deliveryStatus !== 'sent' && (
