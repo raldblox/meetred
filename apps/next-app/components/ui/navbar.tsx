@@ -46,9 +46,13 @@ export const Navbar = () => {
 
   return (
     <HeroUINavbar
-      classNames={{ base: '!p-6', wrapper: 'container !p-0 h-fit lg:grid lg:grid-cols-6 lg:items-center', content: '' }}
+      classNames={{
+        base: '!p-6 !bg-transparent',
+        wrapper: '!bg-transparent container !p-0 h-fit lg:grid lg:grid-cols-6 lg:items-center',
+        content: '',
+      }}
       maxWidth="full"
-      position="static"
+      position="sticky"
     >
       <NavbarContent className="basis-auto lg:basis-auto lg:col-span-1" justify="start">
         <NavbarBrand as="li" className="max-w-fit">

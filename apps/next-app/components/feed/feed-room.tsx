@@ -574,8 +574,8 @@ export default function FeedRoom() {
   const previewInvite = visibleInvites[previewIndex]
 
   return (
-    <div className={`${displayFont.variable} ${bodyFont.variable} relative pb-12 pt-6`}>
-      <header className="mx-auto mb-6 max-w-5xl">
+    <div className={`${displayFont.variable} ${bodyFont.variable} relative px-4 pb-12 pt-6`}>
+      <header className="mx-auto mb-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">Live sessions</p>
@@ -593,7 +593,7 @@ export default function FeedRoom() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-5xl">
+      <section className="mx-auto">
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <Button
             className={filter === 'all' ? 'bg-white text-black' : 'border border-white/20 text-white/70'}
@@ -646,7 +646,7 @@ export default function FeedRoom() {
             <p className="mt-2 text-sm text-white/50">Start one and it will show up here instantly.</p>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visibleInvites.map((invite) => (
               <FeedCard
                 key={invite.id}

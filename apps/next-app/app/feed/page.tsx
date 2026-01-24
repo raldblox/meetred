@@ -19,19 +19,24 @@ export default function FeedPage() {
 
   return (
     <Grid
+      hideFooter={true}
       main={
         <div className="h-full w-full overflow-y-auto scroll-smooth isolate">
-          <main className="max-w-6xl mx-auto">
-            <FeedRoom />
-          </main>
+          <div className="w-full mx-auto gap-6 h-full min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6">
+            <div className="hidden rounded-sm h-full lg:block" />
+            <main className="col-span-1 lg:col-span-4 min-h-0 h-full overflow-auto">
+              <FeedRoom />
+            </main>
+            <div className="hidden rounded-sm h-full lg:block" />
+          </div>
           <GradualBlurMemo
-            curve="bezier"
+            curve="ease-in"
             divCount={5}
             exponential={true}
             height="5rem"
             opacity={1}
             position="bottom"
-            strength={2}
+            strength={1}
             target="page"
           />
         </div>

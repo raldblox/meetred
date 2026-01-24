@@ -133,7 +133,7 @@ export function MetricsDashboard() {
   const billing = data?.analytics?.billing
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-8">
+    <div className="mx-auto flex h-full overflow-y-scroll w-full flex-col gap-2 px-4 py-8">
       <div className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.2em] text-default-500">Analytics Agent</p>
         <h1 className="text-2xl font-semibold text-default-900">Tracks network activities in real-time</h1>
