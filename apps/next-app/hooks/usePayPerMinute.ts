@@ -4,6 +4,7 @@ import type { PayPerMinuteConfig, PaymentConnection } from '@/lib/payments'
 import type { Libp2pType } from '@/context/libp2p-ctx'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
 import { publishAnalyticsEvent } from '@/lib/analytics'
 
 export type PayPerMinuteStatus =
@@ -196,6 +197,7 @@ export function usePayPerMinute({
   useEffect(() => {
     if (!analytics || !sessionActive) {
       lastMinuteRef.current = 0
+
       return
     }
 

@@ -1,5 +1,4 @@
 import { CallRoom } from '@/components/call/call-room'
-import { Navbar } from '@/components/ui/navbar'
 import { CallProvider } from '@/context/call-ctx'
 
 export default async function Call({ params }: { params: Promise<{ callId: string }> }) {
@@ -12,7 +11,6 @@ export default async function Call({ params }: { params: Promise<{ callId: strin
   return (
     <CallProvider callId={callId}>
       <div className="relative text-foreground bg-background flex flex-col h-screen overflow-y-scroll md:overflow-y-hidden">
-        <Navbar />
         <main className="px-6 bg-background border-default-100 w-full flex flex-col flex-grow min-h-0">
           <CallRoom callId={callId} />
         </main>

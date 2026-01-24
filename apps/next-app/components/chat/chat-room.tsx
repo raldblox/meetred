@@ -73,6 +73,7 @@ export default function ChatContainer() {
       try {
         const envelope = wrapMeetredMessage(trimmedMessage)
         const encoded = new TextEncoder().encode(envelope)
+
         recordNetworkUsage('sent', 'pubsub-chat', encoded.length)
         const res = await libp2p.services.pubsub.publish(CHAT_TOPIC, encoded)
 
@@ -106,6 +107,7 @@ export default function ChatContainer() {
     async (peerId: string) => {
       try {
         const peer = peerIdFromString(peerId)
+
         if (libp2p.getConnections(peer)?.length > 0) {
           return true
         }
@@ -159,6 +161,7 @@ export default function ChatContainer() {
       try {
         await ensurePeerConnected(targetRoomId)
         const outgoingBytes = new TextEncoder().encode(trimmedMessage).length
+
         if (outgoingBytes > 0) {
           recordNetworkUsage('sent', 'dm', outgoingBytes)
         }
@@ -234,6 +237,7 @@ export default function ChatContainer() {
 
       const payload = JSON.stringify({ id: file.id, name: file.name, type: file.type })
       const encoded = new TextEncoder().encode(payload)
+
       recordNetworkUsage('sent', 'pubsub-file-meta', encoded.length)
       const res = await libp2p.services.pubsub.publish(CHAT_FILE_TOPIC, encoded)
 
@@ -583,7 +587,7 @@ export default function ChatContainer() {
   return (
     <div
       ref={chatShellRef}
-      className={`w-full px-6 relative transition-all mx-auto gap-6 h-screen min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6 ${
+      className={`w-full px-6 relative transition-all mx-auto gap-6 h-full min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-6 ${
         roomId === PUBLIC_CHAT_ROOM_ID ? '' : ''
       }`}
     >

@@ -9,17 +9,17 @@ const METRICS_URL = process.env.NEXT_PUBLIC_METRICS_URL ?? ''
 
 const cleanEntry = (value: string) => {
   const trimmed = value.trim()
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
+
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
     return trimmed.slice(1, -1).trim()
   }
+
   return trimmed
 }
 
 const tryParsePeerId = (addr: string) => {
   const cleaned = cleanEntry(addr)
+
   if (!cleaned) {
     return null
   }
@@ -30,6 +30,7 @@ const tryParsePeerId = (addr: string) => {
 
   try {
     const parsed = multiaddr(cleaned).getPeerId()
+
     if (parsed) {
       return parsed
     }
@@ -38,6 +39,7 @@ const tryParsePeerId = (addr: string) => {
   }
 
   const match = cleaned.match(/\/p2p\/([^/]+)/)
+
   return match ? match[1] : null
 }
 
@@ -65,6 +67,7 @@ export function useSpecialPeers() {
         .filter((entry) => entry.length > 0)
         .forEach((entry) => {
           const peerId = tryParsePeerId(entry)
+
           if (peerId) {
             parsedRelayIds.push(peerId)
             if (!next[peerId]) {
@@ -112,10 +115,12 @@ export function useSpecialPeers() {
       for (const { url, kind } of requests) {
         try {
           const res = await fetch(url)
+
           if (!res.ok) {
             continue
           }
           const data = (await res.json()) as { peerId?: string }
+
           if (!data?.peerId) {
             continue
           }

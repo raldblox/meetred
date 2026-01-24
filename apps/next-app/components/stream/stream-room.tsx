@@ -194,6 +194,7 @@ export function StreamRoom({ streamId }: { streamId: string }) {
   useEffect(() => {
     if (!allowSessionStart || !sessionActive) {
       lastStreamMinuteRef.current = 0
+
       return
     }
 

@@ -119,7 +119,11 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
 
     try {
       const analyticsProvider =
-        agentState.sourceType === 'openai' ? 'openai' : agentState.sourceType === 'lmstudio-local' ? 'lmstudio' : 'unknown'
+        agentState.sourceType === 'openai'
+          ? 'openai'
+          : agentState.sourceType === 'lmstudio-local'
+            ? 'lmstudio'
+            : 'unknown'
       const senderPeerId = selfPeerId
       const payload = buildAgentChatPayload({
         agentPeerId,
@@ -241,7 +245,11 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
         senderPeerId,
         variant: 'model',
         provider:
-          agentState.sourceType === 'openai' ? 'openai' : agentState.sourceType === 'lmstudio-local' ? 'lmstudio' : 'unknown',
+          agentState.sourceType === 'openai'
+            ? 'openai'
+            : agentState.sourceType === 'lmstudio-local'
+              ? 'lmstudio'
+              : 'unknown',
         modelId: resolvedModelId,
         promptId,
         status: 'error',
@@ -250,7 +258,12 @@ export function AgentChatPanel({ agentPeerId }: AgentChatPanelProps) {
 
       await libp2p.services.pubsub.publish(AGENT_CHAT_TOPIC, textEncoder.encode(encodeZeroWidth(responseEncoded)))
       const analyticsProvider =
-        agentState.sourceType === 'openai' ? 'openai' : agentState.sourceType === 'lmstudio-local' ? 'lmstudio' : 'unknown'
+        agentState.sourceType === 'openai'
+          ? 'openai'
+          : agentState.sourceType === 'lmstudio-local'
+            ? 'lmstudio'
+            : 'unknown'
+
       await publishAnalyticsEvent(libp2p, {
         event: 'agent_chat_message',
         peerId: senderPeerId,

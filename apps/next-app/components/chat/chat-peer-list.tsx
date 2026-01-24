@@ -72,7 +72,7 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
         </div>
       )}
 
-      <div className="overflow-auto h-full select-none">
+      <div className="h-full select-none">
         <div className="transition-all flex items-center py-1.5 rounded-sm select-none hover:bg-gradient-to-l from-zinc-900 to-transparent">
           {<PeerWrapper self peer={libp2p.peerId} withName={true} withUnread={false} />}
         </div>
@@ -94,13 +94,13 @@ export function ChatPeerList({ hideHeader = false }: ChatPeerListProps) {
                 className={`transition-all animate-appearance-in rounded-sm flex py-1.5 items-center hover:pl-3 select-none ${isSelected ? 'border-primary px-1.5 bg-gradient-to-l from-zinc-800 to-transparent' : 'border-primary/50 hover:bg-gradient-to-l from-zinc-900 to-transparent'}`}
               >
                 <PeerWrapper
+                  label={specialKind}
                   peer={id}
                   self={false}
                   showCountBadge={roomId === PUBLIC_CHAT_ROOM_ID}
                   syncing={historySyncingPeerIds.includes(p)}
                   withName={true}
                   withUnread={true}
-                  label={specialKind}
                 />
               </div>
             )

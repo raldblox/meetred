@@ -2,8 +2,9 @@
 
 import { Navbar as HeroUINavbar, NavbarContent, NavbarBrand, NavbarItem } from '@heroui/navbar'
 import NextLink from 'next/link'
-import { Button, Tooltip } from '@heroui/react'
-import { BarChart, Bot, MessagesSquare, Radio, Video } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Button, Tab, Tabs, Tooltip } from '@heroui/react'
+import { BarChart, Bot, LayoutGrid, MessagesSquare, Radio, Video } from 'lucide-react'
 
 import { NewIdentityButton } from '../chat/identity-manager'
 import { InviteButton } from '../chat/invite-modal'
@@ -17,10 +18,12 @@ import { useLibp2pContext } from '@/context/libp2p-ctx'
 export const Navbar = () => {
   const { libp2p } = useLibp2pContext()
   const selfId = libp2p.peerId?.toString() ?? ''
+  const pathname = usePathname()
+  const router = useRouter()
 
   const navLinks = [
     // { label: UI_COPY.nav.network, href: '/network', icon: Globe, tooltip: UI_COPY.tooltips.nav.network },
-    { label: UI_COPY.nav.chat, href: '/chat', icon: MessagesSquare, tooltip: UI_COPY.tooltips.nav.chat },
+    // { label: UI_COPY.nav.chat, href: '/chat', icon: MessagesSquare, tooltip: UI_COPY.tooltips.nav.chat },
     {
       label: UI_COPY.nav.stream,
       href: selfId ? `/stream/${selfId}` : '/stream',
@@ -39,12 +42,6 @@ export const Navbar = () => {
       icon: Bot,
       tooltip: UI_COPY.tooltips.nav.ai,
     },
-    {
-      label: 'Metrics',
-      href: selfId ? `/metrics` : '/metrics',
-      icon: BarChart,
-      tooltip: UI_COPY.tooltips.nav.ai,
-    },
   ]
 
   return (
@@ -55,14 +52,74 @@ export const Navbar = () => {
     >
       <NavbarContent className="basis-auto lg:basis-auto lg:col-span-1" justify="start">
         <NavbarBrand as="li" className="max-w-fit">
-          <NextLink
-            className="flex rounded-sm aspect-square h-12 justify-center bg-primary/30 gap-2 p-2 items-center"
-            href="/"
-          >
-            {/* <h1 className="h-7 font-semibold text-primary">red</h1> */}
-            {/* <EarthLock className="h-7 text-primary" /> */}
-            <Logo className="text-primary shadow" size={20} />
-          </NextLink>
+          <div className="hidden sm:flex items-center">
+            <Tabs
+              aria-label="Primary navigation"
+              classNames={{
+                tabList: 'gap-1 rounded-sm border border-default-50 bg-default-50/70 p-1',
+                tab: 'h-11 w-11 p-0 rounded-sm',
+                tabContent: 'text-foreground data-[selected=true]:text-primary',
+                cursor: 'rounded-sm bg-primary/30',
+              }}
+              selectedKey={
+                [
+                  { key: 'home', href: '/', match: (path: string) => path === '/' },
+                  { key: 'feed', href: '/feed', match: (path: string) => path.startsWith('/feed') },
+                  { key: 'chat', href: '/chat', match: (path: string) => path.startsWith('/chat') },
+                  { key: 'metrics', href: '/metrics', match: (path: string) => path.startsWith('/metrics') },
+                ].find((tab) => tab.match(pathname))?.key ?? 'home'
+              }
+              onSelectionChange={(key) => {
+                const next = [
+                  { key: 'home', href: '/' },
+                  { key: 'feed', href: '/feed' },
+                  { key: 'chat', href: '/chat' },
+                  { key: 'metrics', href: '/metrics' },
+                ].find((tab) => tab.key === key)
+
+                if (next) {
+                  router.push(next.href)
+                }
+              }}
+            >
+              <Tab
+                key="home"
+                title={
+                  <div aria-label="Home" className="flex h-10 w-10 items-center justify-center" title="Home">
+                    <Logo className="h-4 w-4" size={16} />
+                  </div>
+                }
+              />
+              <Tab
+                key="feed"
+                title={
+                  <div aria-label="Feed" className="flex h-10 w-10 items-center justify-center" title="Feed">
+                    <LayoutGrid className="h-4 w-4" />
+                  </div>
+                }
+              />
+              <Tab
+                key="chat"
+                title={
+                  <div
+                    aria-label="Public room"
+                    className="flex h-10 w-10 items-center justify-center"
+                    title="Public room"
+                  >
+                    <MessagesSquare className="h-4 w-4" />
+                  </div>
+                }
+              />
+              <Tab
+                key="metrics"
+                title={
+                  <div aria-label="Metrics" className="flex h-10 w-10 items-center justify-center" title="Metrics">
+                    <BarChart className="h-4 w-4" />
+                  </div>
+                }
+              />
+            </Tabs>
+          </div>
         </NavbarBrand>
 
         {/* <ul className="hidden lg:flex gap-1 justify-start ml-2">

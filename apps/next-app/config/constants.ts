@@ -38,6 +38,7 @@ export const SPECIAL_PEERS: Record<string, SpecialPeerKind> = (() => {
     .filter(Boolean)
     .forEach((entry) => {
       const [peerId, kind] = entry.split('=').map((part) => part.trim())
+
       if (!peerId || !kind) {
         return
       }

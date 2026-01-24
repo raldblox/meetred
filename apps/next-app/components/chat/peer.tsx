@@ -56,13 +56,13 @@ export function PeerWrapper({
 
   const body = (
     <Peer
+      label={label}
       peer={peer}
       self={self}
       showCountBadge={showCountBadge}
       syncing={syncing}
       withName={withName}
       withUnread={withUnread}
-      label={label}
     />
   )
   const canDirectMessage = identified && libp2p.services.directMessage.isDMPeer(peer)
@@ -92,15 +92,7 @@ export function PeerWrapper({
   return clickableBody
 }
 
-export function Peer({
-  peer,
-  self,
-  withName,
-  withUnread,
-  syncing = false,
-  showCountBadge = true,
-  label,
-}: PeerProps) {
+export function Peer({ peer, self, withName, withUnread, syncing = false, showCountBadge = true, label }: PeerProps) {
   const { directMessages } = useChatContext()
   const peerIdStr = peer.toString()
   const messagesForPeer = directMessages[peerIdStr] ?? []

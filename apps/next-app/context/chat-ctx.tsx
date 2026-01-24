@@ -180,12 +180,7 @@ export const useChatContext = () => {
   return useContext(ChatContext)
 }
 
-type NetworkCategory =
-  | 'dm'
-  | 'pubsub-chat'
-  | 'pubsub-file-meta'
-  | 'pubsub-signal'
-  | 'file-transfer'
+type NetworkCategory = 'dm' | 'pubsub-chat' | 'pubsub-file-meta' | 'pubsub-signal' | 'file-transfer'
 
 export interface NetworkTotals {
   sentBytes: number
@@ -809,6 +804,7 @@ export const ChatProvider = ({ children }: any) => {
       const messageWithStatus: ChatMessage = { ...message, status: 'sent' }
 
       const incomingBytes = textEncoderRef.current.encode(evt.detail.content).length
+
       bumpNetworkTotals('received', 'dm', incomingBytes)
       setDirectMessages((prev) => {
         const existing = prev[peerId] ?? []
@@ -1049,6 +1045,7 @@ export const ChatProvider = ({ children }: any) => {
             }
 
             bumpNetworkTotals('sent', 'file-transfer', file.body.length)
+
             return file.body
           }),
         (source) => lp.encode(source),

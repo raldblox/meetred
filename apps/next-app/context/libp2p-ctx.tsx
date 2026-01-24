@@ -8,7 +8,6 @@ import type { GossipsubEvents } from '@chainsafe/libp2p-gossipsub'
 import type { Ping } from '@libp2p/ping'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
-import { AnimatePresence } from 'framer-motion'
 import { multiaddr } from '@multiformats/multiaddr'
 import { peerIdFromString } from '@libp2p/peer-id'
 

@@ -1,5 +1,4 @@
 import { AgentRoom } from '@/components/agent/agent-room'
-import { Navbar } from '@/components/ui/navbar'
 import { AgentProvider } from '@/context/agent-ctx'
 
 export default async function AgentPage({ params }: { params: Promise<{ peerId: string }> }) {
@@ -12,7 +11,6 @@ export default async function AgentPage({ params }: { params: Promise<{ peerId: 
   return (
     <AgentProvider hostPeerId={peerId}>
       <div className="relative text-foreground bg-background flex flex-col min-h-screen h-screen overflow-hidden">
-        <Navbar />
         <main className="px-6 bg-background border-default-100 w-full flex flex-col flex-grow min-h-0 overflow-hidden">
           <AgentRoom peerId={peerId} />
         </main>
