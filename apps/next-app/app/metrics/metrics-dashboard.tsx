@@ -50,6 +50,7 @@ type MetricsPayload = {
 const METRICS_URL = '/api/metrics'
 
 const formatNumber = (value?: number) => (typeof value === 'number' ? value.toLocaleString() : '0')
+const formatMaybeNumber = (value?: number) => (typeof value === 'number' ? value.toLocaleString() : '-')
 
 const formatUptime = (ms: number) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000))
@@ -112,7 +113,6 @@ export function MetricsDashboard() {
   const agentByProvider = data?.analytics?.agentChat?.byProvider ?? {}
   const agentByModel = data?.analytics?.agentChat?.byModel ?? {}
   const agentByRoom = data?.analytics?.agentChat?.byRoom ?? {}
-  const streamChatTotal = data?.analytics?.streamChat?.total ?? 0
   const streamChatByRoom = data?.analytics?.streamChat?.byRoom ?? {}
   const streamMinutes = data?.analytics?.streamMinutes
   const fallbackStreamMinutesByRoom = Object.fromEntries(
@@ -124,6 +124,14 @@ export function MetricsDashboard() {
   const streamMinutesByRoom = streamMinutes?.byRoom ?? data?.derived?.streamMinutesByRoom ?? fallbackStreamMinutesByRoom
   const streamMinutesByRoomFree = streamMinutes?.byRoomFree ?? {}
   const streamMinutesByRoomPaid = streamMinutes?.byRoomPaid ?? {}
+  const streamMinutesByPeer =
+    data?.derived?.streamMinutesByPeer ??
+    Object.fromEntries(
+      Object.entries(data?.analytics?.streamSessions?.totalMsByPeer ?? {}).map(([peerId, ms]) => [
+        peerId,
+        Math.round((Number(ms) || 0) / 60000),
+      ]),
+    )
   const totalStreamMinutes =
     streamMinutes?.total ??
     data?.derived?.totalStreamMinutes ??
@@ -132,248 +140,358 @@ export function MetricsDashboard() {
   const paidStreamMinutes = streamMinutes?.paidTotal ?? 0
   const billing = data?.analytics?.billing
 
+  const totalEvents = data?.counters?.totalEvents ?? data?.counters?.totalMessages
+  const totalMessages = data?.counters?.totalMessages
+  const uniquePeers =
+    typeof data?.onlinePeers?.count === 'number'
+      ? data?.onlinePeers?.count
+      : Object.keys(billing?.byPeer ?? {}).length
+  const paidRoomsCount = Object.values(streamMinutesByRoomPaid ?? {}).filter((value) => (value ?? 0) > 0).length
+
+  const mostActivePeers = Object.entries(streamMinutesByPeer ?? {})
+    .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+    .slice(0, 5)
+  const mostActiveRooms = Object.entries(streamMinutesByRoom ?? {})
+    .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+    .slice(0, 5)
+  const mostPaidRooms = Object.entries(streamMinutesByRoomPaid ?? {})
+    .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+    .slice(0, 5)
+
+  const isOffline = Boolean(error)
+  const showError = Boolean(error && !data)
+  const platformPeerId = data?.peerId ?? 'Offline'
+
   return (
-    <div className="mx-auto flex h-full overflow-y-scroll w-full flex-col gap-2 px-4 py-8">
+    <div className="mx-auto flex h-full overflow-y-scroll w-full flex-col gap-4 px-4 py-8">
       <div className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-default-500">Analytics Agent</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-default-500">Metrics Node</p>
         <h1 className="text-2xl font-semibold text-default-900">Tracks network activities in real-time</h1>
-        <p>Archival Node: {data?.peerId}</p>
+        <p>Metrics Node: {platformPeerId}</p>
       </div>
 
       {loading ? <p className="text-sm text-default-500">Loading metrics...</p> : null}
-      {error ? <p className="text-sm text-danger-500">{error}</p> : null}
+      {isOffline ? (
+        <div className="rounded-2xl border border-warning-200 bg-warning-50 p-3 text-sm text-warning-700">
+          Metrics node is offline. Showing the last known snapshot when available.
+        </div>
+      ) : null}
+      {showError ? <p className="text-sm text-danger-500">{error}</p> : null}
 
-      {data ? (
-        <>
-          <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-            <p className="text-xs uppercase text-default-400">Summary</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3 text-sm text-default-700">
-              <div className="flex items-center justify-between">
-                <span>Peers Online</span>
-                <span className="font-semibold">{formatNumber(data.onlinePeers?.count)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Total Events</span>
-                <span className="font-semibold">{formatNumber(data.counters?.totalMessages)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Uptime</span>
-                <span className="font-semibold">{formatUptime(data.uptimeMs)}</span>
-              </div>
+      <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+        <p className="text-xs uppercase text-default-400">Platform Usage</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-4 text-sm text-default-700">
+          <div className="flex items-center justify-between">
+            <span>Total Events</span>
+            <span className="font-semibold">{formatMaybeNumber(totalEvents)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Total Messages</span>
+            <span className="font-semibold">{formatMaybeNumber(totalMessages)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Peers Online</span>
+            <span className="font-semibold">{formatNumber(uniquePeers)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Uptime</span>
+            <span className="font-semibold">{formatUptime(data?.uptimeMs ?? 0)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Room Usage</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            <div className="flex items-center justify-between">
+              <span>Stream Minutes</span>
+              <span className="font-semibold">{formatNumber(totalStreamMinutes)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Free Minutes</span>
+              <span className="font-semibold">{formatNumber(freeStreamMinutes)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Paid Minutes</span>
+              <span className="font-semibold">{formatNumber(paidStreamMinutes)}</span>
             </div>
           </div>
-
-          <div className="grid gap-2 md:grid-cols-3">
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Stream Minutes</p>
-              <p className="text-2xl font-semibold text-default-900">{formatNumber(totalStreamMinutes)}</p>
-              <div className="mt-2 flex flex-col gap-1 text-xs text-default-500">
-                <div className="flex items-center justify-between">
-                  <span>Free</span>
-                  <span className="font-semibold">{formatNumber(freeStreamMinutes)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Paid</span>
-                  <span className="font-semibold">{formatNumber(paidStreamMinutes)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Billing Minutes</p>
-              <p className="text-2xl font-semibold text-default-900">
-                {formatNumber((billing?.freeMinutes ?? 0) + (billing?.paidMinutes ?? 0))}
-              </p>
-              <div className="mt-2 flex flex-col gap-1 text-xs text-default-500">
-                <div className="flex items-center justify-between">
-                  <span>Free</span>
-                  <span className="font-semibold">{formatNumber(billing?.freeMinutes ?? 0)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Paid</span>
-                  <span className="font-semibold">{formatNumber(billing?.paidMinutes ?? 0)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Stream Chat Messages</p>
-              <p className="text-2xl font-semibold text-default-900">{formatNumber(streamChatTotal)}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Room Invites</p>
-              <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
-                <div className="flex items-center justify-between">
-                  <span>Total</span>
-                  <span className="font-semibold">
-                    {formatNumber(data.analytics?.invites?.total ?? data.invites?.total)}
-                  </span>
-                </div>
-                {Object.keys(invitesByType).length === 0 ? (
-                  <p className="text-default-400">No invites yet.</p>
-                ) : (
-                  Object.entries(invitesByType).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="capitalize">{key}</span>
-                      <span className="font-semibold">{formatNumber(value)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Messages by Room Type</p>
-              <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
-                {Object.keys(messagesByType).length === 0 ? (
-                  <p className="text-default-400">No room messages yet.</p>
-                ) : (
-                  Object.entries(messagesByType).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="capitalize">{key}</span>
-                      <span className="font-semibold">{formatNumber(value)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-3">
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Agent Chat</p>
-              <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
-                <div className="flex items-center justify-between">
-                  <span>User</span>
-                  <span className="font-semibold">{formatNumber(agentByVariant.user ?? 0)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Model</span>
-                  <span className="font-semibold">{formatNumber(agentByVariant.model ?? 0)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Agent Providers</p>
-              <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
-                {Object.keys(agentByProvider).length === 0 ? (
-                  <p className="text-default-400">No provider data yet.</p>
-                ) : (
-                  Object.entries(agentByProvider).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="capitalize">{key}</span>
-                      <span className="font-semibold">{formatNumber(value)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Agent Models</p>
-              <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
-                {Object.keys(agentByModel).length === 0 ? (
-                  <p className="text-default-400">No model data yet.</p>
-                ) : (
-                  Object.entries(agentByModel).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="truncate">{key}</span>
-                      <span className="font-semibold">{formatNumber(value)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Agent Rooms</p>
-              {Object.keys(agentByRoom).length === 0 ? (
-                <p className="mt-2 text-sm text-default-400">No agent rooms yet.</p>
-              ) : (
-                <div className="mt-2 space-y-2 text-sm text-default-700">
-                  {Object.entries(agentByRoom).map(([roomId, info]) => (
-                    <div key={roomId} className="flex items-center justify-between gap-3">
-                      <a className="truncate text-primary-600 hover:underline" href={`/agent/${roomId}`}>
-                        {roomId}
-                      </a>
-                      <span className="text-xs text-default-500">
-                        {info?.provider ?? 'unknown'} · {info?.modelId ?? 'unknown'}
-                      </span>
-                      <span className="font-semibold">{formatNumber(info?.total ?? 0)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-              <p className="text-xs uppercase text-default-400">Stream Rooms</p>
-              {Object.keys(streamChatByRoom).length === 0 ? (
-                <p className="mt-2 text-sm text-default-400">No stream rooms yet.</p>
-              ) : (
-                <div className="mt-2 space-y-2 text-sm text-default-700">
-                  {Object.entries(streamChatByRoom).map(([roomId, count]) => (
-                    <div key={roomId} className="flex items-center justify-between gap-3">
-                      <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
-                        {roomId}
-                      </a>
-                      <span className="font-semibold">{formatNumber(count)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-            <p className="text-xs uppercase text-default-400">Stream Minutes by Room</p>
-            {Object.keys(streamMinutesByRoom).length === 0 ? (
-              <p className="mt-2 text-sm text-default-400">No stream minutes yet.</p>
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Room Types</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            {Object.keys(messagesByType).length === 0 ? (
+              <p className="text-default-400">No room messages yet.</p>
             ) : (
-              <div className="mt-2 space-y-2 text-sm text-default-700">
-                {Object.entries(streamMinutesByRoom).map(([roomId, minutes]) => (
-                  <div key={roomId} className="flex items-center justify-between gap-3">
-                    <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
-                      {roomId}
-                    </a>
-                    <span className="text-xs text-default-500">
-                      {formatNumber(streamMinutesByRoomFree[roomId] ?? 0)} free ·{' '}
-                      {formatNumber(streamMinutesByRoomPaid[roomId] ?? 0)} paid
-                    </span>
-                    <span className="font-semibold">{formatNumber(minutes)}</span>
-                  </div>
-                ))}
-              </div>
+              Object.entries(messagesByType).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="capitalize">{key}</span>
+                  <span className="font-semibold">{formatNumber(value)}</span>
+                </div>
+              ))
             )}
           </div>
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Unique Peers</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            <div className="flex items-center justify-between">
+              <span>Unique Peers</span>
+              <span className="font-semibold">{formatNumber(uniquePeers)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-            <p className="text-xs uppercase text-default-400">Peers by Topic</p>
-            <div className="mt-2 grid gap-2 text-sm text-default-700 md:grid-cols-2">
-              {topics.map((topic) => (
-                <div key={topic} className="flex items-center justify-between">
-                  <span className="truncate">{topic}</span>
-                  <span className="font-semibold">{formatNumber(onlineByTopic[topic] ?? 0)}</span>
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Invite Usage</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            <div className="flex items-center justify-between">
+              <span>Total</span>
+              <span className="font-semibold">{formatMaybeNumber(data?.analytics?.invites?.total ?? data?.invites?.total)}</span>
+            </div>
+            {Object.keys(invitesByType).length === 0 ? (
+              <p className="text-default-400">No invites yet.</p>
+            ) : (
+              Object.entries(invitesByType).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="capitalize">{key}</span>
+                  <span className="font-semibold">{formatNumber(value)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Paid Rooms</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            <div className="flex items-center justify-between">
+              <span>Paid Rooms</span>
+              <span className="font-semibold">{formatNumber(paidRoomsCount)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Paid Minutes</span>
+              <span className="font-semibold">{formatNumber(paidStreamMinutes)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Most Active Peers (minutes)</p>
+          {mostActivePeers.length === 0 ? (
+            <p className="mt-2 text-sm text-default-400">No peer activity yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2 text-sm text-default-700">
+              {mostActivePeers.map(([peerId, minutes]) => (
+                <div key={peerId} className="flex items-center justify-between gap-3">
+                  <span className="truncate">{peerId}</span>
+                  <span className="font-semibold">{formatNumber(minutes)}</span>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
-            <p className="text-xs uppercase text-default-400">Messages by Topic</p>
-            <div className="mt-2 grid gap-2 text-sm text-default-700 md:grid-cols-2">
-              {topics.map((topic) => (
-                <div key={topic} className="flex items-center justify-between">
-                  <span className="truncate">{topic}</span>
-                  <span className="font-semibold">{formatNumber(countersByTopic[topic] ?? 0)}</span>
+          )}
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Most Active Rooms (minutes)</p>
+          {mostActiveRooms.length === 0 ? (
+            <p className="mt-2 text-sm text-default-400">No rooms yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2 text-sm text-default-700">
+              {mostActiveRooms.map(([roomId, minutes]) => (
+                <div key={roomId} className="flex items-center justify-between gap-3">
+                  <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
+                    {roomId}
+                  </a>
+                  <span className="font-semibold">{formatNumber(minutes)}</span>
                 </div>
               ))}
             </div>
+          )}
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Most Paid Rooms (minutes)</p>
+          {mostPaidRooms.length === 0 ? (
+            <p className="mt-2 text-sm text-default-400">No paid rooms yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2 text-sm text-default-700">
+              {mostPaidRooms.map(([roomId, minutes]) => (
+                <div key={roomId} className="flex items-center justify-between gap-3">
+                  <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
+                    {roomId}
+                  </a>
+                  <span className="font-semibold">{formatNumber(minutes)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        {[
+          { key: 'stream', label: 'Stream Room' },
+          { key: 'call', label: 'Call Room' },
+          { key: 'ai', label: 'Agent Room' },
+        ].map((section) => (
+          <div key={section.key} className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+            <p className="text-xs uppercase text-default-400">{section.label}</p>
+            <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+              <div className="flex items-center justify-between">
+                <span>Invites in public chat</span>
+                <span className="font-semibold">{formatMaybeNumber(undefined)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Invites from shared link</span>
+                <span className="font-semibold">{formatMaybeNumber(undefined)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Total joined peer</span>
+                <span className="font-semibold">{formatMaybeNumber(undefined)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Total messages</span>
+                <span className="font-semibold">{formatMaybeNumber(messagesByType[section.key])}</span>
+              </div>
+            </div>
           </div>
-        </>
-      ) : null}
+        ))}
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Agent Chat</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            <div className="flex items-center justify-between">
+              <span>User</span>
+              <span className="font-semibold">{formatNumber(agentByVariant.user ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Model</span>
+              <span className="font-semibold">{formatNumber(agentByVariant.model ?? 0)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Agent Providers</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            {Object.keys(agentByProvider).length === 0 ? (
+              <p className="text-default-400">No provider data yet.</p>
+            ) : (
+              Object.entries(agentByProvider).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="capitalize">{key}</span>
+                  <span className="font-semibold">{formatNumber(value)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Agent Models</p>
+          <div className="mt-2 flex flex-col gap-2 text-sm text-default-700">
+            {Object.keys(agentByModel).length === 0 ? (
+              <p className="text-default-400">No model data yet.</p>
+            ) : (
+              Object.entries(agentByModel).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="truncate">{key}</span>
+                  <span className="font-semibold">{formatNumber(value)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Agent Rooms</p>
+          {Object.keys(agentByRoom).length === 0 ? (
+            <p className="mt-2 text-sm text-default-400">No agent rooms yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2 text-sm text-default-700">
+              {Object.entries(agentByRoom).map(([roomId, info]) => (
+                <div key={roomId} className="flex items-center justify-between gap-3">
+                  <a className="truncate text-primary-600 hover:underline" href={`/agent/${roomId}`}>
+                    {roomId}
+                  </a>
+                  <span className="text-xs text-default-500">
+                    {info?.provider ?? 'unknown'} - {info?.modelId ?? 'unknown'}
+                  </span>
+                  <span className="font-semibold">{formatNumber(info?.total ?? 0)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+          <p className="text-xs uppercase text-default-400">Stream Rooms</p>
+          {Object.keys(streamChatByRoom).length === 0 ? (
+            <p className="mt-2 text-sm text-default-400">No stream rooms yet.</p>
+          ) : (
+            <div className="mt-2 space-y-2 text-sm text-default-700">
+              {Object.entries(streamChatByRoom).map(([roomId, count]) => (
+                <div key={roomId} className="flex items-center justify-between gap-3">
+                  <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
+                    {roomId}
+                  </a>
+                  <span className="font-semibold">{formatNumber(count)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+        <p className="text-xs uppercase text-default-400">Stream Minutes by Room</p>
+        {Object.keys(streamMinutesByRoom).length === 0 ? (
+          <p className="mt-2 text-sm text-default-400">No stream minutes yet.</p>
+        ) : (
+          <div className="mt-2 space-y-2 text-sm text-default-700">
+            {Object.entries(streamMinutesByRoom).map(([roomId, minutes]) => (
+              <div key={roomId} className="flex items-center justify-between gap-3">
+                <a className="truncate text-primary-600 hover:underline" href={`/stream/${roomId}`}>
+                  {roomId}
+                </a>
+                <span className="text-xs text-default-500">
+                  {formatNumber(streamMinutesByRoomFree[roomId] ?? 0)} free - {formatNumber(streamMinutesByRoomPaid[roomId] ?? 0)} paid
+                </span>
+                <span className="font-semibold">{formatNumber(minutes)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+        <p className="text-xs uppercase text-default-400">Peers by Topic</p>
+        <div className="mt-2 grid gap-2 text-sm text-default-700 md:grid-cols-2">
+          {topics.map((topic) => (
+            <div key={topic} className="flex items-center justify-between">
+              <span className="truncate">{topic}</span>
+              <span className="font-semibold">{formatNumber(onlineByTopic[topic] ?? 0)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-default-200 bg-default-100 p-4 shadow-sm">
+        <p className="text-xs uppercase text-default-400">Messages by Topic</p>
+        <div className="mt-2 grid gap-2 text-sm text-default-700 md:grid-cols-2">
+          {topics.map((topic) => (
+            <div key={topic} className="flex items-center justify-between">
+              <span className="truncate">{topic}</span>
+              <span className="font-semibold">{formatNumber(countersByTopic[topic] ?? 0)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

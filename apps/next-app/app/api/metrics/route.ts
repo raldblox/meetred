@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   const target =
-    process.env.ARN_METRICS_URL ?? process.env.NEXT_PUBLIC_ARN_METRICS_URL ?? 'http://127.0.0.1:15013/metrics'
+    process.env.LIBP2P_METRICS_HTTP_URL ??
+    process.env.NEXT_PUBLIC_LIBP2P_METRICS_HTTP_URL ??
+    process.env.NEXT_PUBLIC_METRICS_URL ??
+    process.env.ARN_METRICS_URL ??
+    process.env.NEXT_PUBLIC_ARN_METRICS_URL ??
+    'http://127.0.0.1:15015/metrics'
 
   try {
     const res = await fetch(target, { cache: 'no-store' })

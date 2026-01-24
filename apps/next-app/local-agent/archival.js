@@ -1,6 +1,5 @@
 const fs = require('node:fs')
 const path = require('node:path')
-const http = require('node:http')
 
 const loadLibp2pModules = async () => {
   const [
@@ -90,46 +89,21 @@ loadEnvFile()
 const getHost = (value) => (value ?? process.env.LIBP2P_ARCHIVAL_HOST ?? '127.0.0.1').trim() || '127.0.0.1'
 const getPort = (value) => Number.parseInt(value ?? process.env.LIBP2P_ARCHIVAL_PORT ?? '15012', 10)
 const getKeyPath = (value) => value ?? process.env.LIBP2P_ARCHIVAL_KEY_PATH ?? path.join(__dirname, 'archival.key')
-const getMetricsHost = (value, fallbackHost) =>
-  (value ?? process.env.LIBP2P_ARCHIVAL_METRICS_HOST ?? fallbackHost).trim() || fallbackHost
-const getMetricsPort = (value) => Number.parseInt(value ?? process.env.LIBP2P_ARCHIVAL_METRICS_PORT ?? '15013', 10)
+const LOG_LIMIT = Number.parseInt(process.env.LIBP2P_ARCHIVAL_LOG_LIMIT ?? '10000', 10)
+
 const {
   CHAT_TOPIC: DEFAULT_CHAT_TOPIC,
   CHAT_FILE_TOPIC: DEFAULT_FILE_TOPIC,
   PUBSUB_PEER_DISCOVERY: DEFAULT_DISCOVERY_TOPIC,
-  STREAM_SIGNAL_WRAPPER: DEFAULT_STREAM_SIGNAL_WRAPPER,
-  STREAM_SIGNAL_APP_ID: DEFAULT_STREAM_SIGNAL_APP_ID,
-  CALL_SIGNAL_WRAPPER: DEFAULT_CALL_SIGNAL_WRAPPER,
-  CALL_SIGNAL_APP_ID: DEFAULT_CALL_SIGNAL_APP_ID,
-  AGENT_SIGNAL_WRAPPER: DEFAULT_AGENT_SIGNAL_WRAPPER,
-  AGENT_SIGNAL_APP_ID: DEFAULT_AGENT_SIGNAL_APP_ID,
-  ANALYTICS_WRAPPER: DEFAULT_ANALYTICS_WRAPPER,
-  ANALYTICS_APP_ID: DEFAULT_ANALYTICS_APP_ID,
 } = require('./constants')
-
-const STREAM_APP_ID = (process.env.LIBP2P_STREAM_APP_ID ?? DEFAULT_STREAM_SIGNAL_APP_ID).trim() || DEFAULT_STREAM_SIGNAL_APP_ID
-const AGENT_APP_ID = (process.env.LIBP2P_AGENT_APP_ID ?? DEFAULT_AGENT_SIGNAL_APP_ID).trim() || DEFAULT_AGENT_SIGNAL_APP_ID
-const STREAM_SIGNAL_WRAPPER =
-  (process.env.LIBP2P_STREAM_SIGNAL_WRAPPER ?? DEFAULT_STREAM_SIGNAL_WRAPPER).trim() || DEFAULT_STREAM_SIGNAL_WRAPPER
-const CALL_SIGNAL_WRAPPER =
-  (process.env.LIBP2P_CALL_SIGNAL_WRAPPER ?? DEFAULT_CALL_SIGNAL_WRAPPER).trim() || DEFAULT_CALL_SIGNAL_WRAPPER
-const AGENT_SIGNAL_WRAPPER =
-  (process.env.LIBP2P_AGENT_SIGNAL_WRAPPER ?? DEFAULT_AGENT_SIGNAL_WRAPPER).trim() || DEFAULT_AGENT_SIGNAL_WRAPPER
-const STREAM_SIGNAL_APP_ID =
-  (process.env.LIBP2P_STREAM_SIGNAL_APP_ID ?? DEFAULT_STREAM_SIGNAL_APP_ID).trim() || DEFAULT_STREAM_SIGNAL_APP_ID
-const CALL_SIGNAL_APP_ID =
-  (process.env.LIBP2P_CALL_SIGNAL_APP_ID ?? DEFAULT_CALL_SIGNAL_APP_ID).trim() || DEFAULT_CALL_SIGNAL_APP_ID
-const AGENT_SIGNAL_APP_ID =
-  (process.env.LIBP2P_AGENT_SIGNAL_APP_ID ?? DEFAULT_AGENT_SIGNAL_APP_ID).trim() || DEFAULT_AGENT_SIGNAL_APP_ID
-const ARCHIVAL_BOOTSTRAP_ADDRS = (process.env.LIBP2P_ARCHIVAL_BOOTSTRAP_ADDRS ?? '').trim()
-const DEFAULT_BOOTSTRAP_ADDRS = (process.env.NEXT_PUBLIC_LOCAL_RELAY_ADDRS ?? '').trim()
-const ANALYTICS_WRAPPER = (process.env.LIBP2P_ANALYTICS_WRAPPER ?? DEFAULT_ANALYTICS_WRAPPER).trim() || DEFAULT_ANALYTICS_WRAPPER
-const ANALYTICS_APP_ID = (process.env.LIBP2P_ANALYTICS_APP_ID ?? DEFAULT_ANALYTICS_APP_ID).trim() || DEFAULT_ANALYTICS_APP_ID
 
 const DISCOVERY_TOPIC =
   (process.env.LIBP2P_DISCOVERY_TOPIC ?? DEFAULT_DISCOVERY_TOPIC).trim() || DEFAULT_DISCOVERY_TOPIC
 const CHAT_TOPIC = (process.env.LIBP2P_CHAT_TOPIC ?? DEFAULT_CHAT_TOPIC).trim() || DEFAULT_CHAT_TOPIC
 const FILE_TOPIC = (process.env.LIBP2P_FILE_TOPIC ?? DEFAULT_FILE_TOPIC).trim() || DEFAULT_FILE_TOPIC
+
+const ARCHIVAL_BOOTSTRAP_ADDRS = (process.env.LIBP2P_ARCHIVAL_BOOTSTRAP_ADDRS ?? '').trim()
+const DEFAULT_BOOTSTRAP_ADDRS = (process.env.NEXT_PUBLIC_LOCAL_RELAY_ADDRS ?? '').trim()
 
 const parseEncodedKey = (value, uint8ArrayFromString) => {
   const cleaned = (value ?? '').trim()
@@ -208,109 +182,6 @@ const decodeZeroWidth = (value) => {
   }
 }
 
-const unwrapMeetredMessage = (raw) => {
-  try {
-    const decoded = decodeZeroWidth(raw) ?? raw
-    const parsed = JSON.parse(decoded)
-
-    if (parsed?.payload?.message && typeof parsed.payload.message === 'string') {
-      return parsed.payload.message
-    }
-  } catch {
-    // ignore invalid payloads
-  }
-
-  return null
-}
-
-const parseInvite = (message) => {
-  try {
-    const parsed = JSON.parse(message)
-
-    if (parsed?.type === 'meeting_invite' && typeof parsed.roomId === 'string') {
-      return { roomType: 'call', roomId: parsed.roomId }
-    }
-
-    if (parsed?.type === 'stream_invite' && typeof parsed.hostPeerId === 'string') {
-      return { roomType: 'stream', roomId: parsed.hostPeerId }
-    }
-
-    if (parsed?.type === 'agent_invite' && typeof parsed.agentPeerId === 'string') {
-      return { roomType: 'ai', roomId: parsed.agentPeerId }
-    }
-  } catch {
-    // ignore non-invite payloads
-  }
-
-  return null
-}
-
-const parseStreamChat = (message) => {
-  try {
-    const parsed = JSON.parse(message)
-
-    if (parsed?.type === 'stream_chat' && parsed?.app === STREAM_APP_ID && typeof parsed.streamId === 'string') {
-      return { roomType: 'stream', roomId: parsed.streamId }
-    }
-  } catch {
-    // ignore malformed payloads
-  }
-
-  return null
-}
-
-const parseAnalyticsEnvelope = (raw) => {
-  try {
-    const decoded = decodeZeroWidth(raw) ?? raw
-    const parsed = JSON.parse(decoded)
-
-    if (parsed?.type === ANALYTICS_WRAPPER && parsed?.app === ANALYTICS_APP_ID && parsed?.payload) {
-      return parsed.payload
-    }
-  } catch {
-    // ignore malformed analytics payloads
-  }
-
-  return null
-}
-
-const parseSignalEnvelope = (raw) => {
-  try {
-    const decoded = decodeZeroWidth(raw) ?? raw
-    const parsed = JSON.parse(decoded)
-
-    if (parsed?.type === STREAM_SIGNAL_WRAPPER && parsed?.app === STREAM_SIGNAL_APP_ID) {
-      return { kind: 'stream', payload: parsed.payload }
-    }
-
-    if (parsed?.type === CALL_SIGNAL_WRAPPER && parsed?.app === CALL_SIGNAL_APP_ID) {
-      return { kind: 'call', payload: parsed.payload }
-    }
-
-    if (parsed?.type === AGENT_SIGNAL_WRAPPER && parsed?.app === AGENT_SIGNAL_APP_ID) {
-      return { kind: 'agent', payload: parsed.payload }
-    }
-  } catch {
-    // ignore malformed signal envelopes
-  }
-
-  return null
-}
-
-const parseAgentChat = (message) => {
-  try {
-    const parsed = JSON.parse(message)
-
-    if (parsed?.type === 'agent_chat' && parsed?.app === AGENT_APP_ID && typeof parsed.agentPeerId === 'string') {
-      return { roomType: 'ai', roomId: parsed.agentPeerId }
-    }
-  } catch {
-    // ignore malformed payloads
-  }
-
-  return null
-}
-
 const loadOrCreateKey = async (
   { generateKeyPair, privateKeyFromProtobuf, privateKeyToProtobuf, uint8ArrayFromString },
   keyPath,
@@ -359,61 +230,11 @@ const shouldSkipArchival = () => {
   return false
 }
 
-const createMetricsServer = (state) =>
-  http.createServer((req, res) => {
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      })
-      res.end()
-      return
-    }
-
-    if (req.method !== 'GET') {
-      res.writeHead(405)
-      res.end()
-      return
-    }
-
-    if (req.url !== '/metrics') {
-      res.writeHead(404)
-      res.end()
-      return
-    }
-
-    const payload = {
-      startedAt: state.startedAt,
-      peerId: state.peerId,
-      topics: state.topics,
-      onlinePeers: {
-        count: state.onlinePeers.size,
-        byTopic: state.onlinePeersByTopic,
-      },
-      counters: state.counters,
-      roomTypes: state.roomTypes,
-      invites: state.invites,
-      analytics: state.analytics,
-      uptimeMs: Date.now() - state.startedAt,
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    })
-    res.end(JSON.stringify(payload))
-  })
-
 const createArchivalNode = async (options = {}) => {
   const modules = await loadLibp2pModules()
   const host = getHost(options.host)
   const port = getPort(options.port)
   const keyPath = getKeyPath(options.keyPath)
-  const metricsHost = getMetricsHost(options.metricsHost, host)
-  const metricsPort = getMetricsPort(options.metricsPort)
   const privateKey = await loadOrCreateKey(modules, keyPath)
 
   const node = await modules.createLibp2p({
@@ -441,274 +262,35 @@ const createArchivalNode = async (options = {}) => {
     ],
   })
 
-  node.services.pubsub.subscribe(DISCOVERY_TOPIC)
-  node.services.pubsub.subscribe(CHAT_TOPIC)
-
   const state = {
     startedAt: Date.now(),
     peerId: node.peerId.toString(),
     topics: [CHAT_TOPIC, FILE_TOPIC, DISCOVERY_TOPIC],
-    counters: {
-      totalMessages: 0,
-      byTopic: {},
-    },
-    roomTypes: {
-      messagesByType: {
-        public: 0,
-        stream: 0,
-        ai: 0,
-        call: 0,
-      },
-      messagesByRoom: {},
-    },
-    invites: {
-      total: 0,
-      byType: {
-        stream: 0,
-        call: 0,
-        ai: 0,
-      },
-      byRoom: {},
-    },
-    analytics: {
-      chatMessages: {
-        total: 0,
-        byRoomType: {},
-      },
-      invites: {
-        total: 0,
-        byRoomType: {},
-      },
-      agentChat: {
-        total: 0,
-        byVariant: { user: 0, model: 0 },
-        byProvider: {},
-        byModel: {},
-        byRoom: {},
-      },
-      streamChat: {
-        total: 0,
-        byRoom: {},
-      },
-      streamSessions: {
-        activeByPeer: {},
-        totalMsByPeer: {},
-        totalMsByRoom: {},
-      },
-      billing: {
-        freeMinutes: 0,
-        paidMinutes: 0,
-        byPeer: {},
-      },
-      streamMinutes: {
-        total: 0,
-        freeTotal: 0,
-        paidTotal: 0,
-        byRoom: {},
-        byRoomFree: {},
-        byRoomPaid: {},
-      },
-      signals: {
-        total: 0,
-        byType: {},
-      },
-    },
-    sessionStarts: {},
-    onlinePeers: new Set(),
-    onlinePeersByTopic: {},
+    logs: [],
   }
 
   for (const topic of state.topics) {
     node.services.pubsub.subscribe(topic)
   }
 
-  const handleAnalyticsEvent = (payload) => {
-    if (!payload?.event) {
-      return
-    }
-
-    const event = payload.event
-    const roomType = payload.roomType || 'unknown'
-    const roomId = payload.roomId || 'unknown'
-    const peerId = payload.peerId || 'unknown'
-
-    if (event === 'chat_message_sent') {
-      state.analytics.chatMessages.total += 1
-      state.analytics.chatMessages.byRoomType[roomType] = (state.analytics.chatMessages.byRoomType[roomType] ?? 0) + 1
-      return
-    }
-
-    if (event === 'invite_sent') {
-      state.analytics.invites.total += 1
-      state.analytics.invites.byRoomType[roomType] = (state.analytics.invites.byRoomType[roomType] ?? 0) + 1
-      return
-    }
-
-    if (event === 'agent_chat_message') {
-      const variant = payload.variant === 'model' ? 'model' : 'user'
-      state.analytics.agentChat.total += 1
-      state.analytics.agentChat.byVariant[variant] = (state.analytics.agentChat.byVariant[variant] ?? 0) + 1
-      state.analytics.agentChat.byRoom[roomId] = state.analytics.agentChat.byRoom[roomId] ?? {
-        total: 0,
-        provider: null,
-        modelId: null,
-      }
-      state.analytics.agentChat.byRoom[roomId].total += 1
-      if (payload.provider) {
-        state.analytics.agentChat.byRoom[roomId].provider = payload.provider
-      }
-      if (payload.modelId) {
-        state.analytics.agentChat.byRoom[roomId].modelId = payload.modelId
-      }
-      if (payload.provider) {
-        state.analytics.agentChat.byProvider[payload.provider] =
-          (state.analytics.agentChat.byProvider[payload.provider] ?? 0) + 1
-      }
-      if (payload.modelId) {
-        state.analytics.agentChat.byModel[payload.modelId] =
-          (state.analytics.agentChat.byModel[payload.modelId] ?? 0) + 1
-      }
-      return
-    }
-
-    if (event === 'stream_chat_message') {
-      state.analytics.streamChat.total += 1
-      state.analytics.streamChat.byRoom[roomId] = (state.analytics.streamChat.byRoom[roomId] ?? 0) + 1
-      return
-    }
-
-    if (event === 'stream_started' || event === 'stream_viewer_started') {
-      const role = payload.role ?? (event === 'stream_started' ? 'host' : 'viewer')
-      const key = `${role}:${roomId}:${peerId}`
-      state.sessionStarts[key] = payload.timestamp ?? Date.now()
-      state.analytics.streamSessions.activeByPeer[peerId] =
-        (state.analytics.streamSessions.activeByPeer[peerId] ?? 0) + 1
-      return
-    }
-
-    if (event === 'stream_ended' || event === 'stream_viewer_ended') {
-      const role = payload.role ?? (event === 'stream_ended' ? 'host' : 'viewer')
-      const key = `${role}:${roomId}:${peerId}`
-      const startedAt = state.sessionStarts[key]
-      if (startedAt) {
-        const durationMs = Math.max(0, (payload.timestamp ?? Date.now()) - startedAt)
-        delete state.sessionStarts[key]
-        state.analytics.streamSessions.totalMsByPeer[peerId] =
-          (state.analytics.streamSessions.totalMsByPeer[peerId] ?? 0) + durationMs
-        state.analytics.streamSessions.totalMsByRoom[roomId] =
-          (state.analytics.streamSessions.totalMsByRoom[roomId] ?? 0) + durationMs
-      }
-      state.analytics.streamSessions.activeByPeer[peerId] = Math.max(
-        0,
-        (state.analytics.streamSessions.activeByPeer[peerId] ?? 1) - 1,
-      )
-      return
-    }
-
-    if (event === 'billing_minute') {
-      const minutes = typeof payload.minutes === 'number' ? payload.minutes : 1
-      if (payload.isFree) {
-        state.analytics.billing.freeMinutes += minutes
-      } else {
-        state.analytics.billing.paidMinutes += minutes
-      }
-      state.analytics.billing.byPeer[peerId] = (state.analytics.billing.byPeer[peerId] ?? 0) + minutes
-      return
-    }
-
-    if (event === 'stream_minute') {
-      const minutes = typeof payload.minutes === 'number' ? payload.minutes : 1
-      state.analytics.streamMinutes.total += minutes
-      state.analytics.streamMinutes.byRoom[roomId] = (state.analytics.streamMinutes.byRoom[roomId] ?? 0) + minutes
-
-      if (payload.isFree) {
-        state.analytics.streamMinutes.freeTotal += minutes
-        state.analytics.streamMinutes.byRoomFree[roomId] =
-          (state.analytics.streamMinutes.byRoomFree[roomId] ?? 0) + minutes
-      } else {
-        state.analytics.streamMinutes.paidTotal += minutes
-        state.analytics.streamMinutes.byRoomPaid[roomId] =
-          (state.analytics.streamMinutes.byRoomPaid[roomId] ?? 0) + minutes
-      }
-    }
-  }
-
   node.services.pubsub.addEventListener('message', (event) => {
-    const topic = event.detail.topic
-    state.counters.totalMessages += 1
-    state.counters.byTopic[topic] = (state.counters.byTopic[topic] ?? 0) + 1
-
     const raw = event.detail.data ? new TextDecoder().decode(event.detail.data) : ''
-
-    const analyticsPayload = parseAnalyticsEnvelope(raw)
-    if (analyticsPayload) {
-      handleAnalyticsEvent(analyticsPayload)
-      return
+    const decoded = decodeZeroWidth(raw) ?? raw
+    const entry = {
+      timestamp: Date.now(),
+      topic: event.detail.topic,
+      from: event.detail.from?.toString?.(),
+      size: event.detail.data?.length ?? 0,
+      raw,
+      decoded,
     }
 
-    const signalEnvelope = parseSignalEnvelope(raw)
-    if (signalEnvelope) {
-      state.analytics.signals.total += 1
-      state.analytics.signals.byType[signalEnvelope.kind] =
-        (state.analytics.signals.byType[signalEnvelope.kind] ?? 0) + 1
-      return
-    }
+    state.logs.push(entry)
 
-    const decodedRaw = decodeZeroWidth(raw) ?? raw
-    const meetredMessage = unwrapMeetredMessage(raw)
-    const invite = meetredMessage ? parseInvite(meetredMessage) : null
-    const streamChat = parseStreamChat(decodedRaw)
-    const agentChat = parseAgentChat(decodedRaw)
-
-    if (invite) {
-      state.invites.total += 1
-      state.invites.byType[invite.roomType] = (state.invites.byType[invite.roomType] ?? 0) + 1
-      state.invites.byRoom[invite.roomId] = (state.invites.byRoom[invite.roomId] ?? 0) + 1
-    }
-
-    if (streamChat) {
-      state.roomTypes.messagesByType.stream += 1
-      state.roomTypes.messagesByRoom[streamChat.roomId] = (state.roomTypes.messagesByRoom[streamChat.roomId] ?? 0) + 1
-      return
-    }
-
-    if (agentChat) {
-      state.roomTypes.messagesByType.ai += 1
-      state.roomTypes.messagesByRoom[agentChat.roomId] = (state.roomTypes.messagesByRoom[agentChat.roomId] ?? 0) + 1
-      return
-    }
-
-    if (invite?.roomType === 'call') {
-      state.roomTypes.messagesByType.call += 1
-      return
-    }
-
-    if (topic === CHAT_TOPIC && meetredMessage) {
-      state.roomTypes.messagesByType.public += 1
+    if (state.logs.length > LOG_LIMIT) {
+      state.logs.splice(0, state.logs.length - LOG_LIMIT)
     }
   })
-
-  const updateOnlinePeers = () => {
-    const online = new Set()
-    const byTopic = {}
-
-    state.topics.forEach((topic) => {
-      const subscribers = node.services.pubsub.getSubscribers?.(topic) ?? []
-      const ids = subscribers.map((peer) => peer.toString())
-      byTopic[topic] = ids.length
-      ids.forEach((id) => online.add(id))
-    })
-
-    state.onlinePeers = online
-    state.onlinePeersByTopic = byTopic
-  }
-
-  updateOnlinePeers()
-  const onlineInterval = setInterval(updateOnlinePeers, 5_000)
-
-  const metricsServer = createMetricsServer(state)
-
-  await new Promise((resolve) => metricsServer.listen(metricsPort, metricsHost, resolve))
 
   const bootstrapAddrs = parseBootstrapAddrs()
 
@@ -719,7 +301,8 @@ const createArchivalNode = async (options = {}) => {
       console.warn('[archival] failed to dial bootstrap addr', addr, error?.message ?? error)
     }
   }
-  return { node, metricsServer, onlineInterval }
+
+  return { node, state }
 }
 
 let instancePromise
@@ -746,12 +329,6 @@ async function stopArchivalNode() {
 
   try {
     const instance = await instancePromise
-    if (instance?.metricsServer) {
-      await new Promise((resolve) => instance.metricsServer.close(resolve))
-    }
-    if (instance?.onlineInterval) {
-      clearInterval(instance.onlineInterval)
-    }
     if (instance?.node) {
       await instance.node.stop()
     }
